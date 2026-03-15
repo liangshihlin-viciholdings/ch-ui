@@ -47,3 +47,7 @@ playwright-results.xml
 playwright-results.json
 test-results/
 playwright/.cache/
+
+# Dolt database files (added by bd init)
+.dolt/
+*.db
