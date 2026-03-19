@@ -9,7 +9,7 @@ bd ready              # Find available work
 bd show <id>          # View issue details
 bd update <id> --claim  # Claim work atomically
 bd close <id>         # Complete work
-bd dolt push          # Push beads data to remote
+bd sync               # Sync with git
 ```
 
 ## Non-Interactive Shell Commands
@@ -44,7 +44,7 @@ cp -rf source dest          # NOT: cp -r source dest
 ### Why bd?
 
 - Dependency-aware: Track blockers and relationships between issues
-- Version-controlled: Built on Dolt with cell-level merge
+- Git-friendly: Auto-syncs to JSONL for version control
 - Agent-optimized: JSON output, ready work detection, discovered-from links
 - Prevents duplicate tracking systems and confusion
 
@@ -121,6 +121,8 @@ bd automatically syncs with git:
 
 For more details, see README.md and docs/QUICKSTART.md.
 
+<!-- END BEADS INTEGRATION -->
+
 ## Landing the Plane (Session Completion)
 
 **When ending a work session**, you MUST complete ALL steps below. Work is NOT complete until `git push` succeeds.
@@ -133,7 +135,7 @@ For more details, see README.md and docs/QUICKSTART.md.
 4. **PUSH TO REMOTE** - This is MANDATORY:
    ```bash
    git pull --rebase
-   bd dolt push
+   bd sync
    git push
    git status  # MUST show "up to date with origin"
    ```
@@ -146,5 +148,3 @@ For more details, see README.md and docs/QUICKSTART.md.
 - NEVER stop before pushing - that leaves work stranded locally
 - NEVER say "ready to push when you are" - YOU must push
 - If push fails, resolve and retry until it succeeds
-
-<!-- END BEADS INTEGRATION -->
