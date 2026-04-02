@@ -118,6 +118,45 @@ export const isCreateOrInsert = (query: string) => {
 };
 
 /**
+ * Extracts SET param_xxx = 'value' statements from SQL and returns
+ * the cleaned query (without those lines) plus a query_params map for
+ * the ClickHouse client SDK.
+ *
+ * ClickHouse supports parameterized queries via {paramName: Type} placeholders.
+ * In the HTTP interface each request is a separate session, so SET param_xxx
+ * statements in one request don't carry over to the next. This helper extracts
+ * them client-side and returns them for use as query_params on the SDK call.
+ */
+export function extractQueryParams(query: string): {
+  cleanedQuery: string;
+  queryParams: Record<string, string>;
+} {
+  const params: Record<string, string> = {};
+  const setParamRegex = /^\s*SET\s+param_(\w+)\s*=\s*(.+)$/gim;
+
+  let match;
+  while ((match = setParamRegex.exec(query)) !== null) {
+    const paramName = match[1];
+    let paramValue = match[2].trim().replace(/;\s*$/, '');
+    if (
+      (paramValue.startsWith("'") && paramValue.endsWith("'")) ||
+      (paramValue.startsWith('"') && paramValue.endsWith('"'))
+    ) {
+      paramValue = paramValue.slice(1, -1);
+    }
+    params[paramName] = paramValue;
+  }
+
+  const cleanedQuery = query
+    .split('\n')
+    .filter(line => !/^\s*SET\s+param_\w+\s*=/i.test(line))
+    .join('\n')
+    .trim();
+
+  return { cleanedQuery, queryParams: params };
+}
+
+/**
  * Detects if a query is an EXPLAIN query
  */
 export function isExplainQuery(query: string): boolean {

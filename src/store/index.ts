@@ -11,7 +11,7 @@ import {
   MultiQueryResult,
 } from "@/types/common";
 import { createClient } from "@clickhouse/client-web";
-import { isCreateOrInsert, isExplainQuery, isJsonExplain } from "@/helpers/sqlUtils";
+import { isCreateOrInsert, isExplainQuery, isJsonExplain, extractQueryParams } from "@/helpers/sqlUtils";
 import { ExplainParser } from "@/features/workspace/explain/parser";
 import { OverflowMode } from "@clickhouse/client-common/dist/settings";
 import { toast } from "sonner";
@@ -390,10 +390,27 @@ const useAppStore = create<AppState>()(
           }
           try {
             const trimmedQuery = query.trim();
+            const { cleanedQuery, queryParams } = extractQueryParams(trimmedQuery);
+            const queryToRun = cleanedQuery || trimmedQuery;
+            const hasQueryParams = Object.keys(queryParams).length > 0;
 
-            if (isCreateOrInsert(trimmedQuery)) {
+            // If the entire query was SET param_ statements, nothing to run
+            if (!queryToRun) {
+              const result: QueryResult = {
+                meta: [],
+                data: [],
+                statistics: { elapsed: 0, rows_read: 0, bytes_read: 0 },
+                rows: 0,
+                error: null,
+              };
+              if (tabId)
+                await get().updateTab(tabId, { result, isLoading: false, error: null });
+              return result;
+            }
+
+            if (isCreateOrInsert(queryToRun)) {
               await clickHouseClient.command({
-                query: trimmedQuery,
+                query: queryToRun,
                 abort_signal: abortController.signal,
               });
               const result: QueryResult = {
@@ -413,7 +430,8 @@ const useAppStore = create<AppState>()(
             }
 
             const result = await clickHouseClient.query({
-              query: trimmedQuery,
+              query: queryToRun,
+              ...(hasQueryParams && { query_params: queryParams }),
               abort_signal: abortController.signal,
             });
 
@@ -521,6 +539,7 @@ const useAppStore = create<AppState>()(
           }));
 
           const results: MultiQueryResult[] = [];
+          const accumulatedParams: Record<string, string> = {};
 
           for (let i = 0; i < queries.length; i++) {
             if (abortController.signal.aborted) break;
@@ -530,11 +549,19 @@ const useAppStore = create<AppState>()(
               const trimmedQuery = query.trim();
               if (!trimmedQuery) continue;
 
+              const { cleanedQuery, queryParams } = extractQueryParams(trimmedQuery);
+              Object.assign(accumulatedParams, queryParams);
+              const queryToRun = cleanedQuery || trimmedQuery;
+              const hasQueryParams = Object.keys(accumulatedParams).length > 0;
+
+              // Skip if only SET param_ statements with nothing left to run
+              if (!queryToRun) continue;
+
               let queryResult: QueryResult;
 
-              if (isCreateOrInsert(trimmedQuery)) {
+              if (isCreateOrInsert(queryToRun)) {
                 await clickHouseClient.command({
-                  query: trimmedQuery,
+                  query: queryToRun,
                   abort_signal: abortController.signal,
                 });
                 queryResult = {
@@ -544,9 +571,10 @@ const useAppStore = create<AppState>()(
                   rows: 0,
                   error: null,
                 };
-              } else if (isExplainQuery(trimmedQuery) && !isJsonExplain(trimmedQuery)) {
+              } else if (isExplainQuery(queryToRun) && !isJsonExplain(queryToRun)) {
                 const result = await clickHouseClient.query({
-                  query: trimmedQuery,
+                  query: queryToRun,
+                  ...(hasQueryParams && { query_params: { ...accumulatedParams } }),
                   abort_signal: abortController.signal,
                 });
                 const textResult = await result.text();
@@ -567,11 +595,12 @@ const useAppStore = create<AppState>()(
                   rows: syntheticJson.rows,
                   error: null,
                 };
-                const explainResult = ExplainParser.parse(trimmedQuery, syntheticJson);
+                const explainResult = ExplainParser.parse(queryToRun, syntheticJson);
                 queryResult.explainResult = explainResult;
               } else {
                 const result = await clickHouseClient.query({
-                  query: trimmedQuery,
+                  query: queryToRun,
+                  ...(hasQueryParams && { query_params: { ...accumulatedParams } }),
                   abort_signal: abortController.signal,
                 });
                 const jsonResult = (await result.json()) as any;
@@ -587,8 +616,8 @@ const useAppStore = create<AppState>()(
                   error: null,
                 };
 
-                if (isExplainQuery(trimmedQuery)) {
-                  queryResult.explainResult = ExplainParser.parse(trimmedQuery, jsonResult);
+                if (isExplainQuery(queryToRun)) {
+                  queryResult.explainResult = ExplainParser.parse(queryToRun, jsonResult);
                 }
               }
 
