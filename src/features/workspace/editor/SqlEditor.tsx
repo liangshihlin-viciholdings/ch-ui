@@ -156,11 +156,23 @@ const SQLEditor: React.FC<SQLEditorProps> = ({ tabId, onRunQuery, onRunAllQuerie
 
   const handleRunQuery = useCallback(() => {
     const content = getCurrentQuery();
-    if (content.trim()) {
-      onRunQuery(content);
-    } else {
+    if (!content.trim()) {
       toast.error("Please enter a query to run");
+      return;
     }
+
+    // Collect SET param_xxx lines from the full editor so parameterized
+    // queries work when only the current block is run.
+    const fullContent = monacoRef.current?.getValue() ?? '';
+    const setParamLines = fullContent
+      .split('\n')
+      .filter(line => /^\s*SET\s+param_\w+\s*=/i.test(line));
+
+    const queryToRun = setParamLines.length > 0
+      ? setParamLines.join('\n') + '\n' + content
+      : content;
+
+    onRunQuery(queryToRun);
   }, [onRunQuery, getCurrentQuery]);
 
   const handleRunAllQueries = useCallback(() => {
