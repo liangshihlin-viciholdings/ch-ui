@@ -15,6 +15,9 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    sourcemap: true,
+  },
   define: {
     __CH_UI_VERSION__: JSON.stringify(pkg.version),
   },
