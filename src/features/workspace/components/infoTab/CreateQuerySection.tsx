@@ -22,7 +22,7 @@ const CreateQuerySection: React.FC<CreateQuerySectionProps> = ({ data }) => {
   // Memoize the formatted query to optimize performance
   const formattedQuery = useMemo(() => {
     try {
-      return format(data.create_table_query, { language: "sql" });
+      return format(data.create_table_query, { language: "clickhouse" });
     } catch (error) {
       console.error("Error formatting SQL query:", error);
       return data.create_table_query; // Fallback to raw query if formatting fails
