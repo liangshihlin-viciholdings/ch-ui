@@ -214,10 +214,9 @@ const useAppStore = create<AppState>()(
         setCredential: async (credential: Credential) => {
           set({ credential, isLoadingCredentials: true, error: "" });
           try {
-            const connectionUrl = buildConnectionUrl(credential);
             const client = createClient({
-              url: connectionUrl,
-              pathname: credential.customPath, // Use custom path for proxy
+              url: credential.url.replace(/\/+$/, ""),
+              pathname: credential.useAdvanced ? credential.customPath : undefined,
               username: credential.username,
               password: credential.password || "",
               request_timeout: credential.requestTimeout || 30000,
@@ -263,10 +262,9 @@ const useAppStore = create<AppState>()(
         updateConfiguration: async (clickhouseSettings: ClickHouseSettings) => {
           try {
             const credentials = get().credential;
-            const connectionUrl = buildConnectionUrl(credentials);
             const client = createClient({
-              url: connectionUrl,
-              pathname: credentials.customPath, // Ensure custom path is applied
+              url: credentials.url.replace(/\/+$/, ""),
+              pathname: credentials.useAdvanced ? credentials.customPath : undefined,
               username: credentials.username,
               password: credentials.password || "",
               request_timeout: credentials.requestTimeout || 30000,
