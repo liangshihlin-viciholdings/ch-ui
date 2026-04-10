@@ -37,6 +37,36 @@ const DARK_THEMES = [
     label: "Tokyo Night",
     colors: ["#7AA2F7", "#BB9AF7", "#7DCFFF"],
   },
+  {
+    value: "monokai-pro",
+    label: "Monokai Pro",
+    colors: ["#FF6188", "#A9DC76", "#FFD866"],
+  },
+  {
+    value: "solarized-dark",
+    label: "Solarized Dark",
+    colors: ["#268BD2", "#2AA198", "#B58900"],
+  },
+  {
+    value: "catppuccin-mocha",
+    label: "Catppuccin Mocha",
+    colors: ["#CBA6F7", "#F38BA8", "#89B4FA"],
+  },
+  {
+    value: "ayu-dark",
+    label: "Ayu Dark",
+    colors: ["#FF8F40", "#59C2FF", "#AAD94C"],
+  },
+  {
+    value: "kanso",
+    label: "Kansō",
+    colors: ["#7E9CD8", "#957FB8", "#C0A36E"],
+  },
+  {
+    value: "catppuccin-frappe",
+    label: "Catppuccin Frappé",
+    colors: ["#CA9EE6", "#E78284", "#8CAAEE"],
+  },
 ] as const;
 
 const LIGHT_THEMES = [
@@ -59,6 +89,21 @@ const LIGHT_THEMES = [
     value: "one-light",
     label: "One Light",
     colors: ["#4078F2", "#C18401", "#50A14F"],
+  },
+  {
+    value: "solarized-light",
+    label: "Solarized Light",
+    colors: ["#268BD2", "#2AA198", "#B58900"],
+  },
+  {
+    value: "ayu-light",
+    label: "Ayu Light",
+    colors: ["#FF9940", "#399EE6", "#86B300"],
+  },
+  {
+    value: "rose-pine-dawn",
+    label: "Rosé Pine Dawn",
+    colors: ["#907AA9", "#B4637A", "#286983"],
   },
 ] as const;
 

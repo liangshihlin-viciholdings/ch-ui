@@ -264,16 +264,313 @@ const oneLightTheme: MonacoThemeData = {
   },
 };
 
+// Monokai Pro Theme
+const monokaiProTheme: MonacoThemeData = {
+  base: "vs-dark",
+  inherit: true,
+  rules: [
+    { background: "2D2A2E", token: "" },
+    { foreground: "727072", token: "comment" },
+    { foreground: "FFD866", token: "string" },
+    { foreground: "AB9DF2", token: "constant.numeric" },
+    { foreground: "FF6188", token: "keyword" },
+    { foreground: "FF6188", token: "storage" },
+    { foreground: "78DCE8", fontStyle: "italic", token: "storage.type" },
+    { foreground: "A9DC76", token: "entity.name.class" },
+    { foreground: "A9DC76", token: "entity.name.function" },
+    { foreground: "FF6188", token: "entity.name.tag" },
+    { foreground: "78DCE8", token: "entity.other.attribute-name" },
+    { foreground: "A9DC76", token: "support.function" },
+    { foreground: "AB9DF2", token: "predefined" },
+    { foreground: "FC9867", token: "constant.character.escape" },
+  ],
+  colors: {
+    "editor.foreground": "#FCFCFA",
+    "editor.background": "#2D2A2E",
+    "editor.selectionBackground": "#403E41",
+    "editor.lineHighlightBackground": "#353236",
+    "editorCursor.foreground": "#FCFCFA",
+    "editorWhitespace.foreground": "#403E41",
+    "editorLineNumber.foreground": "#727072",
+    "editorLineNumber.activeForeground": "#FCFCFA",
+  },
+};
+
+// Solarized Dark Theme
+const solarizedDarkTheme: MonacoThemeData = {
+  base: "vs-dark",
+  inherit: true,
+  rules: [
+    { background: "002B36", token: "" },
+    { foreground: "586E75", token: "comment" },
+    { foreground: "2AA198", token: "string" },
+    { foreground: "D33682", token: "constant.numeric" },
+    { foreground: "859900", token: "keyword" },
+    { foreground: "859900", token: "storage" },
+    { foreground: "268BD2", token: "storage.type" },
+    { foreground: "B58900", token: "entity.name.class" },
+    { foreground: "268BD2", token: "entity.name.function" },
+    { foreground: "268BD2", token: "entity.name.tag" },
+    { foreground: "B58900", token: "entity.other.attribute-name" },
+    { foreground: "268BD2", token: "support.function" },
+    { foreground: "6C71C4", token: "predefined" },
+    { foreground: "CB4B16", token: "constant.character.escape" },
+  ],
+  colors: {
+    "editor.foreground": "#839496",
+    "editor.background": "#002B36",
+    "editor.selectionBackground": "#073642",
+    "editor.lineHighlightBackground": "#073642",
+    "editorCursor.foreground": "#839496",
+    "editorWhitespace.foreground": "#073642",
+    "editorLineNumber.foreground": "#586E75",
+    "editorLineNumber.activeForeground": "#93A1A1",
+  },
+};
+
+// Catppuccin Mocha Theme
+const catppuccinMochaTheme: MonacoThemeData = {
+  base: "vs-dark",
+  inherit: true,
+  rules: [
+    { background: "1E1E2E", token: "" },
+    { foreground: "6C7086", token: "comment" },
+    { foreground: "A6E3A1", token: "string" },
+    { foreground: "FAB387", token: "constant.numeric" },
+    { foreground: "CBA6F7", token: "keyword" },
+    { foreground: "CBA6F7", token: "storage" },
+    { foreground: "89B4FA", token: "storage.type" },
+    { foreground: "F9E2AF", token: "entity.name.class" },
+    { foreground: "89B4FA", token: "entity.name.function" },
+    { foreground: "94E2D5", token: "entity.name.tag" },
+    { foreground: "F9E2AF", token: "entity.other.attribute-name" },
+    { foreground: "74C7EC", token: "support.function" },
+    { foreground: "89B4FA", token: "predefined" },
+    { foreground: "F38BA8", token: "constant.character.escape" },
+  ],
+  colors: {
+    "editor.foreground": "#CDD6F4",
+    "editor.background": "#1E1E2E",
+    "editor.selectionBackground": "#45475A",
+    "editor.lineHighlightBackground": "#313244",
+    "editorCursor.foreground": "#F5E0DC",
+    "editorWhitespace.foreground": "#45475A",
+    "editorLineNumber.foreground": "#6C7086",
+    "editorLineNumber.activeForeground": "#CDD6F4",
+  },
+};
+
+// Ayu Dark Theme
+const ayuDarkTheme: MonacoThemeData = {
+  base: "vs-dark",
+  inherit: true,
+  rules: [
+    { background: "0A0E14", token: "" },
+    { foreground: "626A73", token: "comment" },
+    { foreground: "AAD94C", token: "string" },
+    { foreground: "D2A6FF", token: "constant.numeric" },
+    { foreground: "FF8F40", token: "keyword" },
+    { foreground: "FF8F40", token: "storage" },
+    { foreground: "39BAE6", token: "storage.type" },
+    { foreground: "59C2FF", token: "entity.name.class" },
+    { foreground: "FFB454", token: "entity.name.function" },
+    { foreground: "39BAE6", token: "entity.name.tag" },
+    { foreground: "59C2FF", token: "entity.other.attribute-name" },
+    { foreground: "FFB454", token: "support.function" },
+    { foreground: "E6B673", token: "predefined" },
+    { foreground: "95E6CB", token: "constant.character.escape" },
+  ],
+  colors: {
+    "editor.foreground": "#B3B1AD",
+    "editor.background": "#0A0E14",
+    "editor.selectionBackground": "#273747",
+    "editor.lineHighlightBackground": "#11151C",
+    "editorCursor.foreground": "#E6B450",
+    "editorWhitespace.foreground": "#2D3640",
+    "editorLineNumber.foreground": "#3D424D",
+    "editorLineNumber.activeForeground": "#B3B1AD",
+  },
+};
+
+// Kansō Theme (Kanagawa-inspired zen)
+const kansoTheme: MonacoThemeData = {
+  base: "vs-dark",
+  inherit: true,
+  rules: [
+    { background: "101010", token: "" },
+    { foreground: "727169", token: "comment" },
+    { foreground: "98BB6C", token: "string" },
+    { foreground: "D27E99", token: "constant.numeric" },
+    { foreground: "957FB8", token: "keyword" },
+    { foreground: "957FB8", token: "storage" },
+    { foreground: "7E9CD8", token: "storage.type" },
+    { foreground: "C0A36E", token: "entity.name.class" },
+    { foreground: "7E9CD8", token: "entity.name.function" },
+    { foreground: "7FB4CA", token: "entity.name.tag" },
+    { foreground: "C0A36E", token: "entity.other.attribute-name" },
+    { foreground: "7E9CD8", token: "support.function" },
+    { foreground: "957FB8", token: "predefined" },
+    { foreground: "E6C384", token: "constant.character.escape" },
+  ],
+  colors: {
+    "editor.foreground": "#DCD7BA",
+    "editor.background": "#101010",
+    "editor.selectionBackground": "#2D4F67",
+    "editor.lineHighlightBackground": "#1A1A1A",
+    "editorCursor.foreground": "#C8C093",
+    "editorWhitespace.foreground": "#2A2A2A",
+    "editorLineNumber.foreground": "#54546D",
+    "editorLineNumber.activeForeground": "#C8C093",
+  },
+};
+
+// Catppuccin Frappé Theme
+const catppuccinFrappeTheme: MonacoThemeData = {
+  base: "vs-dark",
+  inherit: true,
+  rules: [
+    { background: "303446", token: "" },
+    { foreground: "737994", token: "comment" },
+    { foreground: "A6D189", token: "string" },
+    { foreground: "EF9F76", token: "constant.numeric" },
+    { foreground: "CA9EE6", token: "keyword" },
+    { foreground: "CA9EE6", token: "storage" },
+    { foreground: "8CAAEE", token: "storage.type" },
+    { foreground: "E5C890", token: "entity.name.class" },
+    { foreground: "8CAAEE", token: "entity.name.function" },
+    { foreground: "81C8BE", token: "entity.name.tag" },
+    { foreground: "E5C890", token: "entity.other.attribute-name" },
+    { foreground: "85C1DC", token: "support.function" },
+    { foreground: "8CAAEE", token: "predefined" },
+    { foreground: "E78284", token: "constant.character.escape" },
+  ],
+  colors: {
+    "editor.foreground": "#C6D0F5",
+    "editor.background": "#303446",
+    "editor.selectionBackground": "#51576D",
+    "editor.lineHighlightBackground": "#414559",
+    "editorCursor.foreground": "#F2D5CF",
+    "editorWhitespace.foreground": "#51576D",
+    "editorLineNumber.foreground": "#737994",
+    "editorLineNumber.activeForeground": "#C6D0F5",
+  },
+};
+
+// Solarized Light Theme
+const solarizedLightTheme: MonacoThemeData = {
+  base: "vs",
+  inherit: true,
+  rules: [
+    { background: "FDF6E3", token: "" },
+    { foreground: "93A1A1", token: "comment" },
+    { foreground: "2AA198", token: "string" },
+    { foreground: "D33682", token: "constant.numeric" },
+    { foreground: "859900", token: "keyword" },
+    { foreground: "859900", token: "storage" },
+    { foreground: "268BD2", token: "storage.type" },
+    { foreground: "B58900", token: "entity.name.class" },
+    { foreground: "268BD2", token: "entity.name.function" },
+    { foreground: "268BD2", token: "entity.name.tag" },
+    { foreground: "B58900", token: "entity.other.attribute-name" },
+    { foreground: "268BD2", token: "support.function" },
+    { foreground: "6C71C4", token: "predefined" },
+    { foreground: "CB4B16", token: "constant.character.escape" },
+  ],
+  colors: {
+    "editor.foreground": "#657B83",
+    "editor.background": "#FDF6E3",
+    "editor.selectionBackground": "#EEE8D5",
+    "editor.lineHighlightBackground": "#EEE8D5",
+    "editorCursor.foreground": "#657B83",
+    "editorWhitespace.foreground": "#EEE8D5",
+    "editorLineNumber.foreground": "#93A1A1",
+    "editorLineNumber.activeForeground": "#657B83",
+  },
+};
+
+// Ayu Light Theme
+const ayuLightTheme: MonacoThemeData = {
+  base: "vs",
+  inherit: true,
+  rules: [
+    { background: "FAFAFA", token: "" },
+    { foreground: "ABB0B6", token: "comment" },
+    { foreground: "86B300", token: "string" },
+    { foreground: "A37ACC", token: "constant.numeric" },
+    { foreground: "FA8D3E", token: "keyword" },
+    { foreground: "FA8D3E", token: "storage" },
+    { foreground: "399EE6", token: "storage.type" },
+    { foreground: "F2AE49", token: "entity.name.class" },
+    { foreground: "F2AE49", token: "entity.name.function" },
+    { foreground: "55B4D4", token: "entity.name.tag" },
+    { foreground: "399EE6", token: "entity.other.attribute-name" },
+    { foreground: "F2AE49", token: "support.function" },
+    { foreground: "399EE6", token: "predefined" },
+    { foreground: "E6B673", token: "constant.character.escape" },
+  ],
+  colors: {
+    "editor.foreground": "#575F66",
+    "editor.background": "#FAFAFA",
+    "editor.selectionBackground": "#D1E4F4",
+    "editor.lineHighlightBackground": "#F0F0F0",
+    "editorCursor.foreground": "#FF9940",
+    "editorWhitespace.foreground": "#D9D8D7",
+    "editorLineNumber.foreground": "#ABB0B6",
+    "editorLineNumber.activeForeground": "#575F66",
+  },
+};
+
+// Rosé Pine Dawn Theme
+const rosePineDawnTheme: MonacoThemeData = {
+  base: "vs",
+  inherit: true,
+  rules: [
+    { background: "FAF4ED", token: "" },
+    { foreground: "9893A5", token: "comment" },
+    { foreground: "EA9D34", token: "string" },
+    { foreground: "907AA9", token: "constant.numeric" },
+    { foreground: "286983", token: "keyword" },
+    { foreground: "286983", token: "storage" },
+    { foreground: "56949F", token: "storage.type" },
+    { foreground: "D7827E", token: "entity.name.class" },
+    { foreground: "286983", token: "entity.name.function" },
+    { foreground: "56949F", token: "entity.name.tag" },
+    { foreground: "907AA9", token: "entity.other.attribute-name" },
+    { foreground: "56949F", token: "support.function" },
+    { foreground: "907AA9", token: "predefined" },
+    { foreground: "B4637A", token: "constant.character.escape" },
+  ],
+  colors: {
+    "editor.foreground": "#575279",
+    "editor.background": "#FAF4ED",
+    "editor.selectionBackground": "#DFDAD9",
+    "editor.lineHighlightBackground": "#F4EDE8",
+    "editorCursor.foreground": "#575279",
+    "editorWhitespace.foreground": "#DFDAD9",
+    "editorLineNumber.foreground": "#9893A5",
+    "editorLineNumber.activeForeground": "#575279",
+  },
+};
+
 // All theme definitions for registration
 export const MONACO_THEMES: Record<string, MonacoThemeData> = {
   dracula: draculaTheme,
   nord: nordTheme,
   "gruvbox-dark": gruvboxDarkTheme,
   "tokyo-night": tokyoNightTheme,
+  "monokai-pro": monokaiProTheme,
+  "solarized-dark": solarizedDarkTheme,
+  "catppuccin-mocha": catppuccinMochaTheme,
+  "ayu-dark": ayuDarkTheme,
+  kanso: kansoTheme,
+  "catppuccin-frappe": catppuccinFrappeTheme,
   "github-light": githubLightTheme,
   "gruvbox-light": gruvboxLightTheme,
   "catppuccin-latte": catppuccinLatteTheme,
   "one-light": oneLightTheme,
+  "solarized-light": solarizedLightTheme,
+  "ayu-light": ayuLightTheme,
+  "rose-pine-dawn": rosePineDawnTheme,
 };
 
 // Light themes list for reference
@@ -282,6 +579,9 @@ export const LIGHT_THEMES = [
   "gruvbox-light",
   "catppuccin-latte",
   "one-light",
+  "solarized-light",
+  "ayu-light",
+  "rose-pine-dawn",
 ];
 
 // Track registered themes

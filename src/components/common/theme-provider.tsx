@@ -5,14 +5,29 @@ export type Theme =
   | "nord"
   | "gruvbox-dark"
   | "tokyo-night"
+  | "monokai-pro"
+  | "solarized-dark"
+  | "catppuccin-mocha"
+  | "ayu-dark"
+  | "kanso"
+  | "catppuccin-frappe"
   | "github-light"
   | "gruvbox-light"
   | "catppuccin-latte"
   | "one-light"
+  | "solarized-light"
+  | "ayu-light"
+  | "rose-pine-dawn"
   | "system"
 
-const LIGHT_THEMES: Theme[] = ["github-light", "gruvbox-light", "catppuccin-latte", "one-light"];
-const DARK_THEMES: Theme[] = ["dracula", "nord", "gruvbox-dark", "tokyo-night"];
+const LIGHT_THEMES: Theme[] = [
+  "github-light", "gruvbox-light", "catppuccin-latte", "one-light",
+  "solarized-light", "ayu-light", "rose-pine-dawn",
+];
+const DARK_THEMES: Theme[] = [
+  "dracula", "nord", "gruvbox-dark", "tokyo-night",
+  "monokai-pro", "solarized-dark", "catppuccin-mocha", "ayu-dark", "kanso", "catppuccin-frappe",
+];
 
 export function isLightTheme(theme: Theme): boolean {
   if (theme === "system") {
@@ -58,10 +73,19 @@ export function ThemeProvider({
       "nord",
       "gruvbox-dark",
       "tokyo-night",
+      "monokai-pro",
+      "solarized-dark",
+      "catppuccin-mocha",
+      "ayu-dark",
+      "kanso",
+      "catppuccin-frappe",
       "github-light",
       "gruvbox-light",
       "catppuccin-latte",
       "one-light",
+      "solarized-light",
+      "ayu-light",
+      "rose-pine-dawn",
       "dark"
     )
 

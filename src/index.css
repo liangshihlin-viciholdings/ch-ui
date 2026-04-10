@@ -9,6 +9,15 @@
 @custom-variant gruvbox-light (&:is(.gruvbox-light *));
 @custom-variant catppuccin-latte (&:is(.catppuccin-latte *));
 @custom-variant one-light (&:is(.one-light *));
+@custom-variant monokai-pro (&:is(.monokai-pro *));
+@custom-variant solarized-dark (&:is(.solarized-dark *));
+@custom-variant catppuccin-mocha (&:is(.catppuccin-mocha *));
+@custom-variant ayu-dark (&:is(.ayu-dark *));
+@custom-variant kanso (&:is(.kanso *));
+@custom-variant catppuccin-frappe (&:is(.catppuccin-frappe *));
+@custom-variant solarized-light (&:is(.solarized-light *));
+@custom-variant ayu-light (&:is(.ayu-light *));
+@custom-variant rose-pine-dawn (&:is(.rose-pine-dawn *));
 
 @theme inline {
   --color-background: hsl(var(--background));
@@ -479,6 +488,396 @@
     --chart-8: 84 85% 49%;
     --chart-9: 301 63% 40%;
     --chart-10: 220 100% 60%;
+  }
+
+  /* ── New themes ──────────────────────────────────────────────────── */
+
+  .monokai-pro {
+    --background: 330 5% 17%;
+    --foreground: 30 33% 98%;
+
+    --card: 330 4% 22%;
+    --card-foreground: 30 33% 98%;
+
+    --popover: 330 4% 22%;
+    --popover-foreground: 30 33% 98%;
+
+    --primary: 5 79% 69%;
+    --primary-foreground: 330 5% 17%;
+
+    --secondary: 330 3% 28%;
+    --secondary-foreground: 30 33% 98%;
+
+    --muted: 330 4% 22%;
+    --muted-foreground: 330 2% 55%;
+
+    --accent: 53 97% 69%;
+    --accent-foreground: 330 5% 17%;
+
+    --destructive: 5 100% 69%;
+    --destructive-foreground: 30 33% 98%;
+
+    --border: 330 4% 25%;
+    --input: 330 4% 25%;
+    --ring: 5 79% 69%;
+
+    --selected-row: 330 4% 21%;
+
+    --chart-1: 5 100% 69%;
+    --chart-2: 95 58% 66%;
+    --chart-3: 190 72% 69%;
+    --chart-4: 53 97% 69%;
+    --chart-5: 260 86% 78%;
+    --chart-6: 20 95% 69%;
+    --chart-7: 5 79% 69%;
+    --chart-8: 95 58% 66%;
+    --chart-9: 190 72% 69%;
+    --chart-10: 53 97% 69%;
+  }
+
+  .solarized-dark {
+    --background: 192 100% 11%;
+    --foreground: 186 8% 55%;
+
+    --card: 192 81% 14%;
+    --card-foreground: 186 8% 55%;
+
+    --popover: 192 81% 14%;
+    --popover-foreground: 186 8% 55%;
+
+    --primary: 205 82% 49%;
+    --primary-foreground: 192 100% 11%;
+
+    --secondary: 192 81% 14%;
+    --secondary-foreground: 186 13% 59%;
+
+    --muted: 192 81% 14%;
+    --muted-foreground: 194 14% 40%;
+
+    --accent: 175 59% 40%;
+    --accent-foreground: 192 100% 11%;
+
+    --destructive: 1 71% 52%;
+    --destructive-foreground: 186 8% 55%;
+
+    --border: 192 49% 18%;
+    --input: 192 49% 18%;
+    --ring: 205 82% 49%;
+
+    --selected-row: 192 63% 16%;
+
+    --chart-1: 205 82% 49%;
+    --chart-2: 175 59% 40%;
+    --chart-3: 45 100% 36%;
+    --chart-4: 331 64% 52%;
+    --chart-5: 237 45% 60%;
+    --chart-6: 68 100% 30%;
+    --chart-7: 18 89% 44%;
+    --chart-8: 1 71% 52%;
+    --chart-9: 175 59% 40%;
+    --chart-10: 205 82% 49%;
+  }
+
+  .catppuccin-mocha {
+    --background: 240 21% 15%;
+    --foreground: 226 64% 88%;
+
+    --card: 240 21% 12%;
+    --card-foreground: 226 64% 88%;
+
+    --popover: 240 21% 12%;
+    --popover-foreground: 226 64% 88%;
+
+    --primary: 267 84% 81%;
+    --primary-foreground: 240 21% 15%;
+
+    --secondary: 240 17% 23%;
+    --secondary-foreground: 226 64% 88%;
+
+    --muted: 240 21% 12%;
+    --muted-foreground: 228 24% 60%;
+
+    --accent: 234 82% 77%;
+    --accent-foreground: 240 21% 15%;
+
+    --destructive: 343 81% 75%;
+    --destructive-foreground: 240 21% 15%;
+
+    --border: 240 17% 23%;
+    --input: 240 17% 23%;
+    --ring: 267 84% 81%;
+
+    --selected-row: 240 21% 18%;
+
+    --chart-1: 267 84% 81%;
+    --chart-2: 343 81% 75%;
+    --chart-3: 217 92% 76%;
+    --chart-4: 189 71% 73%;
+    --chart-5: 115 54% 76%;
+    --chart-6: 40 84% 83%;
+    --chart-7: 23 92% 75%;
+    --chart-8: 316 72% 86%;
+    --chart-9: 170 57% 73%;
+    --chart-10: 234 82% 77%;
+  }
+
+  .ayu-dark {
+    --background: 220 38% 6%;
+    --foreground: 30 4% 69%;
+
+    --card: 220 28% 10%;
+    --card-foreground: 30 4% 69%;
+
+    --popover: 220 28% 10%;
+    --popover-foreground: 30 4% 69%;
+
+    --primary: 25 100% 63%;
+    --primary-foreground: 220 38% 6%;
+
+    --secondary: 214 14% 18%;
+    --secondary-foreground: 30 4% 69%;
+
+    --muted: 220 28% 10%;
+    --muted-foreground: 213 11% 42%;
+
+    --accent: 200 100% 67%;
+    --accent-foreground: 220 38% 6%;
+
+    --destructive: 0 63% 59%;
+    --destructive-foreground: 30 4% 69%;
+
+    --border: 214 14% 15%;
+    --input: 214 14% 15%;
+    --ring: 25 100% 63%;
+
+    --selected-row: 220 28% 9%;
+
+    --chart-1: 25 100% 63%;
+    --chart-2: 200 100% 67%;
+    --chart-3: 75 78% 56%;
+    --chart-4: 270 100% 74%;
+    --chart-5: 160 60% 68%;
+    --chart-6: 35 100% 64%;
+    --chart-7: 0 82% 71%;
+    --chart-8: 197 80% 56%;
+    --chart-9: 45 70% 68%;
+    --chart-10: 25 100% 63%;
+  }
+
+  /* Kansō — Kanagawa-inspired zen theme */
+  .kanso {
+    --background: 0 0% 6%;
+    --foreground: 46 30% 80%;
+
+    --card: 240 8% 11%;
+    --card-foreground: 46 30% 80%;
+
+    --popover: 240 8% 11%;
+    --popover-foreground: 46 30% 80%;
+
+    --primary: 222 45% 67%;
+    --primary-foreground: 0 0% 6%;
+
+    --secondary: 240 8% 15%;
+    --secondary-foreground: 46 30% 80%;
+
+    --muted: 240 8% 11%;
+    --muted-foreground: 43 18% 60%;
+
+    --accent: 269 23% 61%;
+    --accent-foreground: 0 0% 6%;
+
+    --destructive: 358 62% 51%;
+    --destructive-foreground: 46 30% 80%;
+
+    --border: 240 8% 15%;
+    --input: 240 8% 15%;
+    --ring: 222 45% 67%;
+
+    --selected-row: 0 0% 10%;
+
+    --chart-1: 222 45% 67%;
+    --chart-2: 269 23% 61%;
+    --chart-3: 358 62% 51%;
+    --chart-4: 100 25% 53%;
+    --chart-5: 38 42% 59%;
+    --chart-6: 163 21% 50%;
+    --chart-7: 50 50% 65%;
+    --chart-8: 196 40% 64%;
+    --chart-9: 0 89% 52%;
+    --chart-10: 84 34% 57%;
+  }
+
+  .catppuccin-frappe {
+    --background: 229 19% 23%;
+    --foreground: 227 70% 87%;
+
+    --card: 230 19% 20%;
+    --card-foreground: 227 70% 87%;
+
+    --popover: 230 19% 20%;
+    --popover-foreground: 227 70% 87%;
+
+    --primary: 277 59% 76%;
+    --primary-foreground: 229 19% 23%;
+
+    --secondary: 231 16% 31%;
+    --secondary-foreground: 227 70% 87%;
+
+    --muted: 230 19% 20%;
+    --muted-foreground: 228 22% 57%;
+
+    --accent: 222 74% 74%;
+    --accent-foreground: 229 19% 23%;
+
+    --destructive: 359 68% 71%;
+    --destructive-foreground: 229 19% 23%;
+
+    --border: 231 16% 31%;
+    --input: 231 16% 31%;
+    --ring: 277 59% 76%;
+
+    --selected-row: 229 19% 26%;
+
+    --chart-1: 277 59% 76%;
+    --chart-2: 359 68% 71%;
+    --chart-3: 222 74% 74%;
+    --chart-4: 197 57% 69%;
+    --chart-5: 166 38% 65%;
+    --chart-6: 96 44% 73%;
+    --chart-7: 40 70% 73%;
+    --chart-8: 20 80% 70%;
+    --chart-9: 316 73% 84%;
+    --chart-10: 233 58% 84%;
+  }
+
+  .solarized-light {
+    --background: 44 87% 94%;
+    --foreground: 194 14% 40%;
+
+    --card: 44 42% 87%;
+    --card-foreground: 194 14% 40%;
+
+    --popover: 44 87% 94%;
+    --popover-foreground: 194 14% 40%;
+
+    --primary: 205 82% 49%;
+    --primary-foreground: 44 87% 94%;
+
+    --secondary: 44 42% 87%;
+    --secondary-foreground: 194 14% 40%;
+
+    --muted: 44 42% 87%;
+    --muted-foreground: 194 14% 46%;
+
+    --accent: 175 59% 40%;
+    --accent-foreground: 44 87% 94%;
+
+    --destructive: 1 71% 52%;
+    --destructive-foreground: 44 87% 94%;
+
+    --border: 44 20% 80%;
+    --input: 44 20% 80%;
+    --ring: 205 82% 49%;
+
+    --selected-row: 44 55% 90%;
+
+    --chart-1: 205 82% 49%;
+    --chart-2: 175 59% 40%;
+    --chart-3: 45 100% 36%;
+    --chart-4: 331 64% 52%;
+    --chart-5: 237 45% 60%;
+    --chart-6: 68 100% 30%;
+    --chart-7: 18 89% 44%;
+    --chart-8: 1 71% 52%;
+    --chart-9: 175 59% 40%;
+    --chart-10: 205 82% 49%;
+  }
+
+  .ayu-light {
+    --background: 0 0% 98%;
+    --foreground: 207 10% 37%;
+
+    --card: 210 8% 93%;
+    --card-foreground: 207 10% 37%;
+
+    --popover: 0 0% 98%;
+    --popover-foreground: 207 10% 37%;
+
+    --primary: 25 100% 62%;
+    --primary-foreground: 0 0% 98%;
+
+    --secondary: 210 8% 88%;
+    --secondary-foreground: 207 10% 37%;
+
+    --muted: 210 8% 93%;
+    --muted-foreground: 210 6% 54%;
+
+    --accent: 207 78% 56%;
+    --accent-foreground: 0 0% 98%;
+
+    --destructive: 0 91% 53%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 210 6% 83%;
+    --input: 210 6% 83%;
+    --ring: 25 100% 62%;
+
+    --selected-row: 210 8% 94%;
+
+    --chart-1: 25 100% 62%;
+    --chart-2: 207 78% 56%;
+    --chart-3: 74 100% 35%;
+    --chart-4: 272 38% 57%;
+    --chart-5: 190 62% 52%;
+    --chart-6: 40 86% 61%;
+    --chart-7: 0 91% 53%;
+    --chart-8: 24 100% 56%;
+    --chart-9: 74 100% 35%;
+    --chart-10: 207 78% 56%;
+  }
+
+  .rose-pine-dawn {
+    --background: 32 50% 95%;
+    --foreground: 248 19% 40%;
+
+    --card: 33 100% 96%;
+    --card-foreground: 248 19% 40%;
+
+    --popover: 32 50% 95%;
+    --popover-foreground: 248 19% 40%;
+
+    --primary: 268 21% 57%;
+    --primary-foreground: 32 50% 95%;
+
+    --secondary: 25 29% 89%;
+    --secondary-foreground: 248 19% 40%;
+
+    --muted: 33 100% 96%;
+    --muted-foreground: 257 7% 61%;
+
+    --accent: 197 55% 34%;
+    --accent-foreground: 32 50% 95%;
+
+    --destructive: 343 35% 55%;
+    --destructive-foreground: 32 50% 95%;
+
+    --border: 28 16% 84%;
+    --input: 28 16% 84%;
+    --ring: 268 21% 57%;
+
+    --selected-row: 30 33% 92%;
+
+    --chart-1: 268 21% 57%;
+    --chart-2: 343 35% 55%;
+    --chart-3: 197 55% 34%;
+    --chart-4: 189 29% 48%;
+    --chart-5: 35 78% 56%;
+    --chart-6: 11 47% 67%;
+    --chart-7: 248 19% 40%;
+    --chart-8: 268 21% 57%;
+    --chart-9: 197 55% 34%;
+    --chart-10: 343 35% 55%;
   }
 }
 
