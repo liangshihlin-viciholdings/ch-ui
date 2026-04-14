@@ -31,7 +31,7 @@ const CreateQuerySection: React.FC<CreateQuerySectionProps> = ({ data }) => {
 
   const copyToClipboard = async () => {
     try {
-      await navigator.clipboard.writeText(data.create_table_query);
+      await navigator.clipboard.writeText(formattedQuery);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (error: any) {
