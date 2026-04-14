@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useCallback } from "react";
 import {
   ColDef,
   ICellRendererParams,
@@ -7,6 +7,13 @@ import {
 } from "ag-grid-community";
 import { themeBalham, colorSchemeDark } from "ag-grid-community";
 import { Theme, isLightTheme } from "@/components/common/theme-provider";
+import { Copy } from "lucide-react";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 
 /**
  * Performance thresholds for dynamic AG Grid configuration
@@ -52,13 +59,27 @@ export const CellRenderer = React.memo((props: ICellRendererParams) => {
   const formattedValue = formatCellValue(props.value);
   const isNull = props.value === null || props.value === undefined;
 
+  const handleCopy = useCallback(() => {
+    navigator.clipboard.writeText(formattedValue);
+  }, [formattedValue]);
+
   return (
-    <span
-      className={isNull ? "italic text-muted-foreground truncate" : "truncate"}
-      title={formattedValue}
-    >
-      {formattedValue}
-    </span>
+    <ContextMenu>
+      <ContextMenuTrigger asChild>
+        <span
+          className={isNull ? "italic text-muted-foreground truncate" : "truncate"}
+          title={formattedValue}
+        >
+          {formattedValue}
+        </span>
+      </ContextMenuTrigger>
+      <ContextMenuContent className="w-48">
+        <ContextMenuItem onClick={handleCopy}>
+          <Copy className="mr-2 h-4 w-4" />
+          Copy Cell Value
+        </ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
   );
 });
 
