@@ -1,48 +1,43 @@
-// src/features/workspace/explain/components/JsonView.tsx
-import React, { useEffect, useRef } from "react";
-import * as monaco from "monaco-editor";
-import { ExplainResult } from "@/types/common";
+import React, { useMemo } from "react";
+import CodeMirror from "@uiw/react-codemirror";
+import { json } from "@codemirror/lang-json";
+import { EditorView } from "@codemirror/view";
 import { useTheme } from "@/components/common/theme-provider";
-import { getMonacoTheme } from "../../editor/monacoThemes";
+import { getCodeMirrorTheme } from "../../editor/codeMirrorThemes";
+import { ExplainResult } from "@/types/common";
 
 interface JsonViewProps {
   explainResult: ExplainResult;
 }
 
 export const JsonView: React.FC<JsonViewProps> = ({ explainResult }) => {
-  const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
   const { theme } = useTheme();
-  const editorTheme = getMonacoTheme(theme);
 
-  useEffect(() => {
-    if (!containerRef.current) return;
+  const value = useMemo(
+    () =>
+      JSON.stringify(explainResult.rawJson || explainResult.tree, null, 2),
+    [explainResult],
+  );
 
-    // Create editor
-    const editor = monaco.editor.create(containerRef.current, {
-      value: JSON.stringify(
-        explainResult.rawJson || explainResult.tree,
-        null,
-        2,
-      ),
-      language: "json",
-      theme: editorTheme,
-      readOnly: true,
-      minimap: { enabled: true },
-      automaticLayout: true,
-      scrollBeyondLastLine: false,
-      fontSize: 14,
-      lineNumbers: "on",
-      folding: true,
-    });
+  const extensions = useMemo(
+    () => [json(), EditorView.lineWrapping, ...getCodeMirrorTheme(theme)],
+    [theme],
+  );
 
-    editorRef.current = editor;
-
-    // Cleanup
-    return () => {
-      editor.dispose();
-    };
-  }, [explainResult, theme]);
-
-  return <div ref={containerRef} className="w-full h-full" />;
+  return (
+    <div className="w-full h-full overflow-auto">
+      <CodeMirror
+        value={value}
+        extensions={extensions}
+        editable={false}
+        basicSetup={{
+          lineNumbers: true,
+          foldGutter: true,
+          highlightActiveLine: false,
+          highlightActiveLineGutter: false,
+        }}
+        height="100%"
+      />
+    </div>
+  );
 };

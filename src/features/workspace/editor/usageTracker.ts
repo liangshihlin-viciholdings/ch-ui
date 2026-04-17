@@ -5,9 +5,12 @@
  * intelligent sorting based on user behavior.
  */
 
-import type * as monaco from 'monaco-editor';
-
 export type SuggestionCategory = 'database' | 'table' | 'column' | 'function' | 'keyword' | 'operator';
+
+export interface EditorRange {
+  from: number;
+  to: number;
+}
 
 interface UsageEntry {
   count: number;
@@ -25,8 +28,14 @@ interface PendingSuggestion {
   label: string;
   key: string;
   category: SuggestionCategory;
-  range: monaco.IRange;
+  range: EditorRange;
   timestamp: number;
+}
+
+export interface EditorChange {
+  from: number;
+  to: number;
+  insertedText: string;
 }
 
 const STORAGE_VERSION = 1;
@@ -109,7 +118,7 @@ export class AutocompleteUsageTracker {
    */
   recordPendingSuggestions(
     suggestions: Array<{ label: string; category: SuggestionCategory }>,
-    wordRange: monaco.IRange
+    wordRange: EditorRange
   ): void {
     const timestamp = Date.now();
 
@@ -134,41 +143,24 @@ export class AutocompleteUsageTracker {
   /**
    * Check if a content change matches an accepted suggestion
    */
-  checkForAcceptedSuggestion(
-    changeEvent: monaco.editor.IModelContentChangedEvent,
-    model: monaco.editor.ITextModel | null
-  ): void {
-    if (!model || changeEvent.changes.length === 0) {
-      return;
-    }
+  checkForAcceptedSuggestion(change: EditorChange): void {
+    if (!change.insertedText) return;
 
     const now = Date.now();
-    const change = changeEvent.changes[0]; // Focus on first change
 
-    // Look for matching pending suggestion
     for (const pending of this.pendingSuggestions) {
-      // Check if change is within match window
-      if (now - pending.timestamp > MATCH_WINDOW_MS) {
-        continue;
-      }
+      if (now - pending.timestamp > MATCH_WINDOW_MS) continue;
 
-      // Check if change position matches expected range
       const rangeMatches =
-        change.range.startLineNumber === pending.range.startLineNumber &&
-        change.range.startColumn >= pending.range.startColumn &&
-        change.range.endColumn <= pending.range.endColumn + pending.label.length;
-
-      // Check if inserted text matches suggestion label
-      const textMatches = change.text.includes(pending.label);
+        change.from >= pending.range.from &&
+        change.to <= pending.range.to + pending.label.length;
+      const textMatches = change.insertedText.includes(pending.label);
 
       if (rangeMatches && textMatches) {
         this.recordUsage(pending.key, pending.category);
-
-        // Remove matched suggestion to avoid double-counting
         this.pendingSuggestions = this.pendingSuggestions.filter(
           (s) => s.key !== pending.key
         );
-
         break;
       }
     }

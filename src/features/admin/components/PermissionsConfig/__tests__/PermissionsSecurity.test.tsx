@@ -3,24 +3,6 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import PermissionsConfig from "../index";
 import useAppStore from "@/stores/workspaceStore";
 
-// Mock monaco-editor
-vi.mock("monaco-editor", () => ({
-  editor: {
-    create: vi.fn(),
-    setTheme: vi.fn(),
-  },
-  languages: {
-    register: vi.fn(),
-    setMonarchTokensProvider: vi.fn(),
-  },
-}));
-
-// Mock monaco config
-vi.mock("@/features/workspace/editor/monacoConfig", () => ({
-  initMonaco: vi.fn(),
-  createSqlEditor: vi.fn(),
-}));
-
 // Mock the hooks
 vi.mock("../hooks/usePermissionsState", () => ({
   usePermissionsState: () => ({

@@ -29,7 +29,6 @@ import {
 } from "@/helpers/sqlUtils";
 import { ExplainParser } from "@/features/workspace/explain/parser";
 import { appQueries } from "@/features/workspace/editor/appQueries";
-import { retryInitialization } from "@/features/workspace/editor/monacoConfig";
 import { connectionStore } from "@/stores/connectionStore";
 import { ClickHouseError } from "@/lib/clickhouseError";
 import {
@@ -232,8 +231,6 @@ export async function setCredential(credential: Credential): Promise<void> {
     await checkServerStatus();
     await checkIsAdmin();
     await checkUserPrivileges();
-    // Sync Monaco editor's ClickHouse client
-    retryInitialization(1, 0);
   } catch (error) {
     const enhancedError = ClickHouseError.fromError(
       error,
