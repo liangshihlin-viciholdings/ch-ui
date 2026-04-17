@@ -1,0 +1,36 @@
+/**
+ * Shared formatters used across the TanStack data grids and analytics surface.
+ *
+ * Keep these fast and allocation-light — they run inside hot render paths
+ * (pagination footers, virtualized cell renderers, tooltips, …).
+ */
+
+/**
+ * Format a duration expressed in seconds for display. Falls back to 0s for
+ * non-finite / negative values.
+ */
+export function formatDuration(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds < 0) return "0s";
+  if (seconds < 0.001) return `${(seconds * 1_000_000).toFixed(0)}μs`;
+  if (seconds < 1) return `${(seconds * 1000).toFixed(1)}ms`;
+  return `${seconds.toFixed(2)}s`;
+}
+
+/**
+ * Format a byte count with binary units (KB/MB/GB).
+ */
+export function formatBytes(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes < 0) return "0 B";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1048576) return `${(bytes / 1024).toFixed(1)} KB`;
+  if (bytes < 1073741824) return `${(bytes / 1048576).toFixed(1)} MB`;
+  return `${(bytes / 1073741824).toFixed(2)} GB`;
+}
+
+/**
+ * Locale-aware number formatter (adds thousand separators).
+ */
+export function formatNumber(n: number): string {
+  if (!Number.isFinite(n)) return "0";
+  return n.toLocaleString();
+}

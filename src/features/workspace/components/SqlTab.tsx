@@ -1,43 +1,14 @@
-import React, {
-  useState,
-  useMemo,
-  useCallback,
-  useRef,
-  useEffect,
-} from "react";
+import React, { useState, useCallback, useEffect, useMemo } from "react";
 import { toast } from "sonner";
 import {
   Loader2,
   FileX2,
   RefreshCw,
   AlertTriangle,
-  Columns,
-  PanelRight,
   Columns2,
   Rows2,
 } from "lucide-react";
-import { AgGridReact } from "ag-grid-react";
-import {
-  ColDef,
-  AllCommunityModule,
-  ColumnPinnedType,
-} from "ag-grid-community";
-import { AgGridWrapper } from "@/components/common/AgGridWrapper";
-import {
-  createDefaultColDef,
-  createGridOptions,
-  PinnedColumnsState,
-  createAgGridTheme,
-} from "@/lib/agGrid";
-import AgGridHeaderContextMenu from "@/components/common/AgGridHeaderContextMenu";
-import {
-  formatData,
-  ExportFormat,
-  getAvailableFormats,
-  getFormatDisplayName,
-} from "@/lib/formatUtils";
-import { transposeGridData } from "@/lib/transposeGrid";
-import ValueSidebar from "./ValueSidebar";
+import { DataTable } from "@/components/common/DataTable";
 
 // Component imports
 import SQLEditor from "@/features/workspace/editor/SqlEditor";
@@ -55,14 +26,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import {
-  ContextMenu,
-  ContextMenuTrigger,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuSeparator,
-} from "@/components/ui/context-menu";
-import { useTheme } from "@/components/common/theme-provider";
 import DownloadDialog from "@/components/common/DownloadDialog";
 import EmptyQueryResult from "./EmptyQueryResult";
 import StatisticsDisplay from "./StatisticsDisplay";
@@ -72,21 +35,15 @@ import { ExplainTab } from "@/features/workspace/explain/components/ExplainTab";
 // Store
 import useAppStore from "@/stores/workspaceStore";
 import { useDefaultLayout } from "react-resizable-panels";
+import type { QueryResult } from "@/types/common";
 
-// Types
 interface SqlTabProps {
   tabId: string;
 }
 
-interface IRow {
-  [key: string]: any;
-}
-
 /**
- * SqlTab component that provides a SQL editor and result viewer
- *
- * Displays a resizable split panel with SQL editor on top and
- * query results, metadata, and statistics tabs on the bottom.
+ * SqlTab: SQL editor on top, query results on the bottom (resizable).
+ * Results are rendered via TanStack Table (`DataTable`).
  */
 const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
   const {
@@ -98,42 +55,16 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
     updateTab,
   } = useAppStore();
   const tab = getTabById(tabId);
-  const { theme } = useTheme();
   const [activeTab, setActiveTab] = useState<string>("results");
 
   // Last query for refresh
   const [lastQuery, setLastQuery] = useState<string>("");
-
-  const gridTheme = createAgGridTheme(theme);
-
-  // AG Grid configuration
-  const defaultColDef = useMemo(() => createDefaultColDef(), []);
-  const gridRef = useRef<AgGridReact<IRow>>(null);
-  const metaGridRef = useRef<AgGridReact<any>>(null);
-
-  const [columnDefs, setColumnDefs] = useState<ColDef<IRow>[]>([]);
-  const [rowData, setRowData] = useState<IRow[]>([]);
-  const [pinnedColumnsState, setPinnedColumnsState] =
-    useState<PinnedColumnsState>({});
-  const [metaPinnedColumnsState, setMetaPinnedColumnsState] =
-    useState<PinnedColumnsState>({});
-
-  // New feature states
-  const [isTransposed, setIsTransposed] = useState(false);
-  const [isEditorFocused, setIsEditorFocused] = useState(false);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [, setIsEditorFocused] = useState(false);
   const [orientation, setOrientation] = useState<"horizontal" | "vertical">(
     () => {
       try {
-        const savedOrientation = localStorage.getItem(
-          "sql-editor-layout-orientation",
-        );
-        if (
-          savedOrientation === "horizontal" ||
-          savedOrientation === "vertical"
-        ) {
-          return savedOrientation;
-        }
+        const saved = localStorage.getItem("sql-editor-layout-orientation");
+        if (saved === "horizontal" || saved === "vertical") return saved;
       } catch (error) {
         console.error(
           "Failed to load orientation preference from localStorage:",
@@ -143,83 +74,7 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
       return "vertical";
     },
   );
-  const [selectedCell, setSelectedCell] = useState<{
-    fieldName: string;
-    rowIndex: number;
-    value: any;
-  } | null>(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
-
-  const gridOptions = useMemo(
-    () => createGridOptions(rowData.length),
-    [rowData.length],
-  );
-
-  // Column pinning and manipulation callbacks
-  const handlePinColumn = useCallback(
-    (colId: string, pinned: ColumnPinnedType) => {
-      setPinnedColumnsState((prev) => ({
-        ...prev,
-        [colId]: pinned,
-      }));
-
-      const gridApi = gridRef.current?.api;
-      if (gridApi) {
-        gridApi.applyColumnState({
-          state: [{ colId, pinned }],
-        });
-      }
-    },
-    [],
-  );
-
-  const handleAutoSizeColumn = useCallback((colId: string) => {
-    const gridApi = gridRef.current?.api;
-    if (gridApi) {
-      gridApi.autoSizeColumns([colId]);
-    }
-  }, []);
-
-  const handleResetColumns = useCallback(() => {
-    setPinnedColumnsState({});
-    const gridApi = gridRef.current?.api;
-    if (gridApi) {
-      gridApi.resetColumnState();
-    }
-  }, []);
-
-  // Metadata grid column handlers
-  const handleMetaPinColumn = useCallback(
-    (colId: string, pinned: ColumnPinnedType) => {
-      setMetaPinnedColumnsState((prev) => ({
-        ...prev,
-        [colId]: pinned,
-      }));
-
-      const gridApi = metaGridRef.current?.api;
-      if (gridApi) {
-        gridApi.applyColumnState({
-          state: [{ colId, pinned }],
-        });
-      }
-    },
-    [],
-  );
-
-  const handleMetaAutoSizeColumn = useCallback((colId: string) => {
-    const gridApi = metaGridRef.current?.api;
-    if (gridApi) {
-      gridApi.autoSizeColumns([colId]);
-    }
-  }, []);
-
-  const handleMetaResetColumns = useCallback(() => {
-    setMetaPinnedColumnsState({});
-    const gridApi = metaGridRef.current?.api;
-    if (gridApi) {
-      gridApi.resetColumnState();
-    }
-  }, []);
 
   // Detect schema-changing queries to refresh database explorer
   const isSchemaModifyingQuery = (query: string): boolean => {
@@ -228,12 +83,10 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
     );
   };
 
-  // Handle single query execution
   const handleRunQuery = useCallback(
     async (query: string) => {
       setLastQuery(query);
       try {
-        // Clear multi-query results when running single query
         await updateTab(tabId, {
           results: undefined,
           activeResultIndex: undefined,
@@ -256,7 +109,6 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
     [runQuery, tabId, fetchDatabaseInfo, updateTab],
   );
 
-  // Handle multi-query execution
   const handleRunAllQueries = useCallback(
     async (queries: string[]) => {
       try {
@@ -285,90 +137,10 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
     }
   }, [lastQuery, handleRunQuery]);
 
-  // Row selection configuration
-  const rowSelection = useMemo(
-    () => ({
-      mode: "multiRow" as const,
-      checkboxes: true,
-      headerCheckbox: true,
-      enableClickSelection: true,
-    }),
-    [],
-  );
-
-  // Selection column configuration to prevent resize interference
-  const selectionColumn = useMemo(
-    () => ({
-      width: 50,
-      minWidth: 50,
-      maxWidth: 50,
-      resizable: false,
-      suppressMovable: true,
-      lockPosition: "left" as const,
-      pinned: "left" as const,
-    }),
-    [],
-  );
-
-  const handleCopyFormat = useCallback(
-    (format: ExportFormat) => {
-      const selectedRows = gridRef.current?.api.getSelectedRows() || [];
-
-      if (selectedRows.length === 0) {
-        toast.error("No rows selected");
-        return;
-      }
-
-      const columns = columnDefs
-        .map((c) => c.field || c.headerName || "")
-        .filter(Boolean);
-      const formatted = formatData(
-        selectedRows,
-        columns,
-        format,
-        "query_results",
-      );
-      navigator.clipboard.writeText(formatted);
-      toast.success(
-        `Copied ${selectedRows.length} rows as ${getFormatDisplayName(format)}`,
-      );
-    },
-    [columnDefs],
-  );
-
-  // Handle transpose toggle
-  const handleTransposeToggle = useCallback(() => {
-    if (isTransposed) {
-      // Return to normal view
-      setIsTransposed(false);
-    } else {
-      setIsTransposed(true);
-    }
-  }, [isTransposed]);
-
-  // Handle orientation toggle
   const toggleOrientation = useCallback(() => {
     setOrientation((prev) => (prev === "vertical" ? "horizontal" : "vertical"));
   }, []);
 
-  // Handle cell clicked for value sidebar
-  const handleCellClicked = useCallback(
-    (event: any) => {
-      if (!isSidebarOpen) return;
-
-      const { colDef, rowIndex, value } = event;
-      const fieldName = colDef.field || colDef.headerName || "Unknown";
-
-      setSelectedCell({
-        fieldName,
-        rowIndex,
-        value,
-      });
-    },
-    [isSidebarOpen],
-  );
-
-  // Handle result index change for multi-query results
   const handleResultIndexChange = useCallback(
     (index: number) => {
       updateTab(tabId, { activeResultIndex: index });
@@ -376,39 +148,7 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
     [tabId, updateTab],
   );
 
-  // Process result data into grid-compatible format
-  useMemo(() => {
-    if (tab?.result?.data?.length && tab?.result?.meta?.length) {
-      const dataColDefs: ColDef<IRow>[] = tab.result.meta.map((col: any) => {
-        const colName = col.name;
-        return {
-          headerName: colName,
-          field: colName,
-          valueGetter: (param: any) => param.data[colName],
-          headerComponent: AgGridHeaderContextMenu,
-          headerComponentParams: {
-            onPinColumn: handlePinColumn,
-            onAutoSizeColumn: handleAutoSizeColumn,
-            onResetColumns: handleResetColumns,
-          },
-        };
-      });
-
-      setRowData(tab.result.data);
-      setColumnDefs(dataColDefs);
-    } else {
-      setColumnDefs([]);
-      setRowData([]);
-    }
-  }, [
-    tab?.result?.data,
-    tab?.result?.meta,
-    handlePinColumn,
-    handleAutoSizeColumn,
-    handleResetColumns,
-  ]);
-
-  // Save orientation preference to localStorage when it changes
+  // Save orientation preference to localStorage
   useEffect(() => {
     try {
       localStorage.setItem("sql-editor-layout-orientation", orientation);
@@ -434,100 +174,6 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
     return () => clearInterval(interval);
   }, [tab?.isLoading]);
 
-  // Handle transpose data transformation
-  useEffect(() => {
-    if (
-      isTransposed &&
-      tab?.result?.data?.length &&
-      tab?.result?.meta?.length
-    ) {
-      const gridApi = gridRef.current?.api;
-      let rowsToTranspose: IRow[] = [];
-
-      if (gridApi) {
-        // First, try to get selected rows
-        const selectedRows = gridApi.getSelectedRows() || [];
-
-        if (selectedRows.length > 0) {
-          rowsToTranspose = selectedRows;
-        } else {
-          // If no rows selected, get all rows on current page
-          const displayedRows: IRow[] = [];
-          gridApi.forEachNodeAfterFilterAndSort((node, index) => {
-            // Get rows for current page only
-            const currentPage = gridApi.paginationGetCurrentPage() || 0;
-            const pageSize = gridApi.paginationGetPageSize() || 100;
-            const startIndex = currentPage * pageSize;
-            const endIndex = startIndex + pageSize;
-
-            if (index >= startIndex && index < endIndex && node.data) {
-              displayedRows.push(node.data);
-            }
-          });
-          rowsToTranspose = displayedRows;
-        }
-      }
-
-      if (rowsToTranspose.length > 0) {
-        const { columnDefs: transposedCols, rowData: transposedData } =
-          transposeGridData(rowsToTranspose, tab.result.meta);
-
-        setColumnDefs(transposedCols);
-        setRowData(transposedData);
-      }
-    } else if (
-      !isTransposed &&
-      tab?.result?.data?.length &&
-      tab?.result?.meta?.length
-    ) {
-      // Return to normal view - trigger re-processing
-      const dataColDefs: ColDef<IRow>[] = tab.result.meta.map((col: any) => {
-        const colName = col.name;
-        return {
-          headerName: colName,
-          field: colName,
-          valueGetter: (param: any) => param.data[colName],
-          headerComponent: AgGridHeaderContextMenu,
-          headerComponentParams: {
-            onPinColumn: handlePinColumn,
-            onAutoSizeColumn: handleAutoSizeColumn,
-            onResetColumns: handleResetColumns,
-          },
-        };
-      });
-
-      setRowData(tab.result.data);
-      setColumnDefs(dataColDefs);
-    }
-  }, [
-    isTransposed,
-    tab?.result?.data,
-    tab?.result?.meta,
-    handlePinColumn,
-    handleAutoSizeColumn,
-    handleResetColumns,
-  ]);
-
-  // Keyboard event handlers
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Tab key - transpose toggle (only when editor not focused and results tab active)
-      if (e.key === "Tab" && !isEditorFocused && activeTab === "results") {
-        e.preventDefault();
-        handleTransposeToggle();
-      }
-
-      // Escape key - close sidebar
-      if (e.key === "Escape" && isSidebarOpen) {
-        e.preventDefault();
-        setIsSidebarOpen(false);
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isEditorFocused, activeTab, isSidebarOpen, handleTransposeToggle]);
-
   // Format elapsed seconds as mm:ss
   const formatElapsedTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
@@ -535,7 +181,23 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
-  // UI rendering functions
+  // Metadata table displays column name/type. Build a pseudo QueryResult so
+  // DataTable can reuse the same rendering/pagination pipeline.
+  const metadataQueryResult = useMemo<QueryResult | null>(() => {
+    const metaRows = tab?.result?.meta as
+      | Array<{ name: string; type: string }>
+      | undefined;
+    if (!metaRows?.length) return null;
+    return {
+      meta: [
+        { name: "name" },
+        { name: "type" },
+      ],
+      data: metaRows.map((row) => ({ name: row.name, type: row.type })),
+      statistics: { elapsed: 0, rows_read: 0, bytes_read: 0 },
+    };
+  }, [tab?.result?.meta]);
+
   const renderLoading = () => (
     <div className="h-full w-full flex flex-col items-center justify-center gap-3">
       <div className="flex items-center">
@@ -572,132 +234,24 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
   );
 
   const renderResultsTab = () => {
-    if (!columnDefs.length || !rowData.length) {
-      return tab?.result?.statistics ? (
-        <EmptyQueryResult statistics={tab.result.statistics} />
+    const result = tab?.result as QueryResult | undefined;
+    if (!result?.data?.length) {
+      return result?.statistics ? (
+        <EmptyQueryResult statistics={result.statistics} />
       ) : null;
     }
-
-    const gridProps = {
-      ...gridOptions,
-      rowData,
-      columnDefs,
-      defaultColDef,
-      modules: [AllCommunityModule],
-      theme: gridTheme,
-      rowHeight: 32,
-      suppressMovableColumns: false,
-      rowSelection,
-      selectionColumn,
-      onCellClicked: handleCellClicked,
-    };
-
-    const gridContent = (
-      <div className="h-full flex flex-col">
-        <div className="flex-1 min-h-0">
-          <ContextMenu>
-            <ContextMenuTrigger asChild>
-              <div className="h-full relative">
-                <AgGridWrapper
-                  ref={gridRef}
-                  {...gridProps}
-                  statistics={tab?.result?.statistics ?? null}
-                />
-              </div>
-            </ContextMenuTrigger>
-            <ContextMenuContent>
-              {getAvailableFormats().map((format) => (
-                <ContextMenuItem
-                  key={format}
-                  onClick={() => handleCopyFormat(format)}
-                >
-                  Copy as {getFormatDisplayName(format)}
-                </ContextMenuItem>
-              ))}
-            </ContextMenuContent>
-          </ContextMenu>
-        </div>
-      </div>
-    );
-
-    if (!isSidebarOpen || !selectedCell) {
-      return gridContent;
-    }
-
-    // When main layout is horizontal, show sidebar at bottom (vertical orientation)
-    // When main layout is vertical, show sidebar on right (horizontal orientation)
-    const sidebarOrientation =
-      orientation === "horizontal" ? "vertical" : "horizontal";
-
     return (
-      <ResizablePanelGroup
-        orientation={sidebarOrientation}
-        className="h-full w-full"
-      >
-        <ResizablePanel defaultSize={65} minSize={20}>
-          {gridContent}
-        </ResizablePanel>
-        <ResizableHandle
-          className={
-            sidebarOrientation === "horizontal" ? "w-1 h-full" : "w-full h-1"
-          }
-          withHandle
-        />
-        <ResizablePanel defaultSize={35} minSize={20}>
-          <ValueSidebar
-            fieldName={selectedCell.fieldName}
-            rowIndex={selectedCell.rowIndex}
-            value={selectedCell.value}
-            onClose={() => setIsSidebarOpen(false)}
-          />
-        </ResizablePanel>
-      </ResizablePanelGroup>
+      <div className="h-full flex flex-col">
+        <DataTable data={result} height="100%" />
+      </div>
     );
   };
 
   const renderMetadataTab = () => {
-    if (!tab?.result?.meta?.length) return null;
-
+    if (!metadataQueryResult) return null;
     return (
       <div className="h-full flex flex-col">
-        <div className="flex-1">
-          <AgGridWrapper
-            ref={metaGridRef}
-            rowData={tab.result.meta}
-            columnDefs={[
-              {
-                headerName: "Column Name",
-                field: "name",
-                flex: 1,
-                headerComponent: AgGridHeaderContextMenu,
-                headerComponentParams: {
-                  onPinColumn: handleMetaPinColumn,
-                  onAutoSizeColumn: handleMetaAutoSizeColumn,
-                  onResetColumns: handleMetaResetColumns,
-                },
-              },
-              {
-                headerName: "Data Type",
-                field: "type",
-                flex: 1,
-                headerComponent: AgGridHeaderContextMenu,
-                headerComponentParams: {
-                  onPinColumn: handleMetaPinColumn,
-                  onAutoSizeColumn: handleMetaAutoSizeColumn,
-                  onResetColumns: handleMetaResetColumns,
-                },
-              },
-            ]}
-            defaultColDef={defaultColDef}
-            modules={[AllCommunityModule]}
-            theme={gridTheme}
-            rowHeight={32}
-            pagination={true}
-            paginationPageSize={100}
-            enableCellTextSelection={true}
-            animateRows={false}
-          />
-        </div>
+        <DataTable data={metadataQueryResult} height="100%" />
       </div>
     );
   };
@@ -776,18 +330,6 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
 
             {hasData && activeTab === "results" && (
               <Button
-                variant={isTransposed ? "default" : "ghost"}
-                size="sm"
-                className="h-6 w-6 p-0"
-                onClick={handleTransposeToggle}
-                title="Transpose rows: selected or current page (Tab)"
-              >
-                <Columns className="h-4 w-4" />
-              </Button>
-            )}
-
-            {hasData && activeTab === "results" && (
-              <Button
                 variant={orientation !== "vertical" ? "default" : "ghost"}
                 size="sm"
                 className="h-6 w-6 p-0"
@@ -799,18 +341,6 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
                 ) : (
                   <Rows2 className="h-4 w-4" />
                 )}
-              </Button>
-            )}
-
-            {hasData && activeTab === "results" && (
-              <Button
-                variant={isSidebarOpen ? "default" : "ghost"}
-                size="sm"
-                className="h-6 w-6 p-0"
-                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                title="Toggle value sidebar"
-              >
-                <PanelRight className="h-4 w-4" />
               </Button>
             )}
 
@@ -842,12 +372,10 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
     );
   };
 
-  // Render main results section based on current state
   const renderResults = () => {
     if (tab?.isLoading) return renderLoading();
     if (tab?.error) return renderError(tab.error);
 
-    // Check for multi-query results first
     if (tab?.results && tab.results.length > 0) {
       return (
         <MultiResultTabs
@@ -858,14 +386,12 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
       );
     }
 
-    // Single query result
     if (!tab?.result) return renderEmpty();
     if (tab.result.error) return renderError(tab.result.error);
 
     return renderResultTabs();
   };
 
-  // Return null if tab doesn't exist
   if (!tab) return null;
 
   const { defaultLayout, onLayoutChanged } = useDefaultLayout({

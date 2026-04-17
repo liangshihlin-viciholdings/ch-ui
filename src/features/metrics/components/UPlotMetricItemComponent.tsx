@@ -27,7 +27,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import useAppStore from "@/stores/workspaceStore";
-import AgTable from "@/components/common/AgTable";
+import { DataTable } from "@/components/common/DataTable";
 import { useTimeRange } from "../context/TimeRangeContext";
 import { interpolateQuery, previewQuery } from "../utils/queryInterpolation";
 import UPlotMetricChart from "./UPlotMetricChart";
@@ -246,7 +246,7 @@ function UPlotMetricItemComponent({ item }: Props) {
     if (!queryResult || !queryResult.data || queryResult.data.length === 0) {
       return <div className="text-muted-foreground font-bold">No data</div>;
     }
-    return <AgTable data={queryResult} height="100%" />;
+    return <DataTable data={queryResult as any} height="100%" />;
   };
 
   const renderContent = () => {

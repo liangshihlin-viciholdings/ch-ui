@@ -4,7 +4,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Loader2, RefreshCcw } from "lucide-react";
 import useAppStore from "@/stores/workspaceStore";
 import { Button } from "@/components/ui/button";
-import AgTable from "@/components/common/AgTable";
+import { DataTable } from "@/components/common/DataTable";
 
 interface SchemaSectionProps {
   database: string;
@@ -104,7 +104,7 @@ const SchemaSection: React.FC<SchemaSectionProps> = ({
             className="rounded-md border overflow-hidden"
             style={{ height: "400px" }}
           >
-            <AgTable data={schemaData} />
+            <DataTable data={schemaData as any} height="100%" />
           </div>
         ) : (
           <Alert>
