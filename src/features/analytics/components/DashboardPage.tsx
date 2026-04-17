@@ -1,0 +1,326 @@
+// src/features/analytics/components/DashboardPage.tsx
+// Full dashboard view — header (title + actions), filter strip, time picker,
+// and a responsive grid of ChartContainer tiles.
+
+import { useCallback, useEffect, useState } from "react";
+import { Plus, Trash2, Loader2 } from "lucide-react";
+import { toast } from "sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import type {
+  DashboardTile,
+  ChartConfig,
+} from "@/features/analytics/types";
+import {
+  useDashboard,
+  useUpdateDashboard,
+  useDeleteDashboard,
+} from "@/features/analytics/hooks/useDashboard";
+import { useTimeRange } from "@/features/analytics/hooks/useTimeRange";
+import { useDashboardFilters } from "@/features/analytics/hooks/useDashboardFilters";
+import { DashboardGrid } from "./DashboardGrid";
+import { DashboardFilters } from "./DashboardFilters";
+import { TimePicker } from "./TimePicker";
+import { ChartBuilder } from "./ChartBuilder";
+import { createDefaultBuilderConfig } from "@/features/analytics/hooks/useChartConfig";
+
+export interface DashboardPageProps {
+  dashboardId: string;
+  onNavigateToList: () => void;
+}
+
+interface TileEditorState {
+  tile: DashboardTile;
+  tableName: string;
+  isNew: boolean;
+}
+
+function makeNewTile(): TileEditorState {
+  return {
+    tile: {
+      id: crypto.randomUUID(),
+      title: "Untitled chart",
+      x: 0,
+      y: Infinity,
+      w: 6,
+      h: 4,
+      config: createDefaultBuilderConfig(),
+    },
+    tableName: "",
+    isNew: true,
+  };
+}
+
+export function DashboardPage({
+  dashboardId,
+  onNavigateToList,
+}: DashboardPageProps) {
+  const { data: dashboard, isLoading } = useDashboard(dashboardId);
+  const updateDashboard = useUpdateDashboard();
+  const deleteDashboard = useDeleteDashboard();
+
+  const { range, setPreset, setCustom } = useTimeRange("1h");
+  const { filters, addFilter, removeFilter, setFilters } = useDashboardFilters(
+    dashboard?.filters ?? [],
+  );
+
+  const [editor, setEditor] = useState<TileEditorState | null>(null);
+  const [confirmDeleteDashboard, setConfirmDeleteDashboard] = useState(false);
+  // Default table used for newly-created tiles. Each tile currently shares a
+  // single table — matches the HyperDX dashboard pattern.
+  const [defaultTable, setDefaultTable] = useState<string>("");
+
+  // Sync filters when a new dashboard loads. We only re-sync on id change so
+  // local filter edits don't get clobbered by the same dashboard arriving
+  // again from the query cache.
+  useEffect(() => {
+    if (dashboard?.filters) setFilters(dashboard.filters);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dashboard?.id]);
+
+  const tiles = dashboard?.tiles ?? [];
+  const dateRange: [Date, Date] = [range.start, range.end];
+
+  const persistTiles = useCallback(
+    async (next: DashboardTile[]) => {
+      if (!dashboard) return;
+      try {
+        await updateDashboard.mutateAsync({
+          id: dashboard.id,
+          input: { tiles: next },
+        });
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Update failed");
+      }
+    },
+    [dashboard, updateDashboard],
+  );
+
+  const handleLayoutChange = useCallback(
+    (next: DashboardTile[]) => {
+      void persistTiles(next);
+    },
+    [persistTiles],
+  );
+
+  const handleAddTile = () => setEditor(makeNewTile());
+
+  const handleEditTile = (id: string) => {
+    const tile = tiles.find((t) => t.id === id);
+    if (!tile) return;
+    setEditor({ tile, tableName: defaultTable, isNew: false });
+  };
+
+  const handleDuplicateTile = (id: string) => {
+    const tile = tiles.find((t) => t.id === id);
+    if (!tile) return;
+    const copy: DashboardTile = {
+      ...tile,
+      id: crypto.randomUUID(),
+      title: `${tile.title} (copy)`,
+      y: Infinity,
+    };
+    void persistTiles([...tiles, copy]);
+  };
+
+  const handleDeleteTile = (id: string) => {
+    void persistTiles(tiles.filter((t) => t.id !== id));
+  };
+
+  const handleSaveTile = async () => {
+    if (!editor || !dashboard) return;
+    if (!editor.tableName.trim()) {
+      toast.error("Source table is required");
+      return;
+    }
+    const nextTiles = editor.isNew
+      ? [...tiles, editor.tile]
+      : tiles.map((t) => (t.id === editor.tile.id ? editor.tile : t));
+    setDefaultTable(editor.tableName.trim());
+    await persistTiles(nextTiles);
+    setEditor(null);
+  };
+
+  const handleConfigChange = (config: ChartConfig) => {
+    setEditor((prev) =>
+      prev ? { ...prev, tile: { ...prev.tile, config } } : prev,
+    );
+  };
+
+  const handleDeleteDashboard = async () => {
+    if (!dashboard) return;
+    try {
+      await deleteDashboard.mutateAsync(dashboard.id);
+      toast.success(`Deleted "${dashboard.name}"`);
+      onNavigateToList();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Delete failed");
+    }
+  };
+
+  // Persist filters when they change.
+  const handleFilterAdd = useCallback(
+    (filter: Parameters<typeof addFilter>[0]) => {
+      addFilter(filter);
+      if (dashboard) {
+        void updateDashboard.mutateAsync({
+          id: dashboard.id,
+          input: { filters: [...filters, filter] },
+        });
+      }
+    },
+    [addFilter, dashboard, filters, updateDashboard],
+  );
+  const handleFilterRemove = useCallback(
+    (index: number) => {
+      removeFilter(index);
+      if (dashboard) {
+        const next = filters.filter((_, i) => i !== index);
+        void updateDashboard.mutateAsync({
+          id: dashboard.id,
+          input: { filters: next },
+        });
+      }
+    },
+    [removeFilter, dashboard, filters, updateDashboard],
+  );
+
+  if (isLoading) {
+    return (
+      <div className="flex h-full w-full items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (!dashboard) {
+    return (
+      <div className="flex h-full w-full items-center justify-center text-sm text-muted-foreground">
+        Dashboard not found.
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex-1 w-full overflow-auto">
+      <div className="container mx-auto space-y-4 py-4">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <h1 className="truncate text-xl font-semibold tracking-tight text-foreground">
+              {dashboard.name}
+            </h1>
+          </div>
+          <div className="flex items-center gap-2">
+            <TimePicker
+              range={range}
+              onPresetChange={setPreset}
+              onCustomChange={setCustom}
+            />
+            <Button size="sm" onClick={handleAddTile}>
+              <Plus className="mr-1 h-4 w-4" />
+              Add chart
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setConfirmDeleteDashboard(true)}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+
+        <DashboardFilters
+          filters={filters}
+          onAdd={handleFilterAdd}
+          onRemove={handleFilterRemove}
+        />
+
+        <DashboardGrid
+          tiles={tiles}
+          dateRange={dateRange}
+          tableName={defaultTable}
+          filters={filters}
+          onLayoutChange={handleLayoutChange}
+          onEditTile={handleEditTile}
+          onDuplicateTile={handleDuplicateTile}
+          onDeleteTile={handleDeleteTile}
+        />
+      </div>
+
+      <Dialog
+        open={!!editor}
+        onOpenChange={(open) => !open && setEditor(null)}
+      >
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>
+              {editor?.isNew ? "Add chart" : "Edit chart"}
+            </DialogTitle>
+          </DialogHeader>
+          {editor && (
+            <ChartBuilder
+              config={editor.tile.config}
+              onChange={handleConfigChange}
+              tableName={editor.tableName}
+              onTableNameChange={(name) =>
+                setEditor((prev) => (prev ? { ...prev, tableName: name } : prev))
+              }
+              title={editor.tile.title}
+              onTitleChange={(title) =>
+                setEditor((prev) =>
+                  prev ? { ...prev, tile: { ...prev.tile, title } } : prev,
+                )
+              }
+            />
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditor(null)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveTile}>Save</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog
+        open={confirmDeleteDashboard}
+        onOpenChange={setConfirmDeleteDashboard}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete dashboard?</AlertDialogTitle>
+            <AlertDialogDescription>
+              "{dashboard.name}" and all its tiles will be permanently removed.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteDashboard}>
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}
+
+export default DashboardPage;

@@ -78,3 +78,22 @@ export interface ExportedSavedQuery {
   query: string;
   databaseName: string;
 }
+
+// Dashboard schema — mirrors Dashboard from features/analytics/types.ts but
+// kept as a self-contained DB shape so `schema.ts` has no feature imports.
+// `tiles`, `tags`, `filters` are stored as opaque JSON blobs in Dexie.
+export interface SavedDashboard {
+  id: string;
+  name: string;
+  description?: string;
+  tiles: unknown[];
+  tags: string[];
+  filters: unknown[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export type CreateDashboard = Omit<
+  SavedDashboard,
+  "id" | "createdAt" | "updatedAt"
+>;

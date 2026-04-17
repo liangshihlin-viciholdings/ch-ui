@@ -2,11 +2,12 @@
 // Dexie.js Database Configuration for CH-UI
 
 import Dexie, { Table } from "dexie";
-import { SavedConnection, SavedQuery } from "./schema";
+import { SavedConnection, SavedQuery, SavedDashboard } from "./schema";
 
 export class ChUiDatabase extends Dexie {
   connections!: Table<SavedConnection, string>;
   savedQueries!: Table<SavedQuery, string>;
+  dashboards!: Table<SavedDashboard, string>;
 
   constructor() {
     super("ch-ui-db");
@@ -18,6 +19,12 @@ export class ChUiDatabase extends Dexie {
     this.version(2).stores({
       connections: "id, name, isDefault, createdAt",
       savedQueries: "id, name, connectionId, createdAt",
+    });
+
+    this.version(3).stores({
+      connections: "id, name, isDefault, createdAt",
+      savedQueries: "id, name, connectionId, createdAt",
+      dashboards: "id, name, createdAt, updatedAt",
     });
   }
 }
@@ -130,6 +137,45 @@ export async function deleteSavedQueriesByConnectionId(
 ): Promise<void> {
   const queries = await getSavedQueriesByConnectionId(connectionId);
   await Promise.all(queries.map((q) => deleteSavedQuery(q.id)));
+}
+
+// Dashboard operations
+export async function createDashboard(
+  dashboard: Omit<SavedDashboard, "id" | "createdAt" | "updatedAt">
+): Promise<SavedDashboard> {
+  const now = new Date();
+  const newDashboard: SavedDashboard = {
+    ...dashboard,
+    id: generateId(),
+    createdAt: now,
+    updatedAt: now,
+  };
+  await db.dashboards.add(newDashboard);
+  return newDashboard;
+}
+
+export async function getDashboardById(
+  id: string
+): Promise<SavedDashboard | undefined> {
+  return db.dashboards.get(id);
+}
+
+export async function getAllDashboards(): Promise<SavedDashboard[]> {
+  return db.dashboards.toArray();
+}
+
+export async function updateDashboard(
+  id: string,
+  updates: Partial<Omit<SavedDashboard, "id" | "createdAt">>
+): Promise<void> {
+  await db.dashboards.update(id, {
+    ...updates,
+    updatedAt: new Date(),
+  });
+}
+
+export async function deleteDashboard(id: string): Promise<void> {
+  await db.dashboards.delete(id);
 }
 
 // Export re-exports schema types
