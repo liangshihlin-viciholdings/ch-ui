@@ -1,10 +1,24 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
+import HyperDX from "@hyperdx/browser";
 import App from "./App";
 import "./index.css";
 import "uplot/dist/uPlot.min.css";
 import "./features/metrics/components/uplot.css";
 import { Toaster } from "@/components/ui/sonner";
+
+const otelEndpoint = import.meta.env.VITE_OTEL_ENDPOINT;
+const otelApiKey = import.meta.env.VITE_OTEL_API_KEY;
+if (otelEndpoint) {
+  HyperDX.init({
+    url: otelEndpoint,
+    apiKey: otelApiKey ?? "",
+    service: import.meta.env.VITE_OTEL_SERVICE_NAME ?? "ch-ui",
+    tracePropagationTargets: [/localhost/i, /clickhouse/i],
+    consoleCapture: true,
+    advancedNetworkCapture: true,
+  });
+}
 
 // Polyfill for crypto.randomUUID if not available
 if (typeof crypto.randomUUID !== "function") {
