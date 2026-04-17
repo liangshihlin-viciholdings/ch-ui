@@ -13,6 +13,9 @@ import {
   CogIcon,
   ScrollText,
   LayoutDashboard,
+  Network,
+  PlaySquare,
+  Bell,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -114,6 +117,10 @@ const Sidebar = () => {
       icon: LayoutDashboard,
       isNewWindow: false,
     },
+    { to: "/search", label: "Search", icon: Search, isNewWindow: false },
+    { to: "/services", label: "Services", icon: Network, isNewWindow: false },
+    { to: "/sessions", label: "Sessions", icon: PlaySquare, isNewWindow: false },
+    { to: "/alerts", label: "Alerts", icon: Bell, isNewWindow: false },
   ];
 
   const bottomNavLinks = [
