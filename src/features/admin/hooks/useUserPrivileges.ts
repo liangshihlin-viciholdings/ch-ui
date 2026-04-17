@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import useAppStore from "@/store";
+import useAppStore from "@/stores/workspaceStore";
 import { UserPrivileges } from "../types";
 
 /**

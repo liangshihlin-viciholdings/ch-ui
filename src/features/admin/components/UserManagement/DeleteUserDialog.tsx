@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { ConfirmationDialog, ImpactItem } from "@/components/ConfirmationDialog";
-import useAppStore from "@/store";
+import useAppStore from "@/stores/workspaceStore";
 
 interface DeleteUserDialogProps {
   open: boolean;

@@ -6,8 +6,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import useAppStore from "@/store";
-import useConnectionStore from "@/store/connectionStore";
+import useAppStore from "@/stores/workspaceStore";
+import useConnectionStore from "@/stores/connectionStore";
 
 const DatabaseSelector: React.FC = () => {
   const { dataBaseExplorer, selectedDatabase, setSelectedDatabase } =

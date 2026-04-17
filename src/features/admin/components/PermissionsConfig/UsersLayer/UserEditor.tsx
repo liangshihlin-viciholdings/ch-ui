@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { UserData } from "@/features/admin/types";
 import { GrantedPermission } from "../../CreateUser/PrivilegesSection/permissions";
 import PermissionTree from "../../CreateUser/PrivilegesSection/PermissionTree";
-import useAppStore from "@/store";
+import useAppStore from "@/stores/workspaceStore";
 import { useSqlGenerator } from "../hooks/useSqlGenerator";
 import { useGrants } from "../hooks/useGrants";
 

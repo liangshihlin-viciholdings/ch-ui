@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Search, Plus, Edit, Trash2 } from "lucide-react";
-import useAppStore from "@/store";
+import useAppStore from "@/stores/workspaceStore";
 import { toast } from "sonner";
 import {
   Table,

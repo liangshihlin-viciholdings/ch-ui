@@ -48,8 +48,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { toast } from "sonner";
-import { useConnectionStore } from "@/store/connectionStore";
-import useAppStore from "@/store";
+import { useConnectionStore } from "@/stores/connectionStore";
+import useAppStore from "@/stores/workspaceStore";
 import { ConnectionDisplay } from "@/lib/db";
 import ConnectionForm from "./ConnectionForm";
 import ExportImportDialog from "./ExportImportDialog";

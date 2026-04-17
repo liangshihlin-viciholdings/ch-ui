@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Search, Check, X } from "lucide-react";
-import useAppStore from "@/store";
+import useAppStore from "@/stores/workspaceStore";
 import { toast } from "sonner";
 import {
   Table,

@@ -6,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { usePermissionsState } from "./hooks/usePermissionsState";
 import { LayerType } from "./types";
 import { Users, Shield, Gauge, Filter, Settings, Grid3x3, Eye } from "lucide-react";
-import useAppStore from "@/store";
+import useAppStore from "@/stores/workspaceStore";
 import UsersLayer from "./UsersLayer";
 import RolesLayer from "./RolesLayer";
 import QuotasLayer from "./QuotasLayer";

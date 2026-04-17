@@ -20,7 +20,7 @@ vi.mock("../hooks/usePermissionsState", () => ({
   }),
 }));
 
-vi.mock("@/store", () => ({
+vi.mock("@/stores/workspaceStore", () => ({
   default: vi.fn(() => ({
     userPrivileges: {
       username: "test_user",
@@ -193,7 +193,7 @@ describe("PermissionsConfig Accessibility", () => {
   describe("Screen Reader Announcements", () => {
     it("should announce no permissions warning with proper role", () => {
       // Mock user with no permissions
-      vi.mock("@/store", () => ({
+      vi.mock("@/stores/workspaceStore", () => ({
         default: vi.fn(() => ({
           userPrivileges: {
             username: "test_user",

@@ -8,7 +8,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { toast } from "sonner";
-import useAppStore from "@/store";
+import useAppStore from "@/stores/workspaceStore";
 
 import ConfirmationDialog from "@/components/common/ConfirmationDialog";
 import ManualCreationForm from "./ManualCreationForm";

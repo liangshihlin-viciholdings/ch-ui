@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import useAppStore from "@/store";
+import useAppStore from "@/stores/workspaceStore";
 import { Role } from "../../CreateUser/PrivilegesSection/types";
 
 interface SystemRoleRow {

@@ -26,7 +26,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import useAppStore from "@/store";
+import useAppStore from "@/stores/workspaceStore";
 import AgTable from "@/components/common/AgTable";
 import { useTimeRange } from "../context/TimeRangeContext";
 import { interpolateQuery, previewQuery } from "../utils/queryInterpolation";

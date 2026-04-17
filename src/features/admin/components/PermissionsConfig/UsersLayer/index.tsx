@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { UserPlus, Edit, Trash2 } from "lucide-react";
-import useAppStore from "@/store";
+import useAppStore from "@/stores/workspaceStore";
 import { UserData } from "@/features/admin/types";
 import { toast } from "sonner";
 import {

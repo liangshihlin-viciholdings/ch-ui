@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import useAppStore from "@/store";
+import useAppStore from "@/stores/workspaceStore";
 import { ConnectionManager } from "@/features/connections/components";
 import { AppearanceTab } from "@/features/settings/components/AppearanceTab";
 

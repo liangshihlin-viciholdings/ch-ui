@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import PermissionsConfig from "../index";
-import useAppStore from "@/store";
+import useAppStore from "@/stores/workspaceStore";
 
 // Mock monaco-editor
 vi.mock("monaco-editor", () => ({
@@ -39,7 +39,7 @@ vi.mock("../hooks/usePermissionsState", () => ({
 }));
 
 // Mock store
-vi.mock("@/store");
+vi.mock("@/stores/workspaceStore");
 
 // Mock layer components to test visibility
 vi.mock("../UsersLayer", () => ({

@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { useForm } from "react-hook-form";
-import useAppStore from "@/store";
+import useAppStore from "@/stores/workspaceStore";
 import { format } from "date-fns";
 import { generateRandomPassword } from "@/lib/utils";
 import AuthenticationSection from "./AuthenticationSection";

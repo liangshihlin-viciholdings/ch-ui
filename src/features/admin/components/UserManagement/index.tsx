@@ -11,7 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { RefreshCcw, AlertTriangle, Plus } from "lucide-react";
 import { toast } from "sonner";
-import useAppStore from "@/store";
+import useAppStore from "@/stores/workspaceStore";
 import SearchBar from "./SearchBar";
 import UserTableComponent from "./UsersTable";
 import DeleteUserDialog from "./DeleteUserDialog";

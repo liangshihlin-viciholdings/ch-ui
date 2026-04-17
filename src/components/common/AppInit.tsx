@@ -15,8 +15,8 @@ declare global {
     };
   }
 }
-import useAppStore from "@/store";
-import { useConnectionStore } from "@/store/connectionStore";
+import useAppStore from "@/stores/workspaceStore";
+import { useConnectionStore } from "@/stores/connectionStore";
 import { getConnectionById } from "@/lib/db";
 import { toast } from "sonner";
 

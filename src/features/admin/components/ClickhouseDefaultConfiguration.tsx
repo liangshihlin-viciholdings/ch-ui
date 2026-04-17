@@ -1,4 +1,4 @@
-import useAppStore from "@/store";
+import useAppStore from "@/stores/workspaceStore";
 import { Button } from "@/components/ui/button";
 import {
   Card,

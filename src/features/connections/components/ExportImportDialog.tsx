@@ -22,7 +22,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { toast } from "sonner";
-import { useConnectionStore } from "@/store/connectionStore";
+import { useConnectionStore } from "@/stores/connectionStore";
 import { ConnectionDisplay } from "@/lib/db";
 
 interface ExportImportDialogProps {

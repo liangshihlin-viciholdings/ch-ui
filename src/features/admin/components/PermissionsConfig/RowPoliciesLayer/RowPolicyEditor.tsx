@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import useAppStore from "@/store";
+import useAppStore from "@/stores/workspaceStore";
 
 interface RowPolicyData {
   name: string;

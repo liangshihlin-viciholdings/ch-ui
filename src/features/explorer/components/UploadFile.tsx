@@ -26,7 +26,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import useAppStore from "@/store";
+import useAppStore from "@/stores/workspaceStore";
 import ConfirmationDialog from "@/components/common/ConfirmationDialog";
 import {
     Table,

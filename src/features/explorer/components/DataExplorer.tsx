@@ -12,7 +12,7 @@ import {
   ChevronsDownUp,
   ChevronsUpDown,
 } from "lucide-react";
-import useAppStore from "@/store";
+import useAppStore from "@/stores/workspaceStore";
 import TreeNode, {
   TreeNodeData,
 } from "@/features/explorer/components/TreeNode";

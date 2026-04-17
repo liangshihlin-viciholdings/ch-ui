@@ -30,7 +30,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import HomeTab from "@/features/workspace/components/HomeTab";
-import useAppStore from "@/store";
+import useAppStore from "@/stores/workspaceStore";
 import SqlTab from "@/features/workspace/components//SqlTab";
 import InformationTab from "@/features/workspace/components/infoTab/InfoTab";
 import { genTabId } from "@/lib/utils";

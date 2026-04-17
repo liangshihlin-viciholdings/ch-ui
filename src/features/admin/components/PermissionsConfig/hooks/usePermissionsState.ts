@@ -6,7 +6,7 @@ import {
   ChangeExecutionResult,
   LayerType,
 } from "../types";
-import useAppStore from "@/store";
+import useAppStore from "@/stores/workspaceStore";
 import { useAuditLog } from "./useAuditLog";
 import { useEnhancedToast } from "./useEnhancedToast";
 

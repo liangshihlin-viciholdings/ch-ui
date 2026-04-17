@@ -29,7 +29,7 @@ import { MoreVertical, Edit, Trash2, Users } from "lucide-react";
 import { Role } from "../CreateUser/PrivilegesSection/types";
 import { PendingChange } from "../PermissionsConfig/types";
 import { useGrants } from "../PermissionsConfig/hooks/useGrants";
-import useAppStore from "@/store";
+import useAppStore from "@/stores/workspaceStore";
 
 interface RoleListProps {
   roles: Role[];

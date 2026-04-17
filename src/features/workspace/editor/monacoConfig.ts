@@ -3,7 +3,7 @@ import { createClient } from "@clickhouse/client-web";
 import * as monaco from "monaco-editor";
 import EditorWorker from "monaco-editor/esm/vs/editor/editor.worker?worker";
 import { format } from "sql-formatter";
-import useAppStore from "@/store";
+import useAppStore from "@/stores/workspaceStore";
 import { appQueries } from "./appQueries";
 import { DDL_OBJECTS, getAllEngines } from "./clickhouseConstants";
 import { registerMonacoThemes } from "./monacoThemes";

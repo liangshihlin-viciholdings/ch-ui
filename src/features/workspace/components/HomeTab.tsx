@@ -19,8 +19,8 @@ import {
   Loader2,
   PlugZap,
 } from "lucide-react";
-import useAppStore from "@/store";
-import { useConnectionStore } from "@/store/connectionStore";
+import useAppStore from "@/stores/workspaceStore";
+import { useConnectionStore } from "@/stores/connectionStore";
 import { motion } from "framer-motion";
 import { Skeleton } from "@/components/ui/skeleton";
 import { genTabId } from "@/lib/utils";

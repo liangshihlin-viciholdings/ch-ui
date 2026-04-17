@@ -31,10 +31,11 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { toast } from "sonner";
-import { useConnectionStore } from "@/store/connectionStore";
+import { useConnectionStore } from "@/stores/connectionStore";
 import type { SavedConnection } from "@/lib/db";
 import { createClient } from "@clickhouse/client-web";
-import useAppStore, { ClickHouseError } from "@/store/index";
+import useAppStore from "@/stores/workspaceStore";
+import { ClickHouseError } from "@/lib/clickhouseError";
 
 const isValidClickHouseUrl = (url: string): boolean => {
   if (!url) return false;

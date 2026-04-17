@@ -21,8 +21,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { useNavigate } from "@tanstack/react-router";
-import { useConnectionStore } from "@/store/connectionStore";
-import useAppStore from "@/store";
+import { useConnectionStore } from "@/stores/connectionStore";
+import useAppStore from "@/stores/workspaceStore";
 import { ConnectionDisplay } from "@/lib/db";
 
 export default function ConnectionSwitcher() {

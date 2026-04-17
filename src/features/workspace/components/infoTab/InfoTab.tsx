@@ -12,7 +12,7 @@ import {
   Share,
   Share2,
 } from "lucide-react";
-import useAppStore from "@/store";
+import useAppStore from "@/stores/workspaceStore";
 import LoadingOverlay from "./LoadingOverlay";
 import OverviewCards from "./OverviewCards";
 import DetailsContent from "./DetailsContent";

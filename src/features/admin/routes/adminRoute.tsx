@@ -1,5 +1,5 @@
 import { Navigate } from "@tanstack/react-router";
-import useAppStore from "@/store";
+import useAppStore from "@/stores/workspaceStore";
 import { ReactNode, useEffect } from "react";
 import { toast } from "sonner";
 

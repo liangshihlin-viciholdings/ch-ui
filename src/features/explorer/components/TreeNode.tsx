@@ -30,7 +30,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import ConfirmationDialog from "@/components/common/ConfirmationDialog";
 import { toast } from "sonner";
-import useAppStore from "@/store";
+import useAppStore from "@/stores/workspaceStore";
 import { useTreeExpansion } from "@/features/explorer/context/TreeExpansionContext";
 import { formatBytes } from "@/lib/utils";
 

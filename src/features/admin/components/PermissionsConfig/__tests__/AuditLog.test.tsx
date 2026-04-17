@@ -6,7 +6,7 @@ import { useAuditLog } from "../hooks/useAuditLog";
 import { PendingChange, ChangeExecutionResult } from "../types";
 
 // Mock the store
-vi.mock("@/store", () => ({
+vi.mock("@/stores/workspaceStore", () => ({
   default: vi.fn(() => ({
     runQuery: vi.fn(),
     credential: { username: "test_user" },
@@ -31,7 +31,7 @@ describe("Audit Logging System", () => {
 
   describe("useAuditLog Hook", () => {
     it("should initialize audit table with correct schema", async () => {
-      const useAppStore = await import("@/store");
+      const useAppStore = await import("@/stores/workspaceStore");
       const mockRunQuery = vi.fn().mockResolvedValue({ rows: [] });
       (useAppStore.default as any).mockReturnValue({
         runQuery: mockRunQuery,
@@ -70,7 +70,7 @@ describe("Audit Logging System", () => {
     });
 
     it("should log successful permission change", async () => {
-      const useAppStore = await import("@/store");
+      const useAppStore = await import("@/stores/workspaceStore");
       const mockRunQuery = vi.fn().mockResolvedValue({ rows: [] });
       (useAppStore.default as any).mockReturnValue({
         runQuery: mockRunQuery,
@@ -121,7 +121,7 @@ describe("Audit Logging System", () => {
     });
 
     it("should log failed permission change with error", async () => {
-      const useAppStore = await import("@/store");
+      const useAppStore = await import("@/stores/workspaceStore");
       const mockRunQuery = vi.fn().mockResolvedValue({ rows: [] });
       (useAppStore.default as any).mockReturnValue({
         runQuery: mockRunQuery,
@@ -170,7 +170,7 @@ describe("Audit Logging System", () => {
     });
 
     it("should query audit logs with filters", async () => {
-      const useAppStore = await import("@/store");
+      const useAppStore = await import("@/stores/workspaceStore");
       const mockRunQuery = vi.fn().mockResolvedValue({
         rows: [
           {
@@ -227,7 +227,7 @@ describe("Audit Logging System", () => {
     });
 
     it("should get audit statistics", async () => {
-      const useAppStore = await import("@/store");
+      const useAppStore = await import("@/stores/workspaceStore");
       const mockRunQuery = vi
         .fn()
         .mockResolvedValueOnce({
@@ -297,7 +297,7 @@ describe("Audit Logging System", () => {
 
   describe("Audit Log Data Retention", () => {
     it("should include 90-day TTL in table schema", async () => {
-      const useAppStore = await import("@/store");
+      const useAppStore = await import("@/stores/workspaceStore");
       const mockRunQuery = vi.fn().mockResolvedValue({ rows: [] });
       (useAppStore.default as any).mockReturnValue({
         runQuery: mockRunQuery,
@@ -324,7 +324,7 @@ describe("Audit Logging System", () => {
 
   describe("Audit Log State Tracking", () => {
     it("should include before and after state in audit entry", async () => {
-      const useAppStore = await import("@/store");
+      const useAppStore = await import("@/stores/workspaceStore");
       const mockRunQuery = vi.fn().mockResolvedValue({ rows: [] });
       (useAppStore.default as any).mockReturnValue({
         runQuery: mockRunQuery,
@@ -376,7 +376,7 @@ describe("Audit Logging System", () => {
 
   describe("Audit Log Partitioning", () => {
     it("should partition by month in table schema", async () => {
-      const useAppStore = await import("@/store");
+      const useAppStore = await import("@/stores/workspaceStore");
       const mockRunQuery = vi.fn().mockResolvedValue({ rows: [] });
       (useAppStore.default as any).mockReturnValue({
         runQuery: mockRunQuery,

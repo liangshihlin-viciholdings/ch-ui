@@ -6,7 +6,7 @@ import { Form } from "@/components/ui/form";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { useForm } from "react-hook-form";
-import useAppStore from "@/store";
+import useAppStore from "@/stores/workspaceStore";
 import AuthenticationSection from "./AuthenticationSection";
 import AccessControlSection from "./AccessControlSection";
 import DatabaseRolesSection from "./DatabaseRolesSection";

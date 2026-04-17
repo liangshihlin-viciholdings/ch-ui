@@ -9,7 +9,7 @@ import AuditLogViewer from "@/features/admin/components/PermissionsConfig/AuditL
 import SettingsProfilesLayer from "@/features/admin/components/PermissionsConfig/SettingsProfilesLayer";
 import ReviewPanel from "@/features/admin/components/PermissionsConfig/ReviewPanel";
 import { usePermissionsState } from "@/features/admin/components/PermissionsConfig/hooks/usePermissionsState";
-import useAppStore from "@/store";
+import useAppStore from "@/stores/workspaceStore";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 export default function Admin() {

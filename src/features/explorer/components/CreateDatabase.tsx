@@ -21,7 +21,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import useAppstore from "@/store";
+import useAppstore from "@/stores/workspaceStore";
 import InfoDialog from "@/components/common/InfoDialog";
 import ConfirmationDialog from "@/components/common/ConfirmationDialog";
 import hljs from "highlight.js/lib/core";

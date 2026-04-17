@@ -7,7 +7,7 @@ import TimeRangeSelector from "@/features/metrics/components/TimeRangeSelector";
 import { TimeRangeProvider } from "@/features/metrics/context/TimeRangeContext";
 import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
-import useAppStore from "@/store";
+import useAppStore from "@/stores/workspaceStore";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 function MetricsOverview() {

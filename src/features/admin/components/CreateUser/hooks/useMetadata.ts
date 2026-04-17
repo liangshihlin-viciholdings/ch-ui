@@ -1,6 +1,6 @@
 // hooks/useMetadata.ts
 import { useState, useEffect } from "react";
-import useAppStore from "@/store";
+import useAppStore from "@/stores/workspaceStore";
 import { toast } from "sonner";
 
 interface Metadata {

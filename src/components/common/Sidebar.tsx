@@ -48,7 +48,7 @@ import {
 } from "@/components/ui/tooltip";
 import { Separator } from "@/components/ui/separator";
 import { withBasePath } from "@/lib/basePath";
-import useAppStore from "@/store";
+import useAppStore from "@/stores/workspaceStore";
 
 const Logo = withBasePath("logo.png");
 import { Badge } from "@/components/ui/badge";

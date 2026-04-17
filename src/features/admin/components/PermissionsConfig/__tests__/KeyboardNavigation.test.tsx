@@ -5,7 +5,7 @@ import userEvent from "@testing-library/user-event";
 import PermissionsConfig from "../index";
 
 // Mock the store
-vi.mock("@/store", () => ({
+vi.mock("@/stores/workspaceStore", () => ({
   default: vi.fn(() => ({
     clickHouseClient: {
       query: vi.fn().mockResolvedValue({

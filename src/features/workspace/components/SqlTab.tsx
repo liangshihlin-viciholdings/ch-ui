@@ -70,7 +70,7 @@ import MultiResultTabs from "./MultiResultTabs";
 import { ExplainTab } from "@/features/workspace/explain/components/ExplainTab";
 
 // Store
-import useAppStore from "@/store";
+import useAppStore from "@/stores/workspaceStore";
 import { useDefaultLayout } from "react-resizable-panels";
 
 // Types

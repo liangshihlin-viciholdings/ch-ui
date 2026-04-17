@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import useAppStore from "@/store";
+import useAppStore from "@/stores/workspaceStore";
 import { PendingChange, ChangeExecutionResult } from "../types";
 
 /**

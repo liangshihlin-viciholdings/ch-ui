@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import ConnectionForm from "./ConnectionForm";
 import { toast } from "sonner";
 import * as clickhouseClient from "@clickhouse/client-web";
-import { ClickHouseError } from "@/store/index";
+import { ClickHouseError } from "@/lib/clickhouseError";
 
 // Mock dependencies
 vi.mock("sonner", () => ({
@@ -18,7 +18,7 @@ vi.mock("@clickhouse/client-web", () => ({
   createClient: vi.fn(),
 }));
 
-vi.mock("@/store/connectionStore", () => ({
+vi.mock("@/stores/connectionStore", () => ({
   useConnectionStore: () => ({
     saveConnection: vi.fn().mockResolvedValue(true),
     updateConnectionById: vi.fn().mockResolvedValue(true),

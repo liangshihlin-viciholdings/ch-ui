@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useCallback, useState, useMemo } from "react"
 import * as monaco from "monaco-editor";
 import { useTheme } from "@/components/common/theme-provider";
 import { useAppearance } from "@/contexts/AppearanceContext";
-import useAppStore from "@/store";
+import useAppStore from "@/stores/workspaceStore";
 import {
   initializeMonacoGlobally,
   createMonacoEditor,
@@ -41,7 +41,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { useNavigate } from "@tanstack/react-router";
 import { parseQueries, findQueryAtCursor, ParsedQuery } from "@/helpers/queryParser";
-import { useConnectionStore } from "@/store/connectionStore";
+import { useConnectionStore } from "@/stores/connectionStore";
 
 interface SQLEditorProps {
   tabId: string;

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import useAppStore from "@/store";
+import useAppStore from "@/stores/workspaceStore";
 import { GrantedPermission, PermissionScope } from "../../CreateUser/PrivilegesSection/permissions";
 
 interface SystemGrantRow {
