@@ -97,3 +97,43 @@ export type CreateDashboard = Omit<
   SavedDashboard,
   "id" | "createdAt" | "updatedAt"
 >;
+
+// Saved Search — a reusable search query + filter set persisted locally.
+// `filters` is an opaque JSON blob (runtime shape lives in
+// src/features/search/types.ts).
+export interface SavedSearch {
+  id: string;
+  name: string;
+  query: string;
+  tableName: string;
+  filters: unknown[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export type CreateSavedSearch = Omit<
+  SavedSearch,
+  "id" | "createdAt" | "updatedAt"
+>;
+
+// Alert — threshold-based alert on a chart-style query.
+// `config` and `lastTriggered` are stored as opaque blobs; the runtime shape
+// lives in src/features/alerts/types.ts.
+export interface SavedAlert {
+  id: string;
+  name: string;
+  tableName: string;
+  config: unknown;
+  thresholdOperator: string; // ">" | "<" | ">=" | "<=" | "==" | "!="
+  thresholdValue: number;
+  evaluationInterval: string; // "5m" | "15m" | "1h"
+  enabled: boolean;
+  lastTriggered?: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export type CreateAlert = Omit<
+  SavedAlert,
+  "id" | "createdAt" | "updatedAt"
+>;

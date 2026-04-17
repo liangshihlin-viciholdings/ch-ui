@@ -2,12 +2,20 @@
 // Dexie.js Database Configuration for CH-UI
 
 import Dexie, { Table } from "dexie";
-import { SavedConnection, SavedQuery, SavedDashboard } from "./schema";
+import {
+  SavedConnection,
+  SavedQuery,
+  SavedDashboard,
+  SavedSearch,
+  SavedAlert,
+} from "./schema";
 
 export class ChUiDatabase extends Dexie {
   connections!: Table<SavedConnection, string>;
   savedQueries!: Table<SavedQuery, string>;
   dashboards!: Table<SavedDashboard, string>;
+  savedSearches!: Table<SavedSearch, string>;
+  alerts!: Table<SavedAlert, string>;
 
   constructor() {
     super("ch-ui-db");
@@ -25,6 +33,14 @@ export class ChUiDatabase extends Dexie {
       connections: "id, name, isDefault, createdAt",
       savedQueries: "id, name, connectionId, createdAt",
       dashboards: "id, name, createdAt, updatedAt",
+    });
+
+    this.version(4).stores({
+      connections: "id, name, isDefault, createdAt",
+      savedQueries: "id, name, connectionId, createdAt",
+      dashboards: "id, name, createdAt, updatedAt",
+      savedSearches: "id, name, createdAt, updatedAt",
+      alerts: "id, name, enabled, createdAt, updatedAt",
     });
   }
 }
@@ -176,6 +192,82 @@ export async function updateDashboard(
 
 export async function deleteDashboard(id: string): Promise<void> {
   await db.dashboards.delete(id);
+}
+
+// SavedSearch operations
+export async function createSavedSearchRow(
+  input: Omit<SavedSearch, "id" | "createdAt" | "updatedAt">,
+): Promise<SavedSearch> {
+  const now = new Date();
+  const row: SavedSearch = {
+    ...input,
+    id: generateId(),
+    createdAt: now,
+    updatedAt: now,
+  };
+  await db.savedSearches.add(row);
+  return row;
+}
+
+export async function getSavedSearchById(
+  id: string,
+): Promise<SavedSearch | undefined> {
+  return db.savedSearches.get(id);
+}
+
+export async function getAllSavedSearches(): Promise<SavedSearch[]> {
+  return db.savedSearches.toArray();
+}
+
+export async function updateSavedSearchRow(
+  id: string,
+  updates: Partial<Omit<SavedSearch, "id" | "createdAt">>,
+): Promise<void> {
+  await db.savedSearches.update(id, {
+    ...updates,
+    updatedAt: new Date(),
+  });
+}
+
+export async function deleteSavedSearchRow(id: string): Promise<void> {
+  await db.savedSearches.delete(id);
+}
+
+// Alert operations
+export async function createAlertRow(
+  input: Omit<SavedAlert, "id" | "createdAt" | "updatedAt">,
+): Promise<SavedAlert> {
+  const now = new Date();
+  const row: SavedAlert = {
+    ...input,
+    id: generateId(),
+    createdAt: now,
+    updatedAt: now,
+  };
+  await db.alerts.add(row);
+  return row;
+}
+
+export async function getAlertById(id: string): Promise<SavedAlert | undefined> {
+  return db.alerts.get(id);
+}
+
+export async function getAllAlerts(): Promise<SavedAlert[]> {
+  return db.alerts.toArray();
+}
+
+export async function updateAlertRow(
+  id: string,
+  updates: Partial<Omit<SavedAlert, "id" | "createdAt">>,
+): Promise<void> {
+  await db.alerts.update(id, {
+    ...updates,
+    updatedAt: new Date(),
+  });
+}
+
+export async function deleteAlertRow(id: string): Promise<void> {
+  await db.alerts.delete(id);
 }
 
 // Export re-exports schema types
