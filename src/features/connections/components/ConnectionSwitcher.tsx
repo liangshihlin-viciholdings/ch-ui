@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "@tanstack/react-router";
 import { useConnectionStore } from "@/store/connectionStore";
 import useAppStore from "@/store";
 import { ConnectionDisplay } from "@/lib/db";
@@ -82,7 +82,7 @@ export default function ConnectionSwitcher() {
         variant="ghost"
         size="sm"
         className="w-full justify-start gap-2 text-muted-foreground"
-        onClick={() => navigate("/settings")}
+        onClick={() => navigate({ to: "/settings" })}
       >
         <Database className="h-4 w-4" />
         No saved connections
@@ -158,7 +158,7 @@ export default function ConnectionSwitcher() {
         <DropdownMenuSeparator />
         <DropdownMenuItem
           className="cursor-pointer"
-          onClick={() => navigate("/settings")}
+          onClick={() => navigate({ to: "/settings" })}
         >
           <Settings className="h-4 w-4 mr-2" />
           Manage Connections

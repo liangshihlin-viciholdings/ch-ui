@@ -41,7 +41,7 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
-import { useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate } from "@tanstack/react-router";
 
 interface Tab {
   id: string;
@@ -163,9 +163,11 @@ function WorkspaceTabs() {
     }),
   );
 
-  const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
+  const navigate = useNavigate();
 
   useEffect(() => {
+    const searchParams = new URLSearchParams(location.searchStr);
     const database = searchParams.get("database") || "";
     const table = searchParams.get("table") || "";
     if (database || table) {
@@ -189,9 +191,9 @@ function WorkspaceTabs() {
       }
 
       // Clean up URL parameters
-      setSearchParams({}, { replace: true });
+      navigate({ to: location.pathname, search: {}, replace: true });
     }
-  }, [searchParams, tabs]);
+  }, [location.searchStr, location.pathname, tabs]);
 
   const addNewCodeTab = useCallback(() => {
     addTab({

@@ -19,7 +19,7 @@ import DetailsContent from "./DetailsContent";
 import CreateQuerySection from "./CreateQuerySection";
 import DataSampleSection from "./DataSampleSection";
 import SchemaSection from "./SchemaSection";
-import { useSearchParams } from "react-router-dom";
+import { useLocation } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { getBasePath } from "@/lib/basePath";
@@ -51,7 +51,8 @@ interface TableData {
 }
 
 const InfoTab: React.FC<InfoTabProps> = ({ database, tableName }) => {
-  const [searchParams] = useSearchParams();
+  const location = useLocation();
+  const searchParams = new URLSearchParams(location.searchStr);
   const { runQuery } = useAppStore();
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<DatabaseData | TableData | null>(null);

@@ -1,14 +1,14 @@
 import * as React from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation } from "@tanstack/react-router";
 import { metrics } from "@/features/metrics/config/metricsConfig";
 
 export default function MetricsNavTabs() {
   const navigate = useNavigate();
   const location = useLocation();
-  const scope = new URLSearchParams(location.search).get("scope") || "overview";
+  const scope = new URLSearchParams(location.searchStr).get("scope") || "overview";
 
   const handleClick = (nextScope: string) => {
-    navigate(`/metrics?scope=${nextScope}`);
+    navigate({ to: "/metrics", search: { scope: nextScope } });
   };
 
   return (

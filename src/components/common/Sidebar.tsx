@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import {
   SquareTerminal,
   Github,
@@ -304,7 +304,7 @@ const Sidebar = () => {
                     setOpen(false);
                     return;
                   }
-                  navigate(item.to);
+                  navigate({ to: item.to });
                   setOpen(false);
                 }}
               >
@@ -323,7 +323,7 @@ const Sidebar = () => {
                     setOpen(false);
                     return;
                   }
-                  navigate(item.to);
+                  navigate({ to: item.to });
                   setOpen(false);
                 }}
               >

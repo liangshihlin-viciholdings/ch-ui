@@ -1,4 +1,4 @@
-import { Navigate } from "react-router-dom";
+import { Navigate } from "@tanstack/react-router";
 import useAppStore from "@/store";
 import { ReactNode, useEffect } from "react";
 import { toast } from "sonner";

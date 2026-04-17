@@ -39,7 +39,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "@tanstack/react-router";
 import { parseQueries, findQueryAtCursor, ParsedQuery } from "@/helpers/queryParser";
 import { useConnectionStore } from "@/store/connectionStore";
 

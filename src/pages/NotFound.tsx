@@ -5,7 +5,7 @@ import { Separator } from "@/components/ui/separator";
 
 const Logo = withBasePath("logo.png");
 import { Button } from "@/components/ui/button";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "@tanstack/react-router";
 import { SignpostBig } from "lucide-react";
 
 const NotFound: React.FC = () => {
@@ -25,7 +25,7 @@ const NotFound: React.FC = () => {
             variant="ghost"
             className="mt-4"
             onClick={() => {
-              navigate("/");
+              navigate({ to: "/" });
             }}
           >
             <SignpostBig className="h-8" />

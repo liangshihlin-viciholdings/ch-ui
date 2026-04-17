@@ -5,7 +5,7 @@ import DashboardGrid from "@/features/metrics/components/DashboardGrid";
 import MetricsNavTabs from "@/features/metrics/components/MetricsNavTabs";
 import TimeRangeSelector from "@/features/metrics/components/TimeRangeSelector";
 import { TimeRangeProvider } from "@/features/metrics/context/TimeRangeContext";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import useAppStore from "@/store";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -13,7 +13,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 function MetricsOverview() {
   const location = useLocation();
   const navigate = useNavigate();
-  const scope = new URLSearchParams(location.search).get("scope") || "overview";
+  const scope = new URLSearchParams(location.searchStr).get("scope") || "overview";
   const { credential, isServerAvailable } = useAppStore();
   const [isLocalHostInstance, setIsLocalHostInstance] = React.useState(false);
 
@@ -23,7 +23,7 @@ function MetricsOverview() {
       toast.error(
         "No active connection. Please configure your connection in Settings."
       );
-      navigate("/settings");
+      navigate({ to: "/settings" });
       return;
     }
 
@@ -36,7 +36,7 @@ function MetricsOverview() {
 
     const metric = metrics.find((m) => m.scope === scope);
     if (!metric) {
-      navigate("/metrics?scope=overview");
+      navigate({ to: "/metrics", search: { scope: "overview" } });
       toast.error("Invalid metric scope");
     }
   }, [scope, navigate, credential, isServerAvailable]);
@@ -57,7 +57,8 @@ function MetricsOverview() {
             {metrics.map((metric) => (
               <div key={metric.title} className="mt-4 max-w-[250px]">
                 <Link
-                  to={`/metrics?scope=${metric.scope}`}
+                  to="/metrics"
+                  search={{ scope: metric.scope }}
                   className="text-primary hover:underline"
                 >
                   <div className="text-lg font-bold text-foreground flex items-center">
