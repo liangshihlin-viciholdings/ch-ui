@@ -18,6 +18,7 @@
 @custom-variant solarized-light (&:is(.solarized-light *));
 @custom-variant ayu-light (&:is(.ayu-light *));
 @custom-variant rose-pine-dawn (&:is(.rose-pine-dawn *));
+@custom-variant hyperdx (&:is(.hyperdx *));
 
 @theme inline {
   --color-background: hsl(var(--background));
@@ -878,6 +879,49 @@
     --chart-8: 268 21% 57%;
     --chart-9: 197 55% 34%;
     --chart-10: 343 35% 55%;
+  }
+
+  .hyperdx {
+    --background: 228 14% 7%;
+    --foreground: 0 0% 95%;
+
+    --card: 228 10% 10%;
+    --card-foreground: 0 0% 95%;
+
+    --popover: 228 10% 10%;
+    --popover-foreground: 0 0% 95%;
+
+    --primary: 158 100% 38%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 225 6% 15%;
+    --secondary-foreground: 0 0% 90%;
+
+    --muted: 225 6% 13%;
+    --muted-foreground: 220 5% 55%;
+
+    --accent: 158 100% 26%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 225 6% 18%;
+    --input: 225 6% 18%;
+    --ring: 158 100% 38%;
+
+    --selected-row: 158 30% 15%;
+
+    --chart-1: 158 100% 38%;
+    --chart-2: 210 100% 56%;
+    --chart-3: 28 100% 54%;
+    --chart-4: 0 72% 51%;
+    --chart-5: 187 100% 42%;
+    --chart-6: 330 65% 60%;
+    --chart-7: 270 60% 55%;
+    --chart-8: 200 80% 65%;
+    --chart-9: 30 50% 40%;
+    --chart-10: 220 5% 55%;
   }
 }
 

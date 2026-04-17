@@ -18,6 +18,7 @@ export type Theme =
   | "solarized-light"
   | "ayu-light"
   | "rose-pine-dawn"
+  | "hyperdx"
   | "system"
 
 const LIGHT_THEMES: Theme[] = [
@@ -27,6 +28,7 @@ const LIGHT_THEMES: Theme[] = [
 const DARK_THEMES: Theme[] = [
   "dracula", "nord", "gruvbox-dark", "tokyo-night",
   "monokai-pro", "solarized-dark", "catppuccin-mocha", "ayu-dark", "kanso", "catppuccin-frappe",
+  "hyperdx",
 ];
 
 export function isLightTheme(theme: Theme): boolean {
@@ -86,6 +88,7 @@ export function ThemeProvider({
       "solarized-light",
       "ayu-light",
       "rose-pine-dawn",
+      "hyperdx",
       "dark"
     )
 

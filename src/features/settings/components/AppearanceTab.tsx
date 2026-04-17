@@ -105,6 +105,11 @@ const LIGHT_THEMES = [
     label: "Rosé Pine Dawn",
     colors: ["#907AA9", "#B4637A", "#286983"],
   },
+  {
+    value: "hyperdx",
+    label: "HyperDX",
+    colors: ["#00C28A", "#5C9FD8", "#FF7F50"],
+  },
 ] as const;
 
 const FONT_FAMILIES = [
