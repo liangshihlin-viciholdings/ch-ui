@@ -9,8 +9,23 @@ services:
     restart: always
     ports:
       - "${CH_UI_PORT:-5555}:5521"
-    # Optional, provide if you want but not needed
-    # environment:
-    #   VITE_CLICKHOUSE_URL: "${CLICKHOUSE_URL}"
-    #   VITE_CLICKHOUSE_USER: "${CLICKHOUSE_USER}"
-    #   VITE_CLICKHOUSE_PASS: "${CLICKHOUSE_PASS}"
+    environment:
+      VITE_CLICKHOUSE_URL: "${CLICKHOUSE_URL:-}"
+      VITE_CLICKHOUSE_USER: "${CLICKHOUSE_USER:-}"
+      VITE_CLICKHOUSE_PASS: "${CLICKHOUSE_PASS:-}"
+      VITE_OTEL_ENDPOINT: "http://otel-collector:4318"
+
+  otel-collector:
+    build:
+      context: ./otel-collector
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - "${OTEL_GRPC_PORT:-4317}:4317"
+      - "${OTEL_HTTP_PORT:-4318}:4318"
+      - "${OTEL_HEALTH_PORT:-13133}:13133"
+    environment:
+      CLICKHOUSE_ENDPOINT: "${CLICKHOUSE_NATIVE_ENDPOINT:-tcp://clickhouse:9000}"
+      CLICKHOUSE_DATABASE: "${CLICKHOUSE_DATABASE:-default}"
+      CLICKHOUSE_USERNAME: "${CLICKHOUSE_USERNAME:-default}"
+      CLICKHOUSE_PASSWORD: "${CLICKHOUSE_PASSWORD:-}"

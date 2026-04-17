@@ -1,0 +1,44 @@
+# OpenTelemetry Collector Builder (OCB) manifest for CH-UI.
+# Builds a custom collector binary with only the components CH-UI needs
+# for ingesting observability data into ClickHouse.
+#
+# Versions pinned at build time (matches HyperDX upstream):
+#   OTEL_COLLECTOR_VERSION: 0.149.0
+#   OTEL_COLLECTOR_CORE_VERSION: 1.55.0
+
+dist:
+  name: otelcol-chui
+  description: CH-UI OpenTelemetry Collector
+  version: 0.149.0
+  output_path: /build/output
+  build_tags: 'grpcnotrace'
+
+receivers:
+  - gomod: go.opentelemetry.io/collector/receiver/nopreceiver v0.149.0
+  - gomod: go.opentelemetry.io/collector/receiver/otlpreceiver v0.149.0
+  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/receiver/filelogreceiver v0.149.0
+  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/receiver/hostmetricsreceiver v0.149.0
+  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/receiver/prometheusreceiver v0.149.0
+
+processors:
+  - gomod: go.opentelemetry.io/collector/processor/batchprocessor v0.149.0
+  - gomod: go.opentelemetry.io/collector/processor/memorylimiterprocessor v0.149.0
+  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/processor/attributesprocessor v0.149.0
+  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/processor/filterprocessor v0.149.0
+  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/processor/resourcedetectionprocessor v0.149.0
+  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/processor/resourceprocessor v0.149.0
+  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/processor/transformprocessor v0.149.0
+
+exporters:
+  - gomod: go.opentelemetry.io/collector/exporter/debugexporter v0.149.0
+  - gomod: go.opentelemetry.io/collector/exporter/otlphttpexporter v0.149.0
+  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/exporter/clickhouseexporter v0.149.0
+
+extensions:
+  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/extension/healthcheckextension v0.149.0
+  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/extension/pprofextension v0.149.0
+
+providers:
+  - gomod: go.opentelemetry.io/collector/confmap/provider/envprovider v1.55.0
+  - gomod: go.opentelemetry.io/collector/confmap/provider/fileprovider v1.55.0
+  - gomod: go.opentelemetry.io/collector/confmap/provider/yamlprovider v1.55.0
