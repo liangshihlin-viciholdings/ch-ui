@@ -10,17 +10,33 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as SessionsRouteImport } from './routes/sessions'
+import { Route as ServicesRouteImport } from './routes/services'
 import { Route as MetricsRouteImport } from './routes/metrics'
 import { Route as LogsRouteImport } from './routes/logs'
+import { Route as AlertsRouteImport } from './routes/alerts'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as SearchIndexRouteImport } from './routes/search/index'
 import { Route as DashboardsIndexRouteImport } from './routes/dashboards/index'
+import { Route as TracesTraceIdRouteImport } from './routes/traces/$traceId'
+import { Route as SearchSavedSearchIdRouteImport } from './routes/search/$savedSearchId'
 import { Route as DashboardsTemplatesRouteImport } from './routes/dashboards/templates'
 import { Route as DashboardsDashboardIdRouteImport } from './routes/dashboards/$dashboardId'
 
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SessionsRoute = SessionsRouteImport.update({
+  id: '/sessions',
+  path: '/sessions',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ServicesRoute = ServicesRouteImport.update({
+  id: '/services',
+  path: '/services',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MetricsRoute = MetricsRouteImport.update({
@@ -33,6 +49,11 @@ const LogsRoute = LogsRouteImport.update({
   path: '/logs',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AlertsRoute = AlertsRouteImport.update({
+  id: '/alerts',
+  path: '/alerts',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminRoute = AdminRouteImport.update({
   id: '/admin',
   path: '/admin',
@@ -43,9 +64,24 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SearchIndexRoute = SearchIndexRouteImport.update({
+  id: '/search/',
+  path: '/search/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DashboardsIndexRoute = DashboardsIndexRouteImport.update({
   id: '/dashboards/',
   path: '/dashboards/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TracesTraceIdRoute = TracesTraceIdRouteImport.update({
+  id: '/traces/$traceId',
+  path: '/traces/$traceId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SearchSavedSearchIdRoute = SearchSavedSearchIdRouteImport.update({
+  id: '/search/$savedSearchId',
+  path: '/search/$savedSearchId',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardsTemplatesRoute = DashboardsTemplatesRouteImport.update({
@@ -62,76 +98,118 @@ const DashboardsDashboardIdRoute = DashboardsDashboardIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/alerts': typeof AlertsRoute
   '/logs': typeof LogsRoute
   '/metrics': typeof MetricsRoute
+  '/services': typeof ServicesRoute
+  '/sessions': typeof SessionsRoute
   '/settings': typeof SettingsRoute
   '/dashboards/$dashboardId': typeof DashboardsDashboardIdRoute
   '/dashboards/templates': typeof DashboardsTemplatesRoute
+  '/search/$savedSearchId': typeof SearchSavedSearchIdRoute
+  '/traces/$traceId': typeof TracesTraceIdRoute
   '/dashboards/': typeof DashboardsIndexRoute
+  '/search/': typeof SearchIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/alerts': typeof AlertsRoute
   '/logs': typeof LogsRoute
   '/metrics': typeof MetricsRoute
+  '/services': typeof ServicesRoute
+  '/sessions': typeof SessionsRoute
   '/settings': typeof SettingsRoute
   '/dashboards/$dashboardId': typeof DashboardsDashboardIdRoute
   '/dashboards/templates': typeof DashboardsTemplatesRoute
+  '/search/$savedSearchId': typeof SearchSavedSearchIdRoute
+  '/traces/$traceId': typeof TracesTraceIdRoute
   '/dashboards': typeof DashboardsIndexRoute
+  '/search': typeof SearchIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/alerts': typeof AlertsRoute
   '/logs': typeof LogsRoute
   '/metrics': typeof MetricsRoute
+  '/services': typeof ServicesRoute
+  '/sessions': typeof SessionsRoute
   '/settings': typeof SettingsRoute
   '/dashboards/$dashboardId': typeof DashboardsDashboardIdRoute
   '/dashboards/templates': typeof DashboardsTemplatesRoute
+  '/search/$savedSearchId': typeof SearchSavedSearchIdRoute
+  '/traces/$traceId': typeof TracesTraceIdRoute
   '/dashboards/': typeof DashboardsIndexRoute
+  '/search/': typeof SearchIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/admin'
+    | '/alerts'
     | '/logs'
     | '/metrics'
+    | '/services'
+    | '/sessions'
     | '/settings'
     | '/dashboards/$dashboardId'
     | '/dashboards/templates'
+    | '/search/$savedSearchId'
+    | '/traces/$traceId'
     | '/dashboards/'
+    | '/search/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/admin'
+    | '/alerts'
     | '/logs'
     | '/metrics'
+    | '/services'
+    | '/sessions'
     | '/settings'
     | '/dashboards/$dashboardId'
     | '/dashboards/templates'
+    | '/search/$savedSearchId'
+    | '/traces/$traceId'
     | '/dashboards'
+    | '/search'
   id:
     | '__root__'
     | '/'
     | '/admin'
+    | '/alerts'
     | '/logs'
     | '/metrics'
+    | '/services'
+    | '/sessions'
     | '/settings'
     | '/dashboards/$dashboardId'
     | '/dashboards/templates'
+    | '/search/$savedSearchId'
+    | '/traces/$traceId'
     | '/dashboards/'
+    | '/search/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRoute
+  AlertsRoute: typeof AlertsRoute
   LogsRoute: typeof LogsRoute
   MetricsRoute: typeof MetricsRoute
+  ServicesRoute: typeof ServicesRoute
+  SessionsRoute: typeof SessionsRoute
   SettingsRoute: typeof SettingsRoute
   DashboardsDashboardIdRoute: typeof DashboardsDashboardIdRoute
   DashboardsTemplatesRoute: typeof DashboardsTemplatesRoute
+  SearchSavedSearchIdRoute: typeof SearchSavedSearchIdRoute
+  TracesTraceIdRoute: typeof TracesTraceIdRoute
   DashboardsIndexRoute: typeof DashboardsIndexRoute
+  SearchIndexRoute: typeof SearchIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -141,6 +219,20 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sessions': {
+      id: '/sessions'
+      path: '/sessions'
+      fullPath: '/sessions'
+      preLoaderRoute: typeof SessionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/services': {
+      id: '/services'
+      path: '/services'
+      fullPath: '/services'
+      preLoaderRoute: typeof ServicesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/metrics': {
@@ -157,6 +249,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LogsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/alerts': {
+      id: '/alerts'
+      path: '/alerts'
+      fullPath: '/alerts'
+      preLoaderRoute: typeof AlertsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin': {
       id: '/admin'
       path: '/admin'
@@ -171,11 +270,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/search/': {
+      id: '/search/'
+      path: '/search'
+      fullPath: '/search/'
+      preLoaderRoute: typeof SearchIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/dashboards/': {
       id: '/dashboards/'
       path: '/dashboards'
       fullPath: '/dashboards/'
       preLoaderRoute: typeof DashboardsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/traces/$traceId': {
+      id: '/traces/$traceId'
+      path: '/traces/$traceId'
+      fullPath: '/traces/$traceId'
+      preLoaderRoute: typeof TracesTraceIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/search/$savedSearchId': {
+      id: '/search/$savedSearchId'
+      path: '/search/$savedSearchId'
+      fullPath: '/search/$savedSearchId'
+      preLoaderRoute: typeof SearchSavedSearchIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dashboards/templates': {
@@ -198,12 +318,18 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
+  AlertsRoute: AlertsRoute,
   LogsRoute: LogsRoute,
   MetricsRoute: MetricsRoute,
+  ServicesRoute: ServicesRoute,
+  SessionsRoute: SessionsRoute,
   SettingsRoute: SettingsRoute,
   DashboardsDashboardIdRoute: DashboardsDashboardIdRoute,
   DashboardsTemplatesRoute: DashboardsTemplatesRoute,
+  SearchSavedSearchIdRoute: SearchSavedSearchIdRoute,
+  TracesTraceIdRoute: TracesTraceIdRoute,
   DashboardsIndexRoute: DashboardsIndexRoute,
+  SearchIndexRoute: SearchIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
