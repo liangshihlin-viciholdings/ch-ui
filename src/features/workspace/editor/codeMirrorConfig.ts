@@ -4,7 +4,7 @@
 //     sql-formatter tokenizer (keywords, data types, built-in functions).
 //   - @codemirror/autocomplete driving ClickHouse-aware completions.
 //   - A keymap for run / run-all / save shortcuts + Tab-accept-completion.
-//   - Optional vim-mode extension.
+//   - Optional vim-mode extension (placed FIRST per @replit/codemirror-vim docs).
 //
 // The builder accepts callbacks so the SqlEditor component can wire its
 // own state without coupling this module to React.
@@ -86,7 +86,15 @@ export interface SqlExtensionOptions {
 export function createSqlExtensions(
   options: SqlExtensionOptions,
 ): Extension[] {
-  const extensions: Extension[] = [
+  const extensions: Extension[] = [];
+
+  // Vim extension MUST come before other keymaps per @replit/codemirror-vim
+  // documentation. It intercepts DOM keydown events and needs priority.
+  if (options.vimMode) {
+    extensions.push(vimExtension());
+  }
+
+  extensions.push(
     clickhouseSql(),
     autocompletion({
       override: [clickhouseCompletionSource],
@@ -120,11 +128,7 @@ export function createSqlExtensions(
         run: acceptCompletion,
       },
     ]),
-  ];
-
-  if (options.vimMode) {
-    extensions.push(vimExtension());
-  }
+  );
 
   return extensions;
 }

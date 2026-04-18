@@ -25,6 +25,34 @@ import CodeMirror, {
   type ViewUpdate,
 } from "@uiw/react-codemirror";
 import { StateEffect, StateField } from "@codemirror/state";
+import {
+  drawSelection,
+  highlightActiveLine,
+  highlightActiveLineGutter,
+  highlightSpecialChars,
+  lineNumbers,
+  rectangularSelection,
+  crosshairCursor,
+  dropCursor,
+  keymap,
+} from "@codemirror/view";
+import {
+  defaultKeymap,
+  history,
+  historyKeymap,
+  indentWithTab,
+} from "@codemirror/commands";
+import {
+  bracketMatching,
+  foldGutter,
+  indentOnInput,
+} from "@codemirror/language";
+import {
+  closeBrackets,
+  closeBracketsKeymap,
+  completionKeymap,
+} from "@codemirror/autocomplete";
+import { searchKeymap, highlightSelectionMatches } from "@codemirror/search";
 import { toast } from "sonner";
 import { CirclePlay, Save, PlaySquare } from "lucide-react";
 
@@ -439,20 +467,71 @@ const SQLEditor: React.FC<SQLEditorProps> = ({
     [fontSize, fontFamilyValue, highlightBackground],
   );
 
+  // When vim is active, override the theme's caretColor so vim can render
+  // its own block cursor (vim sets caret-color:transparent on .cm-vimMode
+  // but our theme's scoped .cm-content caretColor wins by specificity).
+  const vimCursorFix = useMemo(
+    () =>
+      vimMode
+        ? EditorView.theme({
+            ".cm-content": {
+              caretColor: "transparent",
+            },
+          })
+        : [],
+    [vimMode],
+  );
+
+  // When vim mode is on we disable react-codemirror's basicSetup (which adds
+  // defaultKeymap, closeBracketsKeymap, etc. before our extensions) and
+  // instead include the needed parts here in the correct order (vim first).
+  const vimBasicSetup = useMemo(
+    () =>
+      vimMode
+        ? [
+            lineNumbers(),
+            highlightActiveLine(),
+            highlightActiveLineGutter(),
+            highlightSpecialChars(),
+            history(),
+            foldGutter(),
+            drawSelection(),
+            dropCursor(),
+            indentOnInput(),
+            bracketMatching(),
+            closeBrackets(),
+            rectangularSelection(),
+            crosshairCursor(),
+            highlightSelectionMatches(),
+            keymap.of([
+              ...closeBracketsKeymap,
+              ...defaultKeymap,
+              ...searchKeymap,
+              ...historyKeymap,
+              ...completionKeymap,
+              indentWithTab,
+            ]),
+          ]
+        : [],
+    [vimMode],
+  );
+
   const extensions = useMemo(
     () => [
-      ...themeExtensions,
-      fontExtension,
-      highlightField,
-      EditorView.lineWrapping,
       ...createSqlExtensions({
         vimMode,
         onRun: () => runQueryRef.current?.(),
         onRunAll: () => runAllQueriesRef.current?.(),
         onSave: () => saveOpenRef.current?.(),
       }),
+      ...vimBasicSetup,
+      ...themeExtensions,
+      fontExtension,
+      vimCursorFix,
+      highlightField,
+      EditorView.lineWrapping,
     ],
-    [themeExtensions, fontExtension, vimMode],
+    [themeExtensions, fontExtension, vimCursorFix, vimBasicSetup, vimMode],
   );
 
   // ─── CodeMirror callbacks ────────────────────────────────────────────────
@@ -630,16 +709,20 @@ const SQLEditor: React.FC<SQLEditorProps> = ({
           ref={cmRef}
           value={value}
           height="100%"
-          basicSetup={{
-            lineNumbers: true,
-            highlightActiveLine: true,
-            highlightActiveLineGutter: true,
-            foldGutter: true,
-            bracketMatching: true,
-            closeBrackets: true,
-            autocompletion: false, // our autocomplete is added via extensions
-            indentOnInput: true,
-          }}
+          basicSetup={
+            vimMode
+              ? false
+              : {
+                  lineNumbers: true,
+                  highlightActiveLine: true,
+                  highlightActiveLineGutter: true,
+                  foldGutter: true,
+                  bracketMatching: true,
+                  closeBrackets: true,
+                  autocompletion: false, // our autocomplete is added via extensions
+                  indentOnInput: true,
+                }
+          }
           theme="none"
           extensions={extensions}
           onChange={handleChange}

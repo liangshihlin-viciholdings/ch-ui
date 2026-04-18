@@ -1,4 +1,9 @@
 import { createContext, useContext, useEffect, useState } from "react";
+import {
+  setEditorFontSize as setStoreFontSize,
+  setEditorFontFamily as setStoreFontFamily,
+  setEditorVimMode as setStoreVimMode,
+} from "@/stores/editorStore";
 
 const STORAGE_KEYS = {
   UI_FONT_SIZE: "ch-ui-font-size",
@@ -81,16 +86,19 @@ export function AppearanceProvider({
   const setEditorFontSize = (size: number) => {
     setEditorFontSizeState(size);
     localStorage.setItem(STORAGE_KEYS.EDITOR_FONT_SIZE, size.toString());
+    setStoreFontSize(size);
   };
 
   const setEditorFontFamily = (family: EditorFontFamily) => {
     setEditorFontFamilyState(family);
     localStorage.setItem(STORAGE_KEYS.EDITOR_FONT_FAMILY, family);
+    setStoreFontFamily(family);
   };
 
   const setEditorVimMode = (enabled: boolean) => {
     setEditorVimModeState(enabled);
     localStorage.setItem(STORAGE_KEYS.EDITOR_VIM_MODE, enabled.toString());
+    setStoreVimMode(enabled);
   };
 
   return (
