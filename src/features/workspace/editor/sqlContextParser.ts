@@ -529,7 +529,7 @@ export function parseSQLContext(
       currentWord = tokens[i].value;
     }
 
-    // Check previous token
+    // Case 1: cursor is after an identifier that follows a dot (e.g. "db.Pa|")
     if (i > 0 && tokens[i - 1].type === 'DOT') {
       isAfterDot = true;
 
@@ -543,6 +543,18 @@ export function parseSQLContext(
           tablePrefix = beforeDot;
         } else {
           // Just one dot (database.table or table.column)
+          databasePrefix = beforeDot;
+        }
+      }
+    // Case 2: cursor is ON the dot itself with nothing typed after (e.g. "db.|")
+    } else if (tokens[i]?.type === 'DOT') {
+      isAfterDot = true;
+      if (i > 0 && (tokens[i - 1].type === 'IDENTIFIER' || tokens[i - 1].type === 'KEYWORD')) {
+        const beforeDot = tokens[i - 1].value;
+        if (i > 2 && tokens[i - 2].type === 'DOT' && (tokens[i - 3].type === 'IDENTIFIER' || tokens[i - 3].type === 'KEYWORD')) {
+          databasePrefix = tokens[i - 3].value;
+          tablePrefix = beforeDot;
+        } else {
           databasePrefix = beforeDot;
         }
       }

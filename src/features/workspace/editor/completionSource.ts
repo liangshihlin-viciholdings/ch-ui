@@ -436,14 +436,10 @@ function getSuggestionsForContext(
         );
       } else {
         out.push(...getDatabaseSuggestions(dbStructure));
-        if (context.selectedDatabase) {
-          out.push(
-            ...getTableSuggestions(
-              context.selectedDatabase,
-              dbStructure,
-              false,
-            ),
-          );
+        // Show tables from ALL databases so partial names (e.g. "Prod") resolve
+        // across any database, not just the currently selected one.
+        for (const db of dbStructure) {
+          out.push(...getTableSuggestions(db.name, dbStructure, false));
         }
       }
       break;
@@ -458,14 +454,8 @@ function getSuggestionsForContext(
         );
       } else {
         out.push(...getDatabaseSuggestions(dbStructure));
-        if (context.selectedDatabase) {
-          out.push(
-            ...getTableSuggestions(
-              context.selectedDatabase,
-              dbStructure,
-              false,
-            ),
-          );
+        for (const db of dbStructure) {
+          out.push(...getTableSuggestions(db.name, dbStructure, false));
         }
       }
       break;
@@ -535,14 +525,8 @@ function getSuggestionsForContext(
         );
       } else {
         out.push(...getDatabaseSuggestions(dbStructure));
-        if (context.selectedDatabase) {
-          out.push(
-            ...getTableSuggestions(
-              context.selectedDatabase,
-              dbStructure,
-              false,
-            ),
-          );
+        for (const db of dbStructure) {
+          out.push(...getTableSuggestions(db.name, dbStructure, false));
         }
       }
       break;
@@ -550,14 +534,8 @@ function getSuggestionsForContext(
 
     default: {
       out.push(...getDatabaseSuggestions(dbStructure));
-      if (context.selectedDatabase) {
-        out.push(
-          ...getTableSuggestions(
-            context.selectedDatabase,
-            dbStructure,
-            false,
-          ),
-        );
+      for (const db of dbStructure) {
+        out.push(...getTableSuggestions(db.name, dbStructure, false));
       }
       break;
     }
@@ -598,15 +576,20 @@ export const clickhouseCompletionSource: CompletionSource = async (
   const prefix = context.matchBefore(IDENTIFIER_BEFORE);
   if (!prefix && !context.explicit) return null;
 
-  const from = prefix?.from ?? context.pos;
-  const to = context.pos;
-
   const selectedDatabase = useAppStore.getState().selectedDatabase;
   const sqlContext = parseSQLContext(
     context.state.doc.toString(),
     context.pos,
     selectedDatabase,
   );
+
+  // When the cursor is right after a dot with nothing typed yet (e.g. "db.|"),
+  // from must start at the current position so CodeMirror filters table/column
+  // names against "" rather than "db." (which would match nothing).
+  const from = sqlContext.isAfterDot
+    ? (context.matchBefore(/\w*/)?.from ?? context.pos)
+    : (prefix?.from ?? context.pos);
+  const to = context.pos;
 
   // Fetch metadata in parallel. Each call is cached per connection so this
   // is cheap after the first hit.
