@@ -582,7 +582,16 @@ export const clickhouseCompletionSource: CompletionSource = async (
   context: CompletionContext,
 ): Promise<CompletionResult | null> => {
   const prefix = context.matchBefore(IDENTIFIER_BEFORE);
-  if (!prefix && !context.explicit) return null;
+
+  // Also trigger inside function arguments: cursor right after "(" or ","
+  // lets us suggest columns without the user needing to type a prefix first.
+  const charBefore =
+    context.pos > 0
+      ? context.state.doc.sliceString(context.pos - 1, context.pos)
+      : "";
+  const triggerAfterParen = charBefore === "(" || charBefore === ",";
+
+  if (!prefix && !context.explicit && !triggerAfterParen) return null;
 
   const selectedDatabase = useAppStore.getState().selectedDatabase;
   const sqlContext = parseSQLContext(
@@ -594,7 +603,8 @@ export const clickhouseCompletionSource: CompletionSource = async (
   // When the cursor is right after a dot with nothing typed yet (e.g. "db.|"),
   // from must start at the current position so CodeMirror filters table/column
   // names against "" rather than "db." (which would match nothing).
-  const from = sqlContext.isAfterDot
+  // Same for right after "(" or "," — start at cursor so filter begins empty.
+  const from = sqlContext.isAfterDot || triggerAfterParen
     ? (context.matchBefore(/\w*/)?.from ?? context.pos)
     : (prefix?.from ?? context.pos);
   const to = context.pos;

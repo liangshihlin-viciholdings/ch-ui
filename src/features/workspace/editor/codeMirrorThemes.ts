@@ -549,6 +549,9 @@ function buildHighlightStyle(colors: ThemeColors): HighlightStyle {
     { tag: [t.string, t.special(t.string)], color: colors.string },
     { tag: [t.comment, t.lineComment, t.blockComment, t.docComment], color: colors.comment, fontStyle: "italic" },
     { tag: [t.function(t.variableName), t.function(t.propertyName)], color: colors.function },
+    // @codemirror/lang-sql tags builtin dialect entries (e.g. toDate, now) with
+    // tags.standard(tags.name) — map those to the function color.
+    { tag: t.standard(t.name), color: colors.function },
     { tag: [t.typeName, t.className], color: colors.typeName },
     { tag: [t.number, t.bool, t.null], color: colors.number },
     { tag: [t.operator, t.punctuation, t.separator], color: colors.operator },
