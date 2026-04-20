@@ -74,6 +74,7 @@ import {
 import { createSqlExtensions } from "./codeMirrorConfig";
 import { getCodeMirrorTheme, isLightTheme } from "./codeMirrorThemes";
 import { registerVimExCommands } from "./vimMode";
+import { prewarmCompletionCaches } from "./completionSource";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -246,6 +247,11 @@ const SQLEditor: React.FC<SQLEditorProps> = ({
   const runQueryRef = useRef<() => void>(() => undefined);
   const runAllQueriesRef = useRef<() => void>(() => undefined);
   const saveOpenRef = useRef<() => void>(() => undefined);
+
+  // Pre-warm completion caches on mount so the first keypress has no lag.
+  useEffect(() => {
+    void prewarmCompletionCaches();
+  }, []);
 
   // ─── Parsing + highlighting ──────────────────────────────────────────────
 

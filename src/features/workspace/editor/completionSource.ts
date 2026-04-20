@@ -58,6 +58,14 @@ export function resetCompletionCaches(): void {
   keywordsCache = null;
 }
 
+/**
+ * Pre-warm all completion caches eagerly (e.g. on editor mount) so the first
+ * keypress does not incur a cold-start round-trip to ClickHouse.
+ */
+export async function prewarmCompletionCaches(): Promise<void> {
+  await Promise.all([getDatabaseStructure(), getFunctions(), getKeywords()]);
+}
+
 function getTracker(): AutocompleteUsageTracker {
   const connectionId =
     useAppStore.getState().credential?.url || "default";
