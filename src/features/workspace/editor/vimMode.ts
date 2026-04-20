@@ -12,7 +12,7 @@ import type { Extension } from "@codemirror/state";
  * in its `extensions` array when vim mode is enabled.
  */
 export function vimExtension(): Extension {
-  return vim();
+  return vim({ status: true });
 }
 
 /**
