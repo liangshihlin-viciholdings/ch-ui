@@ -136,7 +136,16 @@ const setHighlightRange = StateEffect.define<HighlightRange | null>();
 const highlightField = StateField.define<DecorationSet>({
   create: () => Decoration.none,
   update(deco, tr) {
-    let next = deco.map(tr.changes);
+    // deco.map can throw if a stored decoration position exceeds the changeset
+    // length (e.g. an off-by-one when the query ends at the very last character
+    // of the document). Clearing the decoration is safe: the next cursor-move
+    // update will recompute it.
+    let next: DecorationSet;
+    try {
+      next = deco.map(tr.changes);
+    } catch {
+      next = Decoration.none;
+    }
     for (const effect of tr.effects) {
       if (effect.is(setHighlightRange)) {
         if (effect.value === null) {
@@ -249,8 +258,11 @@ const SQLEditor: React.FC<SQLEditorProps> = ({
 
       if (idx >= 0 && queries[idx]) {
         const q = queries[idx];
-        const from = lineColToOffset(doc, q.startLine, q.startColumn);
-        const to = lineColToOffset(doc, q.endLine, q.endColumn + 1);
+        const docLen = view.state.doc.length;
+        const from = Math.min(lineColToOffset(doc, q.startLine, q.startColumn), docLen);
+        // parseQueries.endColumn for the last (semicolon-free) query is already
+        // past the final character, so +1 can push beyond doc.length.  Clamp.
+        const to = Math.min(lineColToOffset(doc, q.endLine, q.endColumn + 1), docLen);
         view.dispatch({ effects: setHighlightRange.of({ from, to }) });
       } else {
         view.dispatch({ effects: setHighlightRange.of(null) });
