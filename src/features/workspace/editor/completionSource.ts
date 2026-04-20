@@ -15,7 +15,6 @@ import useAppStore from "@/stores/workspaceStore";
 import { appQueries } from "./appQueries";
 import { DDL_OBJECTS, getAllEngines } from "./clickhouseConstants";
 import {
-  generateTableAlias,
   parseSQLContext,
   type SQLContext,
   type TableReference,
@@ -211,31 +210,16 @@ function getColumnSuggestions(
     const hasMultipleTables = context.fromTables.length > 1;
 
     if (hasMultipleTables) {
-      // Multi-table: prefix columns with alias (generate if missing)
-      const existingAliases = new Set<string>();
-      for (const ref of context.fromTables) {
-        if (ref.alias) existingAliases.add(ref.alias.toLowerCase());
-      }
-      const aliasMap = new Map<TableReference, string>();
-      for (const tableRef of context.fromTables) {
-        if (!tableRef.alias) {
-          const alias = generateTableAlias(tableRef.table, existingAliases);
-          aliasMap.set(tableRef, alias);
-          existingAliases.add(alias.toLowerCase());
-        }
-      }
-
+      // Multi-table: show bare column names; table context visible in detail.
       for (const tableRef of context.fromTables) {
         const db = tableRef.database || context.selectedDatabase;
         const table = findTable(dbStructure, db, tableRef.table);
         if (!table || !db) continue;
 
-        const prefix = tableRef.alias || aliasMap.get(tableRef);
         for (const col of table.children) {
-          const label = prefix ? `${prefix}.${col.name}` : col.name;
           columns.push(
             makeCompletion(
-              label,
+              col.name,
               "property",
               "column",
               `column:${db}.${tableRef.table}.${col.name}`,
@@ -584,13 +568,15 @@ function getSuggestionsForContext(
     out.push(makeCompletion(kw, "keyword", "keyword", `keyword:${kw}`));
   }
 
-  // De-duplicate by label, preferring the first occurrence (context-specific
-  // entries come first and win over generic keywords).
+  // De-duplicate: columns with the same name from different tables each get
+  // their own row (keyed by label + detail); keywords/functions dedup by label.
   const seen = new Set<string>();
   const deduped: Completion[] = [];
   for (const c of out) {
-    if (seen.has(c.label)) continue;
-    seen.add(c.label);
+    const key =
+      c.type === "property" && c.detail ? `${c.label}\x00${c.detail}` : c.label;
+    if (seen.has(key)) continue;
+    seen.add(key);
     deduped.push(c);
   }
   return deduped;
