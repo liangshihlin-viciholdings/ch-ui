@@ -219,9 +219,7 @@ const SQLEditor: React.FC<SQLEditorProps> = ({
   const vimMode = useEditorVimMode();
 
   const cmRef = useRef<ReactCodeMirrorRef>(null);
-  const [value, setValue] = useState<string>(
-    () => (typeof tab?.content === "string" ? tab.content : "") ?? "",
-  );
+  const value = typeof tab?.content === "string" ? tab.content : "";
   const [parsedQueries, setParsedQueries] = useState<ParsedQuery[]>([]);
   const [currentQueryIndex, setCurrentQueryIndex] = useState<number>(-1);
 
@@ -239,17 +237,6 @@ const SQLEditor: React.FC<SQLEditorProps> = ({
   const runQueryRef = useRef<() => void>(() => undefined);
   const runAllQueriesRef = useRef<() => void>(() => undefined);
   const saveOpenRef = useRef<() => void>(() => undefined);
-
-  // ─── Tab content sync (external → editor) ────────────────────────────────
-
-  useEffect(() => {
-    const next = typeof tab?.content === "string" ? tab.content : "";
-    setValue((prev) => (prev === next ? prev : next));
-    // We deliberately don't include `value` in deps to avoid fighting the
-    // user's typing; external tab changes (e.g. loading a saved query) are
-    // driven through updateTab and arrive here.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab?.id, tab?.content]);
 
   // ─── Parsing + highlighting ──────────────────────────────────────────────
 
@@ -538,7 +525,6 @@ const SQLEditor: React.FC<SQLEditorProps> = ({
 
   const handleChange = useCallback(
     (next: string) => {
-      setValue(next);
       updateTab(tabId, { content: next });
     },
     [tabId, updateTab],
