@@ -219,6 +219,7 @@ const SQLEditor: React.FC<SQLEditorProps> = ({
     updateSavedQuery,
     dataBaseExplorer,
     selectedDatabase,
+    activeTab,
   } = useAppStore();
   const { connections, activeConnectionId, getDatabasesForConnection } =
     useConnectionStore();
@@ -253,6 +254,13 @@ const SQLEditor: React.FC<SQLEditorProps> = ({
   useEffect(() => {
     void prewarmCompletionCaches();
   }, []);
+
+  // Focus the editor whenever this tab becomes the active tab.
+  useEffect(() => {
+    if (activeTab === tabId) {
+      cmRef.current?.view?.focus();
+    }
+  }, [activeTab, tabId]);
 
   // ─── Parsing + highlighting ──────────────────────────────────────────────
 
