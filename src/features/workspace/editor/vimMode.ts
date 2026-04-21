@@ -8,7 +8,7 @@ import { vim, Vim } from "@replit/codemirror-vim";
 import { EditorView } from "@codemirror/view";
 import { Prec } from "@codemirror/state";
 import type { Extension } from "@codemirror/state";
-import { workspaceStore, setActiveTab } from "@/stores/workspaceStore";
+import { workspaceStore, setActiveTab, removeTab, closeAllTabs } from "@/stores/workspaceStore";
 import { registerVimSurround } from "./vimSurround";
 
 // ─── Ctrl+D / Ctrl+U half-page scroll ─────────────────────────────────────
@@ -88,6 +88,20 @@ export function registerVimExCommands(options: {
   });
   Vim.defineEx("runall", "runall", () => {
     options.onRunAll();
+  });
+  Vim.defineEx("q", "q", () => {
+    removeTab(workspaceStore.state.activeTab);
+  });
+  Vim.defineEx("qa", "qa", () => {
+    closeAllTabs();
+  });
+  Vim.defineEx("wq", "wq", () => {
+    options.onSave();
+    removeTab(workspaceStore.state.activeTab);
+  });
+  Vim.defineEx("x", "x", () => {
+    options.onSave();
+    removeTab(workspaceStore.state.activeTab);
   });
   Vim.defineAction("vimNextTab", () => {
     const { tabs, activeTab } = workspaceStore.state;
