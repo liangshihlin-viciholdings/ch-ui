@@ -6,6 +6,7 @@
 
 import { vim, Vim } from "@replit/codemirror-vim";
 import type { Extension } from "@codemirror/state";
+import { workspaceStore, setActiveTab } from "@/stores/workspaceStore";
 import { registerVimSurround } from "./vimSurround";
 
 /**
@@ -35,6 +36,20 @@ export function registerVimExCommands(options: {
   Vim.defineEx("runall", "runall", () => {
     options.onRunAll();
   });
+  Vim.defineAction("vimNextTab", () => {
+    const { tabs, activeTab } = workspaceStore.state;
+    const idx = tabs.findIndex((t) => t.id === activeTab);
+    if (idx >= 0) setActiveTab(tabs[(idx + 1) % tabs.length].id);
+  });
+  Vim.mapCommand("gt", "action", "vimNextTab", {}, {});
+
+  Vim.defineAction("vimPrevTab", () => {
+    const { tabs, activeTab } = workspaceStore.state;
+    const idx = tabs.findIndex((t) => t.id === activeTab);
+    if (idx >= 0) setActiveTab(tabs[(idx - 1 + tabs.length) % tabs.length].id);
+  });
+  Vim.mapCommand("gT", "action", "vimPrevTab", {}, {});
+
   registerVimSurround();
 }
 
