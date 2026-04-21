@@ -256,10 +256,14 @@ const SQLEditor: React.FC<SQLEditorProps> = ({
   }, []);
 
   // Focus the editor whenever this tab becomes the active tab.
+  // rAF defers until after the browser applies the CSS display:block to the
+  // newly-active TabsContent panel, which is required for focus() to succeed.
   useEffect(() => {
-    if (activeTab === tabId) {
+    if (activeTab !== tabId) return;
+    const raf = requestAnimationFrame(() => {
       cmRef.current?.view?.focus();
-    }
+    });
+    return () => cancelAnimationFrame(raf);
   }, [activeTab, tabId]);
 
   // ─── Parsing + highlighting ──────────────────────────────────────────────
