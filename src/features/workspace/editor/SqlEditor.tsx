@@ -511,7 +511,12 @@ const SQLEditor: React.FC<SQLEditorProps> = ({
             highlightSelectionMatches(),
             keymap.of([
               ...closeBracketsKeymap,
-              ...defaultKeymap,
+              // PageUp/PageDown are handled by vim's own keydown handler
+              // (C-b/C-f full-page, C-u/C-d half-page). Leaving them in
+              // defaultKeymap causes CM6 to consume the events first.
+              ...defaultKeymap.filter(
+                (k) => k.key !== "PageUp" && k.key !== "PageDown",
+              ),
               ...searchKeymap,
               ...historyKeymap,
               ...completionKeymap,
