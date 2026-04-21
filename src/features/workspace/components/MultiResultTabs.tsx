@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState } from "react";
 import { CheckCircle, XCircle } from "lucide-react";
 import { DataTable } from "@/components/common/DataTable";
 
@@ -6,9 +6,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import DownloadDialog from "@/components/common/DownloadDialog";
 import EmptyQueryResult from "./EmptyQueryResult";
-import StatisticsDisplay from "./StatisticsDisplay";
 import { ExplainTab } from "@/features/workspace/explain/components/ExplainTab";
-import type { MultiQueryResult, QueryResult } from "@/types/common";
+import type { MultiQueryResult } from "@/types/common";
 
 interface MultiResultTabsProps {
   results: MultiQueryResult[];
@@ -41,19 +40,6 @@ const MultiResultTabs: React.FC<MultiResultTabsProps> = ({
   };
 
   const currentResult = results[selectedResultIndex];
-
-  // Metadata DataTable data is derived from current result meta rows.
-  const metadataQueryResult = useMemo<QueryResult | null>(() => {
-    const metaRows = currentResult?.result?.meta as
-      | Array<{ name: string; type: string }>
-      | undefined;
-    if (!metaRows?.length) return null;
-    return {
-      meta: [{ name: "name" }, { name: "type" }],
-      data: metaRows.map((row) => ({ name: row.name, type: row.type })),
-      statistics: { elapsed: 0, rows_read: 0, bytes_read: 0 },
-    };
-  }, [currentResult?.result?.meta]);
 
   const renderResultsTab = () => {
     if (!currentResult) return null;
@@ -91,20 +77,6 @@ const MultiResultTabs: React.FC<MultiResultTabsProps> = ({
     );
   };
 
-  const renderMetadataTab = () => {
-    if (!metadataQueryResult) return null;
-    return (
-      <div className="h-full flex flex-col">
-        <DataTable data={metadataQueryResult} height="100%" />
-      </div>
-    );
-  };
-
-  const renderStatisticsTab = () => {
-    if (!currentResult?.result?.statistics) return null;
-    return <StatisticsDisplay statistics={currentResult.result.statistics} />;
-  };
-
   if (!results.length) {
     return (
       <div className="h-full flex items-center justify-center text-muted-foreground">
@@ -114,7 +86,6 @@ const MultiResultTabs: React.FC<MultiResultTabsProps> = ({
   }
 
   const hasData = (currentResult?.result?.data?.length ?? 0) > 0;
-  const hasMeta = (currentResult?.result?.meta?.length ?? 0) > 0;
   const hasError = !!currentResult?.result?.error;
   const hasExplain = currentResult?.result?.explainResult !== undefined;
 
@@ -170,15 +141,6 @@ const MultiResultTabs: React.FC<MultiResultTabsProps> = ({
               </span>
             )}
           </TabsTrigger>
-          <TabsTrigger value="metadata">
-            Metadata
-            {hasMeta && !hasError && (
-              <span className="ml-2 text-muted-foreground">
-                ({currentResult?.result.meta.length} columns)
-              </span>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="statistics">Statistics</TabsTrigger>
           {hasExplain && (
             <TabsTrigger value="explain">
               Explain
@@ -192,20 +154,11 @@ const MultiResultTabs: React.FC<MultiResultTabsProps> = ({
             {hasData && !hasError && activeTab === "results" && (
               <DownloadDialog data={currentResult?.result.data} />
             )}
-            {hasMeta && !hasError && activeTab === "metadata" && (
-              <DownloadDialog data={currentResult?.result.meta} />
-            )}
           </div>
         </TabsList>
         <div className="flex-1 overflow-hidden">
           <TabsContent value="results" className="h-full m-0">
             {renderResultsTab()}
-          </TabsContent>
-          <TabsContent value="metadata" className="h-full m-0">
-            {renderMetadataTab()}
-          </TabsContent>
-          <TabsContent value="statistics" className="h-full m-0">
-            {renderStatisticsTab()}
           </TabsContent>
           {hasExplain && (
             <TabsContent value="explain" className="h-full m-0">

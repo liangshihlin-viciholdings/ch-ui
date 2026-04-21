@@ -28,7 +28,6 @@ import {
 } from "@/components/ui/tooltip";
 import DownloadDialog from "@/components/common/DownloadDialog";
 import EmptyQueryResult from "./EmptyQueryResult";
-import StatisticsDisplay from "./StatisticsDisplay";
 import MultiResultTabs from "./MultiResultTabs";
 import { ExplainTab } from "@/features/workspace/explain/components/ExplainTab";
 
@@ -181,23 +180,6 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
-  // Metadata table displays column name/type. Build a pseudo QueryResult so
-  // DataTable can reuse the same rendering/pagination pipeline.
-  const metadataQueryResult = useMemo<QueryResult | null>(() => {
-    const metaRows = tab?.result?.meta as
-      | Array<{ name: string; type: string }>
-      | undefined;
-    if (!metaRows?.length) return null;
-    return {
-      meta: [
-        { name: "name" },
-        { name: "type" },
-      ],
-      data: metaRows.map((row) => ({ name: row.name, type: row.type })),
-      statistics: { elapsed: 0, rows_read: 0, bytes_read: 0 },
-    };
-  }, [tab?.result?.meta]);
-
   const renderLoading = () => (
     <div className="h-full w-full flex flex-col items-center justify-center gap-3">
       <div className="flex items-center">
@@ -247,23 +229,8 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
     );
   };
 
-  const renderMetadataTab = () => {
-    if (!metadataQueryResult) return null;
-    return (
-      <div className="h-full flex flex-col">
-        <DataTable data={metadataQueryResult} height="100%" />
-      </div>
-    );
-  };
-
-  const renderStatisticsResults = () => {
-    if (!tab?.result?.statistics) return null;
-    return <StatisticsDisplay statistics={tab.result.statistics} />;
-  };
-
   const renderResultTabs = () => {
     const hasData = tab?.result?.data?.length > 0;
-    const hasMeta = tab?.result?.meta?.length > 0;
     const hasExplain = tab?.result?.explainResult !== undefined;
 
     return (
@@ -294,15 +261,6 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
               </span>
             )}
           </TabsTrigger>
-          <TabsTrigger value="metadata">
-            Metadata
-            {hasMeta && (
-              <span className="ml-2 text-muted-foreground">
-                ({tab?.result.meta.length} columns)
-              </span>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="statistics">Statistics</TabsTrigger>
           {hasExplain && (
             <TabsTrigger value="explain">
               Explain
@@ -347,20 +305,11 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
             {hasData && activeTab === "results" && (
               <DownloadDialog data={tab?.result.data} />
             )}
-            {hasMeta && activeTab === "metadata" && (
-              <DownloadDialog data={tab?.result.meta} />
-            )}
           </div>
         </TabsList>
         <div className="flex-1 min-h-0">
           <TabsContent value="results" className="h-full m-0">
             {renderResultsTab()}
-          </TabsContent>
-          <TabsContent value="metadata" className="h-full m-0">
-            {renderMetadataTab()}
-          </TabsContent>
-          <TabsContent value="statistics" className="h-full m-0">
-            {renderStatisticsResults()}
           </TabsContent>
           {hasExplain && (
             <TabsContent value="explain" className="h-full m-0">

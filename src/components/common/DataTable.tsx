@@ -111,7 +111,7 @@ export function DataTable({
   });
 
   const rows = (data?.data ?? []) as Row[];
-  const meta = (data?.meta ?? []) as Array<{ name?: string }>;
+  const meta = (data?.meta ?? []) as Array<{ name?: string; type?: string }>;
 
   const isLargeDataset = rows.length >= LARGE_DATASET;
 
@@ -140,10 +140,23 @@ export function DataTable({
       ? meta.map((m) => m.name).filter((n): n is string => typeof n === "string")
       : Object.keys(rows[0] ?? {});
 
+    const typeMap = Object.fromEntries(
+      meta.flatMap((m) => (m.name && m.type ? [[m.name, m.type]] : []))
+    );
+
     const dataCols: ColumnDef<Row>[] = keys.map((key) => ({
       id: key,
       accessorKey: key,
-      header: key,
+      header: () => (
+        <div className="flex flex-col leading-tight">
+          <span>{key}</span>
+          {typeMap[key] && (
+            <span className="text-[10px] font-normal text-muted-foreground/70 truncate">
+              {typeMap[key]}
+            </span>
+          )}
+        </div>
+      ),
       size: DEFAULT_COLUMN_WIDTH,
       minSize: 80,
       enableResizing: true,
