@@ -6,6 +6,7 @@
 
 import { vim, Vim } from "@replit/codemirror-vim";
 import type { Extension } from "@codemirror/state";
+import { registerVimSurround } from "./vimSurround";
 
 /**
  * Build the vim-mode Extension. Pass the returned extension to the editor
@@ -34,6 +35,7 @@ export function registerVimExCommands(options: {
   Vim.defineEx("runall", "runall", () => {
     options.onRunAll();
   });
+  registerVimSurround();
 }
 
 export { Vim };

@@ -75,6 +75,7 @@ import { createSqlExtensions } from "./codeMirrorConfig";
 import { getCodeMirrorTheme, isLightTheme } from "./codeMirrorThemes";
 import { registerVimExCommands } from "./vimMode";
 import { prewarmCompletionCaches } from "./completionSource";
+import { vimSurroundExtension } from "./vimSurround";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -516,6 +517,7 @@ const SQLEditor: React.FC<SQLEditorProps> = ({
               ...completionKeymap,
               indentWithTab,
             ]),
+            vimSurroundExtension(),
           ]
         : [],
     [vimMode],
