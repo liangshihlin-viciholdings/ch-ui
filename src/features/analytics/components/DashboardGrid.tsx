@@ -95,7 +95,7 @@ export function DashboardGrid({
       onLayoutChange={handleLayoutChange}
     >
       {tiles.map((tile) => (
-        <div key={tile.id} className="overflow-hidden">
+        <div key={tile.id} className="h-full overflow-hidden">
           <ChartContainer
             title={tile.title}
             config={tile.config}

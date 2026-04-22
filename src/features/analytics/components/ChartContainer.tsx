@@ -110,12 +110,14 @@ export function ChartContainer({
           </Alert>
         )}
         {query.data && (
-          <ChartBody
-            data={query.data.rows}
-            config={config}
-            dateRange={dateRange}
-            height={height}
-          />
+          <div className="h-full w-full">
+            <ChartBody
+              data={query.data.rows}
+              config={config}
+              dateRange={dateRange}
+              height={height}
+            />
+          </div>
         )}
       </div>
     </div>
