@@ -1118,3 +1118,9 @@
   box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
 }
 
+/* CodeMirror sets .cm-panels { z-index: 300 } by default, which covers Radix
+   UI dialogs/modals (z-50 = 50). Cap it below the modal layer. */
+.cm-panels {
+  z-index: 10 !important;
+}
+
