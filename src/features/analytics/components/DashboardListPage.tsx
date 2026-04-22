@@ -2,7 +2,7 @@
 // Landing page for dashboards: table of existing dashboards + a create button.
 
 import { useState } from "react";
-import { Plus, Loader2, LayoutTemplate, ArrowRight } from "lucide-react";
+import { Plus, Loader2, LayoutTemplate } from "lucide-react";
 import { toast } from "sonner";
 import { Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
@@ -127,25 +127,27 @@ export function DashboardListPage({ onSelect }: DashboardListPageProps) {
         {PRESET_DASHBOARDS.length > 0 && (
           <div className="mb-6">
             <h2 className="mb-2 text-sm font-medium text-muted-foreground">
-              Preset Dashboards
+              Quick Start
             </h2>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {PRESET_DASHBOARDS.map((preset) => (
-                <Link key={preset.id} to={preset.href}>
-                  <Card className="group cursor-pointer transition-colors hover:border-primary/50">
-                    <CardHeader className="p-4">
-                      <div className="flex items-center justify-between">
-                        <CardTitle className="text-sm font-medium">
-                          {preset.name}
-                        </CardTitle>
-                        <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
-                      </div>
-                      <CardDescription className="text-xs">
-                        {preset.description}
-                      </CardDescription>
-                    </CardHeader>
-                  </Card>
-                </Link>
+                <Card
+                  key={preset.id}
+                  className="group cursor-pointer transition-colors hover:border-primary/50"
+                  onClick={() => handleImportTemplate(preset.templateId)}
+                >
+                  <CardHeader className="p-4">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-sm font-medium">
+                        {preset.name}
+                      </CardTitle>
+                      <Plus className="h-4 w-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+                    </div>
+                    <CardDescription className="text-xs">
+                      {preset.description}
+                    </CardDescription>
+                  </CardHeader>
+                </Card>
               ))}
             </div>
           </div>

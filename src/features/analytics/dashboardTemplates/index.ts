@@ -15,28 +15,29 @@ export interface PresetDashboard {
   id: string;
   name: string;
   description: string;
-  href: string;
+  templateId: string;
 }
 
-// Preset dashboards shown as quick links at the top of the dashboard list
+// Preset dashboards shown as quick-create cards at the top of the dashboard list
+// Each links to a template that will be created when clicked
 export const PRESET_DASHBOARDS: PresetDashboard[] = [
   {
     id: "http-performance",
     name: "HTTP Performance",
     description: "Monitor HTTP endpoints, latency, and error rates",
-    href: "/dashboards/preset/http-performance",
+    templateId: "http-performance",
   },
   {
-    id: "database-metrics",
-    name: "Database Metrics",
-    description: "ClickHouse query performance and resource usage",
-    href: "/dashboards/preset/database-metrics",
+    id: "nodejs-runtime",
+    name: "Node.js Runtime",
+    description: "Event loop, heap, and CPU metrics for Node.js apps",
+    templateId: "nodejs-runtime",
   },
   {
-    id: "system-resources",
-    name: "System Resources",
-    description: "CPU, memory, disk, and network metrics",
-    href: "/dashboards/preset/system-resources",
+    id: "jvm-runtime",
+    name: "JVM Runtime",
+    description: "Heap, GC, and thread metrics for Java applications",
+    templateId: "jvm-runtime",
   },
 ];
 
