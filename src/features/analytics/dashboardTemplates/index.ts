@@ -572,13 +572,13 @@ export const clickhouseServerTemplate: DashboardTemplate = {
       h: 7,
       config: rawSqlConfig(
         `SELECT
-          toStartOfMinute(event_time) as time,
+          toStartOfMinute(event_time) as time_bucket,
           count() as queries
         FROM system.query_log
         WHERE event_time >= now() - INTERVAL 1 HOUR
           AND type = 'QueryFinish'
-        GROUP BY time
-        ORDER BY time`,
+        GROUP BY time_bucket
+        ORDER BY time_bucket`,
         "line"
       ),
     },
@@ -591,15 +591,15 @@ export const clickhouseServerTemplate: DashboardTemplate = {
       h: 7,
       config: rawSqlConfig(
         `SELECT
-          toStartOfMinute(event_time) as time,
+          toStartOfMinute(event_time) as time_bucket,
           quantile(0.5)(query_duration_ms) as p50,
           quantile(0.9)(query_duration_ms) as p90,
           quantile(0.99)(query_duration_ms) as p99
         FROM system.query_log
         WHERE event_time >= now() - INTERVAL 1 HOUR
           AND type = 'QueryFinish'
-        GROUP BY time
-        ORDER BY time`,
+        GROUP BY time_bucket
+        ORDER BY time_bucket`,
         "line"
       ),
     },
@@ -612,12 +612,12 @@ export const clickhouseServerTemplate: DashboardTemplate = {
       h: 7,
       config: rawSqlConfig(
         `SELECT
-          toStartOfMinute(event_time) as time,
+          toStartOfMinute(event_time) as time_bucket,
           max(memory_usage) as memory_bytes
         FROM system.query_log
         WHERE event_time >= now() - INTERVAL 1 HOUR
-        GROUP BY time
-        ORDER BY time`,
+        GROUP BY time_bucket
+        ORDER BY time_bucket`,
         "area"
       ),
     },
@@ -631,11 +631,11 @@ export const clickhouseServerTemplate: DashboardTemplate = {
       config: rawSqlConfig(
         `SELECT
           database,
-          formatReadableSize(sum(bytes_on_disk)) as size
+          sum(bytes_on_disk) as size_bytes
         FROM system.parts
         WHERE active
         GROUP BY database
-        ORDER BY sum(bytes_on_disk) DESC
+        ORDER BY size_bytes DESC
         LIMIT 10`,
         "bar"
       ),

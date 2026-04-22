@@ -1,12 +1,13 @@
 // src/features/analytics/charts/TimeSeriesChart.tsx
 // Line / bar / area / stacked-bar chart keyed on the `time_bucket` column
-// produced by generateChartSql.
+// produced by generateChartSql. Falls back to category bar chart when no
+// time_bucket column is present.
 
 import { useMemo } from "react";
 import {
   ResponsiveContainer,
   LineChart,
-  BarChart,
+  BarChart as ReBarChart,
   AreaChart,
   CartesianGrid,
   XAxis,
@@ -24,7 +25,6 @@ function parseTimestamp(raw: unknown): number {
   if (raw instanceof Date) return raw.getTime();
   if (typeof raw === "number") return raw;
   if (typeof raw === "string") {
-    // ClickHouse returns "YYYY-MM-DD HH:mm:ss" — make it ISO.
     const normalized = raw.includes("T") ? raw : raw.replace(" ", "T") + "Z";
     const ts = Date.parse(normalized);
     return Number.isNaN(ts) ? 0 : ts;
@@ -43,22 +43,34 @@ function formatTick(ts: number): string {
   });
 }
 
-export function TimeSeriesChart({ data, config, height = 200 }: ChartProps) {
-  const { chartData, seriesKeys } = useMemo(() => {
-    if (!data.length) return { chartData: [], seriesKeys: [] as string[] };
+export function TimeSeriesChart({ data, config }: ChartProps) {
+  const { chartData, seriesKeys, hasTimeBucket, categoryKey, valueKey } = useMemo(() => {
+    if (!data.length) return { chartData: [], seriesKeys: [] as string[], hasTimeBucket: false, categoryKey: "", valueKey: "" };
 
     const firstRow = data[0];
-    const keys = Object.keys(firstRow).filter((k) => k !== TIME_BUCKET_KEY);
+    const allKeys = Object.keys(firstRow);
+    const hasTimeBucket = TIME_BUCKET_KEY in firstRow;
 
-    const chartData = data.map((row) => {
-      const mapped: Record<string, unknown> = {
-        ts: parseTimestamp(row[TIME_BUCKET_KEY]),
-      };
-      for (const key of keys) mapped[key] = row[key];
-      return mapped;
-    });
+    if (hasTimeBucket) {
+      const keys = allKeys.filter((k) => k !== TIME_BUCKET_KEY);
+      const chartData = data.map((row) => {
+        const mapped: Record<string, unknown> = {
+          ts: parseTimestamp(row[TIME_BUCKET_KEY]),
+        };
+        for (const key of keys) mapped[key] = row[key];
+        return mapped;
+      });
+      return { chartData, seriesKeys: keys, hasTimeBucket: true, categoryKey: "", valueKey: "" };
+    }
 
-    return { chartData, seriesKeys: keys };
+    // No time_bucket - treat as category chart
+    const categoryKey = allKeys[0] ?? "";
+    const valueKey = allKeys.find((k) => typeof firstRow[k] === "number") ?? allKeys[1] ?? "";
+    const chartData = data.map((row) => ({
+      category: String(row[categoryKey] ?? ""),
+      value: Number(row[valueKey] ?? 0),
+    }));
+    return { chartData, seriesKeys: [], hasTimeBucket: false, categoryKey, valueKey };
   }, [data]);
 
   if (!chartData.length) {
@@ -70,6 +82,41 @@ export function TimeSeriesChart({ data, config, height = 200 }: ChartProps) {
   }
 
   const displayType = config.displayType;
+
+  // Category bar chart (no time bucket)
+  if (!hasTimeBucket && (displayType === "bar" || displayType === "stacked_bar")) {
+    return (
+      <ResponsiveContainer width="100%" height="100%">
+        <ReBarChart data={chartData} layout="vertical" margin={{ left: 10, right: 10 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+          <XAxis
+            type="number"
+            stroke="var(--muted-foreground)"
+            fontSize={10}
+            tickFormatter={(v: number) => formatNumber(v)}
+          />
+          <YAxis
+            type="category"
+            dataKey="category"
+            stroke="var(--muted-foreground)"
+            fontSize={10}
+            width={100}
+            tickFormatter={(v: string) => v.length > 15 ? v.slice(0, 15) + "…" : v}
+          />
+          <Tooltip
+            contentStyle={{
+              background: "var(--popover)",
+              border: "1px solid var(--border)",
+              borderRadius: 6,
+              fontSize: 12,
+            }}
+            formatter={(v) => formatNumber(Number(v))}
+          />
+          <Bar dataKey="value" fill={colorAt(0)} name={valueKey} />
+        </ReBarChart>
+      </ResponsiveContainer>
+    );
+  }
 
   const commonAxes = (
     <>
@@ -104,8 +151,8 @@ export function TimeSeriesChart({ data, config, height = 200 }: ChartProps) {
   if (displayType === "bar" || displayType === "stacked_bar") {
     const stackId = displayType === "stacked_bar" ? "a" : undefined;
     return (
-      <ResponsiveContainer width="100%" height={height}>
-        <BarChart data={chartData}>
+      <ResponsiveContainer width="100%" height="100%">
+        <ReBarChart data={chartData}>
           {commonAxes}
           {seriesKeys.map((key, idx) => (
             <Bar
@@ -115,14 +162,14 @@ export function TimeSeriesChart({ data, config, height = 200 }: ChartProps) {
               stackId={stackId}
             />
           ))}
-        </BarChart>
+        </ReBarChart>
       </ResponsiveContainer>
     );
   }
 
   if (displayType === "area") {
     return (
-      <ResponsiveContainer width="100%" height={height}>
+      <ResponsiveContainer width="100%" height="100%">
         <AreaChart data={chartData}>
           {commonAxes}
           {seriesKeys.map((key, idx) => (
@@ -142,7 +189,7 @@ export function TimeSeriesChart({ data, config, height = 200 }: ChartProps) {
 
   // default: line
   return (
-    <ResponsiveContainer width="100%" height={height}>
+    <ResponsiveContainer width="100%" height="100%">
       <LineChart data={chartData}>
         {commonAxes}
         {seriesKeys.map((key, idx) => (

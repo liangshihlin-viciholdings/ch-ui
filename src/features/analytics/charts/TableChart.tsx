@@ -7,7 +7,7 @@ import { DataTable } from "@/components/common/DataTable";
 import type { QueryResult } from "@/types/common";
 import type { ChartProps } from "./types";
 
-export function TableChart({ data, height = 260 }: ChartProps) {
+export function TableChart({ data }: ChartProps) {
   const synthesized: QueryResult = useMemo(() => {
     const meta = data.length
       ? Object.keys(data[0]).map((name) => ({ name, type: "String" }))
@@ -23,16 +23,17 @@ export function TableChart({ data, height = 260 }: ChartProps) {
 
   if (!data.length) {
     return (
-      <div
-        className="flex h-full w-full items-center justify-center text-xs text-muted-foreground"
-        style={{ height }}
-      >
+      <div className="flex h-full w-full items-center justify-center text-xs text-muted-foreground">
         No data
       </div>
     );
   }
 
-  return <DataTable data={synthesized} height={height} enablePagination />;
+  return (
+    <div className="h-full w-full">
+      <DataTable data={synthesized} height="100%" enablePagination />
+    </div>
+  );
 }
 
 export default TableChart;
