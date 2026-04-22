@@ -41,6 +41,10 @@ export function useChartData({
     filters,
   );
 
+  // Raw SQL queries don't need a tableName - the query is self-contained
+  const isRawSql = config.type === "rawsql";
+  const canExecute = isRawSql || !!tableName;
+
   return useQuery({
     // Cache per SQL — dateRange + config + filters are fully encoded there.
     queryKey: ["chart-data", sql],
@@ -51,7 +55,7 @@ export function useChartData({
         sql,
       };
     },
-    enabled: enabled && !!tableName,
+    enabled: enabled && canExecute,
     staleTime: 30_000,
   });
 }
