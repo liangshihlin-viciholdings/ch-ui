@@ -42,6 +42,7 @@ const DatabaseExplorer: React.FC = () => {
     openCreateTableModal,
     openUploadFileModal,
     fetchSavedQueries,
+    deleteSavedQuery,
     clickHouseClient,
     selectedDatabase,
   } = useAppStore();
@@ -247,6 +248,11 @@ const DatabaseExplorer: React.FC = () => {
     });
   };
 
+  const handleSavedQueryDelete = useCallback(
+    (id: string) => { deleteSavedQuery(id); },
+    [deleteSavedQuery]
+  );
+
   return (
     <div className="flex flex-col h-full">
       {/* Header Section */}
@@ -378,6 +384,7 @@ const DatabaseExplorer: React.FC = () => {
             <SavedQueriesList
               queries={savedQueriesList}
               onQueryOpen={handleSavedQueryOpen}
+              onQueryDelete={handleSavedQueryDelete}
               onRefresh={loadSavedQueries}
             />
           }

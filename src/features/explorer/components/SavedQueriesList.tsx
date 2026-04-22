@@ -2,21 +2,34 @@ import React, { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Search, SearchX, RefreshCcw } from "lucide-react";
+import { Search, SearchX, RefreshCcw, Trash2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { SavedQuery } from "@/types/common";
 
 interface SavedQueriesListProps {
   queries: SavedQuery[];
   onQueryOpen: (query: SavedQuery) => void;
+  onQueryDelete: (id: string) => void;
   onRefresh: () => void;
 }
 
 const SavedQueriesList: React.FC<SavedQueriesListProps> = ({
   queries,
   onQueryOpen,
+  onQueryDelete,
   onRefresh,
 }) => {
   const [searchValue, setSearchValue] = useState("");
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
   const filteredQueries = useMemo(() => {
     if (!searchValue) return queries;
@@ -24,6 +37,10 @@ const SavedQueriesList: React.FC<SavedQueriesListProps> = ({
       query.name.toLowerCase().includes(searchValue.toLowerCase())
     );
   }, [queries, searchValue]);
+
+  const pendingQuery = pendingDeleteId
+    ? queries.find((q) => q.id === pendingDeleteId)
+    : null;
 
   return (
     <div className="flex flex-col h-full">
@@ -61,22 +78,36 @@ const SavedQueriesList: React.FC<SavedQueriesListProps> = ({
             filteredQueries.map((query) => (
               <div
                 key={query.id}
-                className="text-xs cursor-pointer hover:bg-muted-foreground/10 rounded-md p-2 mb-1"
+                className="group text-xs cursor-pointer hover:bg-muted-foreground/10 rounded-md p-2 mb-1 flex items-start gap-1"
                 onClick={() => onQueryOpen(query)}
               >
-                <div className="flex justify-between items-center">
-                  <span className="flex-1 truncate font-medium">
-                    {query.name}
-                  </span>
-                  <span className="text-xs text-muted-foreground ml-2">
-                    {new Date(query.updatedAt).toLocaleString()}
-                  </span>
-                </div>
-                {query.databaseName && (
-                  <div className="text-xs text-muted-foreground mt-1">
-                    {query.databaseName}
+                <div className="flex-1 min-w-0">
+                  <div className="flex justify-between items-center">
+                    <span className="flex-1 truncate font-medium">
+                      {query.name}
+                    </span>
+                    <span className="text-xs text-muted-foreground ml-2 shrink-0">
+                      {new Date(query.updatedAt).toLocaleString()}
+                    </span>
                   </div>
-                )}
+                  {query.databaseName && (
+                    <div className="text-xs text-muted-foreground mt-1">
+                      {query.databaseName}
+                    </div>
+                  )}
+                </div>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-5 w-5 shrink-0 opacity-0 group-hover:opacity-100 text-destructive hover:text-destructive hover:bg-destructive/10"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setPendingDeleteId(query.id);
+                  }}
+                  title="Delete query"
+                >
+                  <Trash2 className="w-3 h-3" />
+                </Button>
               </div>
             ))
           ) : (
@@ -88,6 +119,32 @@ const SavedQueriesList: React.FC<SavedQueriesListProps> = ({
           )}
         </div>
       </ScrollArea>
+
+      <AlertDialog
+        open={!!pendingDeleteId}
+        onOpenChange={(open) => { if (!open) setPendingDeleteId(null); }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete saved query?</AlertDialogTitle>
+            <AlertDialogDescription>
+              &ldquo;{pendingQuery?.name}&rdquo; will be permanently deleted.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (pendingDeleteId) onQueryDelete(pendingDeleteId);
+                setPendingDeleteId(null);
+              }}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

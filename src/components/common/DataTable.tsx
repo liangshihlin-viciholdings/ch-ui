@@ -25,6 +25,13 @@ import {
   HoverCardContent,
   HoverCardTrigger,
 } from "@/components/ui/hover-card";
+import {
+  TableBody,
+  TableHead,
+  TableHeader,
+  TableRow,
+  TableCell,
+} from "@/components/ui/table";
 import { TableHeaderMenu } from "./TableHeaderMenu";
 import {
   TablePagination,
@@ -52,12 +59,18 @@ const DEFAULT_COLUMN_WIDTH = 180;
 const DEFAULT_ROW_HEIGHT = 32;
 
 type RowData = Record<string, unknown>;
-type SelectedCell = { rowId: string; columnId: string; value: unknown; typeAst: ColumnTypeAst | null; rawType: string };
+type SelectedCell = {
+  rowId: string;
+  columnId: string;
+  value: unknown;
+  typeAst: ColumnTypeAst | null;
+  rawType: string;
+};
 
 export interface DataTableProps {
   /** Query result from workspaceStore (meta, data, statistics, …). */
   data: QueryResult;
-  /** Container height. Numbers are treated as pixels. */
+  /** Container height. Numbers are treated as pixels; "100%" fills parent. */
   height?: number | string;
   /** Whether to render the pagination footer. */
   enablePagination?: boolean;
@@ -124,8 +137,19 @@ interface MemoizedRowProps {
   isLargeDataset: boolean;
   typeAstMap: Record<string, ColumnTypeAst>;
   typeRawMap: Record<string, string>;
-  onCellClick: (rowId: string, colId: string, value: unknown, typeAst: ColumnTypeAst | null, rawType: string) => void;
-  onCellContextMenu: (value: unknown, typeAst: ColumnTypeAst | null, rawType: string, columnId: string) => void;
+  onCellClick: (
+    rowId: string,
+    colId: string,
+    value: unknown,
+    typeAst: ColumnTypeAst | null,
+    rawType: string
+  ) => void;
+  onCellContextMenu: (
+    value: unknown,
+    typeAst: ColumnTypeAst | null,
+    rawType: string,
+    columnId: string
+  ) => void;
 }
 
 function TableRowComponent({
@@ -140,9 +164,10 @@ function TableRowComponent({
   onCellContextMenu,
 }: MemoizedRowProps) {
   return (
-    <tr
+    <TableRow
       data-index={row.index}
-      className={`hover:bg-muted/50 ${!isLargeDataset ? "transition-colors" : ""} ${isRowSelected ? "bg-primary/10" : ""}`}
+      data-state={isRowSelected ? "selected" : undefined}
+      className={`${!isLargeDataset ? "transition-colors" : ""}`}
       style={{ height: `${DEFAULT_ROW_HEIGHT}px` }}
     >
       {row.getVisibleCells().map((cell) => {
@@ -154,7 +179,7 @@ function TableRowComponent({
         const colTypeAst = isMetaCol ? null : (typeAstMap[cell.column.id] ?? null);
         const colRawType = isMetaCol ? "" : (typeRawMap[cell.column.id] ?? "");
         return (
-          <td
+          <TableCell
             key={cell.id}
             className={`border-b border-border/50 px-3 py-1.5 text-foreground overflow-hidden ${
               isCellSelected ? "ring-1 ring-inset ring-primary" : ""
@@ -163,19 +188,32 @@ function TableRowComponent({
             onClick={
               isMetaCol
                 ? undefined
-                : () => onCellClick(row.id, cell.column.id, row.original[cell.column.id], colTypeAst, colRawType)
+                : () =>
+                    onCellClick(
+                      row.id,
+                      cell.column.id,
+                      row.original[cell.column.id],
+                      colTypeAst,
+                      colRawType
+                    )
             }
             onContextMenu={
               isMetaCol
                 ? undefined
-                : () => onCellContextMenu(row.original[cell.column.id], colTypeAst, colRawType, cell.column.id)
+                : () =>
+                    onCellContextMenu(
+                      row.original[cell.column.id],
+                      colTypeAst,
+                      colRawType,
+                      cell.column.id
+                    )
             }
           >
             {flexRender(cell.column.columnDef.cell, cell.getContext())}
-          </td>
+          </TableCell>
         );
       })}
-    </tr>
+    </TableRow>
   );
 }
 
@@ -186,7 +224,8 @@ const MemoizedTableRow = memo(TableRowComponent, (prev, next) => {
     prev.row === next.row &&
     prev.isRowSelected === next.isRowSelected &&
     wasThisRowCellSelected === isThisRowCellSelected &&
-    (!isThisRowCellSelected || prev.selectedCellColId === next.selectedCellColId) &&
+    (!isThisRowCellSelected ||
+      prev.selectedCellColId === next.selectedCellColId) &&
     prev.isLargeDataset === next.isLargeDataset &&
     prev.typeAstMap === next.typeAstMap &&
     prev.typeRawMap === next.typeRawMap
@@ -206,7 +245,12 @@ export function DataTable({
   pageSize: initialPageSize = 100,
 }: DataTableProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const contextMenuCellRef = useRef<{ value: unknown; typeAst: ColumnTypeAst | null; rawType: string; columnId: string } | null>(null);
+  const contextMenuCellRef = useRef<{
+    value: unknown;
+    typeAst: ColumnTypeAst | null;
+    rawType: string;
+    columnId: string;
+  } | null>(null);
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnPinning, setColumnPinning] = useState<ColumnPinningState>({});
   const [columnSizing, setColumnSizing] = useState<ColumnSizingState>({});
@@ -245,14 +289,25 @@ export function DataTable({
   }, [selectedCell]);
 
   const handleCellClick = useCallback(
-    (rowId: string, colId: string, value: unknown, typeAst: ColumnTypeAst | null, rawType: string) => {
+    (
+      rowId: string,
+      colId: string,
+      value: unknown,
+      typeAst: ColumnTypeAst | null,
+      rawType: string
+    ) => {
       setSelectedCell({ rowId, columnId: colId, value, typeAst, rawType });
     },
     []
   );
 
   const handleCellContextMenu = useCallback(
-    (value: unknown, typeAst: ColumnTypeAst | null, rawType: string, columnId: string) => {
+    (
+      value: unknown,
+      typeAst: ColumnTypeAst | null,
+      rawType: string,
+      columnId: string
+    ) => {
       contextMenuCellRef.current = { value, typeAst, rawType, columnId };
     },
     []
@@ -261,7 +316,10 @@ export function DataTable({
   const typeAstMap = useMemo<Record<string, ColumnTypeAst>>(() => {
     return Object.fromEntries(
       meta
-        .filter((m): m is { name: string; type: string } => typeof m.name === "string" && typeof m.type === "string")
+        .filter(
+          (m): m is { name: string; type: string } =>
+            typeof m.name === "string" && typeof m.type === "string"
+        )
         .map((m) => [m.name, parseClickHouseType(m.type)])
     );
   }, [meta]);
@@ -269,7 +327,10 @@ export function DataTable({
   const typeRawMap = useMemo<Record<string, string>>(() => {
     return Object.fromEntries(
       meta
-        .filter((m): m is { name: string; type: string } => typeof m.name === "string" && typeof m.type === "string")
+        .filter(
+          (m): m is { name: string; type: string } =>
+            typeof m.name === "string" && typeof m.type === "string"
+        )
         .map((m) => [m.name, m.type])
     );
   }, [meta]);
@@ -320,10 +381,10 @@ export function DataTable({
       },
     };
 
-    // Prefer declared meta order when available (ClickHouse sends it), but
-    // fall back to object keys to support arbitrary row shapes.
     const keys = meta.length
-      ? meta.map((m) => m.name).filter((n): n is string => typeof n === "string")
+      ? meta
+          .map((m) => m.name)
+          .filter((n): n is string => typeof n === "string")
       : Object.keys(rows[0] ?? {});
 
     const typeMap = Object.fromEntries(
@@ -401,7 +462,12 @@ export function DataTable({
       ? totalSize - virtualItems[virtualItems.length - 1].end
       : 0;
 
-  const resolvedHeight = typeof height === "number" ? `${height}px` : height;
+  // "100%" fills parent via Tailwind h-full; everything else uses an inline style.
+  const outerStyle =
+    height !== "100%"
+      ? { height: typeof height === "number" ? `${height}px` : (height as string) }
+      : undefined;
+  const outerHeightClass = height === "100%" ? "h-full" : "";
 
   if (!rows.length) {
     return null;
@@ -409,7 +475,8 @@ export function DataTable({
 
   const headerGroups = table.getHeaderGroups();
   const selectedRowCount = Object.keys(rowSelection).length;
-  const selectedRows = selectedRowCount > 0 ? table.getSelectedRowModel().rows : [];
+  const selectedRows =
+    selectedRowCount > 0 ? table.getSelectedRowModel().rows : [];
 
   const copySelectedRows = () => {
     const keys = meta.filter((m) => m.name).map((m) => m.name as string);
@@ -418,12 +485,15 @@ export function DataTable({
       : Object.keys(selectedRows[0]?.original ?? {});
     const header = effectiveKeys.join("\t");
     const body = selectedRows
-      .map((r) => effectiveKeys.map((k) => formatCellValue(r.original[k])).join("\t"))
+      .map((r) =>
+        effectiveKeys.map((k) => formatCellValue(r.original[k])).join("\t")
+      )
       .join("\n");
     navigator.clipboard.writeText(header + "\n" + body);
-    toast.success(`Copied ${selectedRowCount} row${selectedRowCount !== 1 ? "s" : ""}`, {
-      duration: 1500,
-    });
+    toast.success(
+      `Copied ${selectedRowCount} row${selectedRowCount !== 1 ? "s" : ""}`,
+      { duration: 1500 }
+    );
   };
 
   const copySelectedCell = () => {
@@ -433,17 +503,15 @@ export function DataTable({
   };
 
   return (
-    <div
-      className="flex flex-col min-h-0 w-full"
-      style={{ height: resolvedHeight }}
-    >
+    <div className={`flex flex-col min-h-0 w-full ${outerHeightClass}`} style={outerStyle}>
       {/* Selection action bar */}
       {(selectedRowCount > 0 || selectedCell) && (
         <div className="flex items-center gap-2 px-3 py-1.5 bg-primary/5 border-b border-border text-sm shrink-0">
           {selectedRowCount > 0 && (
             <>
               <span className="font-medium text-primary">
-                {selectedRowCount} row{selectedRowCount !== 1 ? "s" : ""} selected
+                {selectedRowCount} row{selectedRowCount !== 1 ? "s" : ""}{" "}
+                selected
               </span>
               <button
                 onClick={copySelectedRows}
@@ -510,33 +578,38 @@ export function DataTable({
         </div>
       )}
 
+      {/* Scroll container — needs min-h-0 so flex-1 actually constrains height */}
       <div
         ref={containerRef}
-        className="flex-1 overflow-auto border border-border rounded-md bg-background"
+        className="flex-1 min-h-0 overflow-auto border border-border rounded-md bg-background"
       >
         <table
           className="text-sm border-collapse"
           style={{ width: table.getTotalSize() }}
         >
-          <thead
+          <TableHeader
             className="sticky top-0 z-10 bg-muted"
             onContextMenu={(e) => e.stopPropagation()}
           >
             {headerGroups.map((headerGroup) => (
-              <tr key={headerGroup.id}>
+              <TableRow key={headerGroup.id} className="border-b border-border hover:bg-transparent">
                 {headerGroup.headers.map((header) => (
-                  <th
+                  <TableHead
                     key={header.id}
-                    className="relative border-b border-border px-3 py-2 text-left font-medium text-muted-foreground select-none"
+                    className="relative px-3 py-2 h-auto text-left font-medium text-muted-foreground select-none"
                     style={{ width: header.getSize() }}
                   >
-                    {header.isPlaceholder ? null : header.column.id === SELECT_COLUMN_ID ? (
-                      flexRender(header.column.columnDef.header, header.getContext())
+                    {header.isPlaceholder ? null : header.column.id ===
+                      SELECT_COLUMN_ID ? (
+                      flexRender(
+                        header.column.columnDef.header,
+                        header.getContext()
+                      )
                     ) : (
                       <TableHeaderMenu header={header} table={table}>
                         {flexRender(
                           header.column.columnDef.header,
-                          header.getContext(),
+                          header.getContext()
                         )}
                       </TableHeaderMenu>
                     )}
@@ -549,18 +622,18 @@ export function DataTable({
                         }`}
                       />
                     )}
-                  </th>
+                  </TableHead>
                 ))}
-              </tr>
+              </TableRow>
             ))}
-          </thead>
+          </TableHeader>
           <ContextMenu>
             <ContextMenuTrigger asChild>
-              <tbody>
+              <TableBody>
                 {paddingTop > 0 && (
-                  <tr style={{ height: `${paddingTop}px` }} aria-hidden>
-                    <td colSpan={columns.length} />
-                  </tr>
+                  <TableRow style={{ height: `${paddingTop}px` }} aria-hidden>
+                    <TableCell colSpan={columns.length} className="p-0" />
+                  </TableRow>
                 )}
                 {virtualItems.map((virtualRow) => {
                   const row = tableRows[virtualRow.index];
@@ -580,11 +653,14 @@ export function DataTable({
                   );
                 })}
                 {paddingBottom > 0 && (
-                  <tr style={{ height: `${paddingBottom}px` }} aria-hidden>
-                    <td colSpan={columns.length} />
-                  </tr>
+                  <TableRow
+                    style={{ height: `${paddingBottom}px` }}
+                    aria-hidden
+                  >
+                    <TableCell colSpan={columns.length} className="p-0" />
+                  </TableRow>
                 )}
-              </tbody>
+              </TableBody>
             </ContextMenuTrigger>
             <ContextMenuContent className="w-48">
               <ContextMenuItem
@@ -601,18 +677,12 @@ export function DataTable({
               <ContextMenuItem
                 onClick={() => {
                   const cell = contextMenuCellRef.current;
-                  if (cell?.typeAst && isComplexType(cell.typeAst)) {
+                  if (cell) {
                     setDetailCell({
                       columnId: cell.columnId,
                       rawType: cell.rawType,
-                      typeAst: cell.typeAst,
-                      value: cell.value,
-                    });
-                  } else if (cell) {
-                    setDetailCell({
-                      columnId: cell.columnId,
-                      rawType: cell.rawType,
-                      typeAst: cell.typeAst ?? { kind: "Unknown", raw: cell.rawType },
+                      typeAst:
+                        cell.typeAst ?? { kind: "Unknown", raw: cell.rawType },
                       value: cell.value,
                     });
                   }
@@ -628,7 +698,9 @@ export function DataTable({
       {enablePagination && (
         <TablePagination
           table={table}
-          statistics={(data?.statistics as TablePaginationStatistics | undefined) ?? null}
+          statistics={
+            (data?.statistics as TablePaginationStatistics | undefined) ?? null
+          }
         />
       )}
       <CellDetailSheet cell={detailCell} onClose={() => setDetailCell(null)} />
