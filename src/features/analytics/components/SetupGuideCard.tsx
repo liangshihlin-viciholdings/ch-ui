@@ -79,7 +79,7 @@ export function SetupGuideCard({ guide, className }: SetupGuideCardProps) {
                         language={match[1]}
                         PreTag="div"
                         customStyle={{
-                          margin: "1rem 0",
+                          margin: "0.75rem 0",
                           borderRadius: "0.375rem",
                           fontSize: "0.75rem",
                         }}
