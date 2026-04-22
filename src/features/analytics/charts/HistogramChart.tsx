@@ -41,21 +41,23 @@ export function HistogramChart({ data, height = 260 }: ChartProps) {
   return (
     <ResponsiveContainer width="100%" height={height}>
       <BarChart data={rows} barCategoryGap={1}>
-        <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
         <XAxis
           dataKey={bucketKey}
-          stroke="var(--muted-foreground)"
+          stroke="hsl(var(--muted-foreground))"
+          tick={{ fill: "hsl(var(--muted-foreground))" }}
           fontSize={10}
         />
         <YAxis
-          stroke="var(--muted-foreground)"
+          stroke="hsl(var(--muted-foreground))"
+          tick={{ fill: "hsl(var(--muted-foreground))" }}
           fontSize={10}
           tickFormatter={(v: number) => formatNumber(v)}
         />
         <Tooltip
           contentStyle={{
-            background: "var(--popover)",
-            border: "1px solid var(--border)",
+            background: "hsl(var(--popover))",
+            border: "1px solid hsl(var(--border))",
             borderRadius: 6,
             fontSize: 12,
           }}

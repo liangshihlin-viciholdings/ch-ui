@@ -199,3 +199,42 @@ export function isJsonExplain(query: string): boolean {
   const trimmed = query.trim().toLowerCase();
   return /explain\s+(?:\w+\s+)*json\s*=\s*1/i.test(trimmed);
 }
+
+/**
+ * Extracts placeholder names from a ClickHouse parameterized query.
+ * Placeholders use the format {paramName: Type}.
+ */
+export function extractPlaceholderNames(query: string): string[] {
+  const regex = /\{(\w+):\s*\w+\}/g;
+  const names: string[] = [];
+  let match;
+  while ((match = regex.exec(query)) !== null) {
+    names.push(match[1].toLowerCase());
+  }
+  return [...new Set(names)];
+}
+
+/**
+ * Returns only the SET param_xxx lines from fullDoc that are actually
+ * referenced by placeholders in the query.
+ */
+export function getRelevantSetStatements(
+  query: string,
+  fullDoc: string
+): string[] {
+  const placeholders = extractPlaceholderNames(query);
+  if (placeholders.length === 0) return [];
+
+  const allSetLines: { name: string; line: string }[] = [];
+
+  for (const line of fullDoc.split('\n')) {
+    const match = /^\s*SET\s+param_(\w+)\s*=/i.exec(line);
+    if (match) {
+      allSetLines.push({ name: match[1].toLowerCase(), line: line.trim() });
+    }
+  }
+
+  return allSetLines
+    .filter(({ name }) => placeholders.includes(name))
+    .map(({ line }) => line);
+}

@@ -70,6 +70,7 @@ import {
   findQueryAtCursor,
   type ParsedQuery,
 } from "@/helpers/queryParser";
+import { getRelevantSetStatements } from "@/helpers/sqlUtils";
 
 import { createSqlExtensions } from "./codeMirrorConfig";
 import { getCodeMirrorTheme, isLightTheme } from "./codeMirrorThemes";
@@ -341,12 +342,10 @@ const SQLEditor: React.FC<SQLEditorProps> = ({
       return;
     }
 
-    // Collect SET param_xxx lines from the full document so parameterized
-    // queries still work when only the current block is run.
+    // Only include SET param_xxx lines that are actually referenced by
+    // placeholders in the current query.
     const full = getDoc();
-    const setParamLines = full
-      .split("\n")
-      .filter((line) => /^\s*SET\s+param_\w+\s*=/i.test(line));
+    const setParamLines = getRelevantSetStatements(current, full);
 
     const toRun =
       setParamLines.length > 0
@@ -358,20 +357,29 @@ const SQLEditor: React.FC<SQLEditorProps> = ({
 
   const handleRunAllQueries = useCallback(() => {
     const queries = getAllQueries();
+    const full = getDoc();
+
     if (queries.length === 0) {
       toast.error("No queries to run");
       return;
     }
-    if (queries.length === 1) {
-      onRunQuery(queries[0]);
+
+    // Prepend relevant SET statements to each query
+    const queriesWithParams = queries.map((q) => {
+      const setLines = getRelevantSetStatements(q, full);
+      return setLines.length > 0 ? `${setLines.join("\n")}\n${q}` : q;
+    });
+
+    if (queriesWithParams.length === 1) {
+      onRunQuery(queriesWithParams[0]);
       return;
     }
     if (onRunAllQueries) {
-      onRunAllQueries(queries);
+      onRunAllQueries(queriesWithParams);
     } else {
-      onRunQuery(queries.join("; "));
+      onRunQuery(queriesWithParams.join("; "));
     }
-  }, [getAllQueries, onRunAllQueries, onRunQuery]);
+  }, [getAllQueries, getDoc, onRunAllQueries, onRunQuery]);
 
   const openSaveDialog = useCallback(async () => {
     if (tab?.title) {

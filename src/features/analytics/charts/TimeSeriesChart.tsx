@@ -89,25 +89,27 @@ export function TimeSeriesChart({ data, config, height }: ChartProps) {
     return (
       <ResponsiveContainer width="100%" height={chartHeight}>
         <ReBarChart data={chartData} layout="vertical" margin={{ left: 10, right: 30, top: 5, bottom: 5 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
           <XAxis
             type="number"
-            stroke="var(--muted-foreground)"
+            stroke="hsl(var(--muted-foreground))"
+            tick={{ fill: "hsl(var(--muted-foreground))" }}
             fontSize={10}
             tickFormatter={(v: number) => formatNumber(v)}
           />
           <YAxis
             type="category"
             dataKey="category"
-            stroke="var(--muted-foreground)"
+            stroke="hsl(var(--muted-foreground))"
+            tick={{ fill: "hsl(var(--muted-foreground))" }}
             fontSize={10}
             width={100}
             tickFormatter={(v: string) => v.length > 15 ? v.slice(0, 15) + "…" : v}
           />
           <Tooltip
             contentStyle={{
-              background: "var(--popover)",
-              border: "1px solid var(--border)",
+              background: "hsl(var(--popover))",
+              border: "1px solid hsl(var(--border))",
               borderRadius: 6,
               fontSize: 12,
             }}
@@ -121,18 +123,20 @@ export function TimeSeriesChart({ data, config, height }: ChartProps) {
 
   const commonAxes = (
     <>
-      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
       <XAxis
         dataKey="ts"
         type="number"
         scale="time"
         domain={["dataMin", "dataMax"]}
         tickFormatter={formatTick}
-        stroke="var(--muted-foreground)"
+        stroke="hsl(var(--muted-foreground))"
+        tick={{ fill: "hsl(var(--muted-foreground))" }}
         fontSize={10}
       />
       <YAxis
-        stroke="var(--muted-foreground)"
+        stroke="hsl(var(--muted-foreground))"
+        tick={{ fill: "hsl(var(--muted-foreground))" }}
         fontSize={10}
         width={45}
         tickFormatter={(v: number) => formatNumber(v)}
@@ -150,7 +154,7 @@ export function TimeSeriesChart({ data, config, height }: ChartProps) {
     </>
   );
 
-  const chartMargin = { top: 10, right: 10, left: 50, bottom: 20 };
+  const chartMargin = { top: 10, right: 10, left: 0, bottom: 20 };
 
   if (displayType === "bar" || displayType === "stacked_bar") {
     const stackId = displayType === "stacked_bar" ? "a" : undefined;

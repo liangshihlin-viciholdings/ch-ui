@@ -42,8 +42,8 @@ export function PieChart({ data, height = 260 }: ChartProps) {
         <Tooltip
           formatter={(value) => formatNumber(Number(value))}
           contentStyle={{
-            background: "var(--popover)",
-            border: "1px solid var(--border)",
+            background: "hsl(var(--popover))",
+            border: "1px solid hsl(var(--border))",
             borderRadius: 6,
             fontSize: 12,
           }}

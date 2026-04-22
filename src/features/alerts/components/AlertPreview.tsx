@@ -176,26 +176,28 @@ export function AlertPreview({
       </div>
       <ResponsiveContainer width="100%" height={height}>
         <ChartRoot data={chartData}>
-          <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
           <XAxis
             dataKey="ts"
             type="number"
             scale="time"
             domain={["dataMin", "dataMax"]}
             tickFormatter={(v: number) => new Date(v).toLocaleTimeString()}
-            stroke="var(--muted-foreground)"
+            stroke="hsl(var(--muted-foreground))"
+            tick={{ fill: "hsl(var(--muted-foreground))" }}
             fontSize={10}
           />
           <YAxis
-            stroke="var(--muted-foreground)"
+            stroke="hsl(var(--muted-foreground))"
+            tick={{ fill: "hsl(var(--muted-foreground))" }}
             fontSize={10}
             tickFormatter={(v: number) => formatNumber(v)}
           />
           <Tooltip
             labelFormatter={(v) => new Date(Number(v)).toLocaleString()}
             contentStyle={{
-              background: "var(--popover)",
-              border: "1px solid var(--border)",
+              background: "hsl(var(--popover))",
+              border: "1px solid hsl(var(--border))",
               borderRadius: 6,
               fontSize: 12,
             }}
