@@ -584,8 +584,8 @@ export function DataTable({
         className="flex-1 min-h-0 overflow-auto border border-border rounded-md bg-background"
       >
         <table
-          className="text-sm border-collapse"
-          style={{ width: table.getTotalSize() }}
+          className="text-sm border-collapse w-full"
+          style={{ minWidth: table.getTotalSize() }}
         >
           <TableHeader
             className="sticky top-0 z-10 bg-muted"
