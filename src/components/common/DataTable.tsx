@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   useReactTable,
   getCoreRowModel,
@@ -10,6 +10,7 @@ import {
   type ColumnPinningState,
   type ColumnSizingState,
   type RowSelectionState,
+  type Row as TRow,
 } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Copy, X } from "lucide-react";
@@ -38,7 +39,7 @@ const ROW_NUM_COLUMN_WIDTH = 60;
 const DEFAULT_COLUMN_WIDTH = 180;
 const DEFAULT_ROW_HEIGHT = 32;
 
-type Row = Record<string, unknown>;
+type RowData = Record<string, unknown>;
 type SelectedCell = { rowId: string; columnId: string; value: unknown };
 
 export interface DataTableProps {
@@ -67,30 +68,85 @@ function formatCellValue(value: unknown): string {
 function CellContent({ value }: { value: unknown }) {
   const formatted = formatCellValue(value);
   const isNull = value === null || value === undefined;
-
-  const handleCopy = useCallback(() => {
-    navigator.clipboard.writeText(formatted);
-  }, [formatted]);
-
   return (
-    <ContextMenu>
-      <ContextMenuTrigger asChild>
-        <span
-          className={`block truncate ${isNull ? "italic text-muted-foreground" : ""}`}
-          title={formatted}
-        >
-          {formatted}
-        </span>
-      </ContextMenuTrigger>
-      <ContextMenuContent className="w-48">
-        <ContextMenuItem onClick={handleCopy}>
-          <Copy className="mr-2 h-4 w-4" />
-          Copy Cell Value
-        </ContextMenuItem>
-      </ContextMenuContent>
-    </ContextMenu>
+    <span
+      className={`block truncate ${isNull ? "italic text-muted-foreground" : ""}`}
+      title={formatted}
+    >
+      {formatted}
+    </span>
   );
 }
+const MemoizedCellContent = memo(CellContent);
+
+interface MemoizedRowProps {
+  row: TRow<RowData>;
+  isRowSelected: boolean;
+  selectedCellRowId: string | null;
+  selectedCellColId: string | null;
+  isLargeDataset: boolean;
+  onCellClick: (rowId: string, colId: string, value: unknown) => void;
+  onCellContextMenu: (value: unknown) => void;
+}
+
+function TableRowComponent({
+  row,
+  isRowSelected,
+  selectedCellRowId,
+  selectedCellColId,
+  isLargeDataset,
+  onCellClick,
+  onCellContextMenu,
+}: MemoizedRowProps) {
+  return (
+    <tr
+      data-index={row.index}
+      className={`hover:bg-muted/50 ${!isLargeDataset ? "transition-colors" : ""} ${isRowSelected ? "bg-primary/10" : ""}`}
+      style={{ height: `${DEFAULT_ROW_HEIGHT}px` }}
+    >
+      {row.getVisibleCells().map((cell) => {
+        const isCellSelected =
+          selectedCellRowId === row.id && selectedCellColId === cell.column.id;
+        const isMetaCol =
+          cell.column.id === SELECT_COLUMN_ID ||
+          cell.column.id === ROW_NUM_COLUMN_ID;
+        return (
+          <td
+            key={cell.id}
+            className={`border-b border-border/50 px-3 py-1.5 text-foreground overflow-hidden ${
+              isCellSelected ? "ring-1 ring-inset ring-primary" : ""
+            }`}
+            style={{ width: cell.column.getSize() }}
+            onClick={
+              isMetaCol
+                ? undefined
+                : () => onCellClick(row.id, cell.column.id, row.original[cell.column.id])
+            }
+            onContextMenu={
+              isMetaCol
+                ? undefined
+                : () => onCellContextMenu(row.original[cell.column.id])
+            }
+          >
+            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+          </td>
+        );
+      })}
+    </tr>
+  );
+}
+
+const MemoizedTableRow = memo(TableRowComponent, (prev, next) => {
+  const wasThisRowCellSelected = prev.selectedCellRowId === prev.row.id;
+  const isThisRowCellSelected = next.selectedCellRowId === next.row.id;
+  return (
+    prev.row === next.row &&
+    prev.isRowSelected === next.isRowSelected &&
+    wasThisRowCellSelected === isThisRowCellSelected &&
+    (!isThisRowCellSelected || prev.selectedCellColId === next.selectedCellColId) &&
+    prev.isLargeDataset === next.isLargeDataset
+  );
+});
 
 /**
  * TanStack-powered table used for query results and metadata views.
@@ -105,6 +161,7 @@ export function DataTable({
   pageSize: initialPageSize = 100,
 }: DataTableProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const contextMenuValueRef = useRef<unknown>(undefined);
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnPinning, setColumnPinning] = useState<ColumnPinningState>({});
   const [columnSizing, setColumnSizing] = useState<ColumnSizingState>({});
@@ -115,10 +172,16 @@ export function DataTable({
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const [selectedCell, setSelectedCell] = useState<SelectedCell | null>(null);
 
-  const rows = (data?.data ?? []) as Row[];
-  const meta = (data?.meta ?? []) as Array<{ name?: string; type?: string }>;
+  const rows = useMemo(() => (data?.data ?? []) as RowData[], [data?.data]);
+  const meta = useMemo(
+    () => (data?.meta ?? []) as Array<{ name?: string; type?: string }>,
+    [data?.meta]
+  );
 
   const isLargeDataset = rows.length >= LARGE_DATASET;
+
+  const selectedCellRowId = selectedCell?.rowId ?? null;
+  const selectedCellColId = selectedCell?.columnId ?? null;
 
   // Escape clears selection; Ctrl+C copies selected cell.
   useEffect(() => {
@@ -135,10 +198,21 @@ export function DataTable({
     return () => document.removeEventListener("keydown", handler);
   }, [selectedCell]);
 
-  const columns = useMemo<ColumnDef<Row>[]>(() => {
+  const handleCellClick = useCallback(
+    (rowId: string, colId: string, value: unknown) => {
+      setSelectedCell({ rowId, columnId: colId, value });
+    },
+    []
+  );
+
+  const handleCellContextMenu = useCallback((value: unknown) => {
+    contextMenuValueRef.current = value;
+  }, []);
+
+  const columns = useMemo<ColumnDef<RowData>[]>(() => {
     if (!rows.length) return [];
 
-    const selectCol: ColumnDef<Row> = {
+    const selectCol: ColumnDef<RowData> = {
       id: SELECT_COLUMN_ID,
       header: ({ table }) => (
         <input
@@ -166,7 +240,7 @@ export function DataTable({
       enablePinning: false,
     };
 
-    const rowNumCol: ColumnDef<Row> = {
+    const rowNumCol: ColumnDef<RowData> = {
       id: ROW_NUM_COLUMN_ID,
       header: "#",
       size: ROW_NUM_COLUMN_WIDTH,
@@ -191,7 +265,7 @@ export function DataTable({
       meta.flatMap((m) => (m.name && m.type ? [[m.name, m.type]] : []))
     );
 
-    const dataCols: ColumnDef<Row>[] = keys.map((key) => ({
+    const dataCols: ColumnDef<RowData>[] = keys.map((key) => ({
       id: key,
       accessorKey: key,
       header: () => (
@@ -208,7 +282,7 @@ export function DataTable({
       minSize: 80,
       enableResizing: true,
       enableSorting: true,
-      cell: ({ getValue }) => <CellContent value={getValue()} />,
+      cell: ({ getValue }) => <MemoizedCellContent value={getValue()} />,
     }));
 
     return [selectCol, rowNumCol, ...dataCols];
@@ -264,7 +338,7 @@ export function DataTable({
 
   const headerGroups = table.getHeaderGroups();
   const selectedRowCount = Object.keys(rowSelection).length;
-  const selectedRows = table.getSelectedRowModel().rows;
+  const selectedRows = selectedRowCount > 0 ? table.getSelectedRowModel().rows : [];
 
   const copySelectedRows = () => {
     const keys = meta.filter((m) => m.name).map((m) => m.name as string);
@@ -356,7 +430,10 @@ export function DataTable({
           className="text-sm border-collapse"
           style={{ width: table.getTotalSize() }}
         >
-          <thead className="sticky top-0 z-10 bg-muted">
+          <thead
+            className="sticky top-0 z-10 bg-muted"
+            onContextMenu={(e) => e.stopPropagation()}
+          >
             {headerGroups.map((headerGroup) => (
               <tr key={headerGroup.id}>
                 {headerGroup.headers.map((header) => (
@@ -389,63 +466,50 @@ export function DataTable({
               </tr>
             ))}
           </thead>
-          <tbody>
-            {paddingTop > 0 && (
-              <tr style={{ height: `${paddingTop}px` }} aria-hidden>
-                <td colSpan={columns.length} />
-              </tr>
-            )}
-            {virtualItems.map((virtualRow) => {
-              const row = tableRows[virtualRow.index];
-              const isRowSelected = row.getIsSelected();
-              return (
-                <tr
-                  key={row.id}
-                  data-index={virtualRow.index}
-                  className={`hover:bg-muted/50 ${!isLargeDataset ? "transition-colors" : ""} ${isRowSelected ? "bg-primary/10" : ""}`}
-                  style={{ height: `${DEFAULT_ROW_HEIGHT}px` }}
-                >
-                  {row.getVisibleCells().map((cell) => {
-                    const isCellSelected =
-                      selectedCell?.rowId === row.id &&
-                      selectedCell?.columnId === cell.column.id;
-                    const isMetaCol =
-                      cell.column.id === SELECT_COLUMN_ID ||
-                      cell.column.id === ROW_NUM_COLUMN_ID;
-                    return (
-                      <td
-                        key={cell.id}
-                        className={`border-b border-border/50 px-3 py-1.5 text-foreground overflow-hidden ${
-                          isCellSelected ? "ring-1 ring-inset ring-primary" : ""
-                        }`}
-                        style={{ width: cell.column.getSize() }}
-                        onClick={
-                          isMetaCol
-                            ? undefined
-                            : () =>
-                                setSelectedCell({
-                                  rowId: row.id,
-                                  columnId: cell.column.id,
-                                  value: row.original[cell.column.id],
-                                })
-                        }
-                      >
-                        {flexRender(
-                          cell.column.columnDef.cell,
-                          cell.getContext(),
-                        )}
-                      </td>
-                    );
-                  })}
-                </tr>
-              );
-            })}
-            {paddingBottom > 0 && (
-              <tr style={{ height: `${paddingBottom}px` }} aria-hidden>
-                <td colSpan={columns.length} />
-              </tr>
-            )}
-          </tbody>
+          <ContextMenu>
+            <ContextMenuTrigger asChild>
+              <tbody>
+                {paddingTop > 0 && (
+                  <tr style={{ height: `${paddingTop}px` }} aria-hidden>
+                    <td colSpan={columns.length} />
+                  </tr>
+                )}
+                {virtualItems.map((virtualRow) => {
+                  const row = tableRows[virtualRow.index];
+                  return (
+                    <MemoizedTableRow
+                      key={row.id}
+                      row={row}
+                      isRowSelected={row.getIsSelected()}
+                      selectedCellRowId={selectedCellRowId}
+                      selectedCellColId={selectedCellColId}
+                      isLargeDataset={isLargeDataset}
+                      onCellClick={handleCellClick}
+                      onCellContextMenu={handleCellContextMenu}
+                    />
+                  );
+                })}
+                {paddingBottom > 0 && (
+                  <tr style={{ height: `${paddingBottom}px` }} aria-hidden>
+                    <td colSpan={columns.length} />
+                  </tr>
+                )}
+              </tbody>
+            </ContextMenuTrigger>
+            <ContextMenuContent className="w-48">
+              <ContextMenuItem
+                onClick={() => {
+                  const val = contextMenuValueRef.current;
+                  if (val !== undefined) {
+                    navigator.clipboard.writeText(formatCellValue(val));
+                  }
+                }}
+              >
+                <Copy className="mr-2 h-4 w-4" />
+                Copy Cell Value
+              </ContextMenuItem>
+            </ContextMenuContent>
+          </ContextMenu>
         </table>
       </div>
       {enablePagination && (
