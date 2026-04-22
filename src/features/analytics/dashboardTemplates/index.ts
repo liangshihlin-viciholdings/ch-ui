@@ -2,7 +2,7 @@
 // Dashboard templates based on HyperDX patterns for common observability use cases.
 
 // Re-export types and helpers
-export type { DashboardTemplate, PresetDashboard } from "./types";
+export type { DashboardTemplate, PresetDashboard, SetupGuide } from "./types";
 export { builderConfig, rawSqlConfig } from "./helpers";
 
 // Import all templates

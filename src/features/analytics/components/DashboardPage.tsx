@@ -51,6 +51,7 @@ import {
   DASHBOARD_TEMPLATES,
   getDashboardTemplate,
 } from "@/features/analytics/dashboardTemplates";
+import { SetupGuideCard } from "./SetupGuideCard";
 
 export interface DashboardPageProps {
   dashboardId: string;
@@ -288,6 +289,13 @@ export function DashboardPage({
           onAdd={handleFilterAdd}
           onRemove={handleFilterRemove}
         />
+
+        {dashboard.templateId && (() => {
+          const template = getDashboardTemplate(dashboard.templateId);
+          return template?.setupGuide ? (
+            <SetupGuideCard guide={template.setupGuide} />
+          ) : null;
+        })()}
 
         <DashboardGrid
           tiles={tiles}

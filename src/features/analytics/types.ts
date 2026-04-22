@@ -71,6 +71,7 @@ export interface Dashboard {
   tiles: DashboardTile[];
   tags: string[];
   filters: DashboardFilter[];
+  templateId?: string; // ID of the template this dashboard was created from
   createdAt: string;
   updatedAt: string;
 }

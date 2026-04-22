@@ -27,6 +27,7 @@ function toRuntime(row: SavedDashboard): Dashboard {
     tiles: (row.tiles as DashboardTile[]) ?? [],
     tags: row.tags ?? [],
     filters: (row.filters as DashboardFilter[]) ?? [],
+    templateId: row.templateId,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
@@ -48,6 +49,7 @@ export interface CreateDashboardInput {
   tiles?: DashboardTile[];
   tags?: string[];
   filters?: DashboardFilter[];
+  templateId?: string;
 }
 
 export async function createDashboard(
@@ -59,6 +61,7 @@ export async function createDashboard(
     tiles: input.tiles ?? [],
     tags: input.tags ?? [],
     filters: input.filters ?? [],
+    templateId: input.templateId,
   });
   return toRuntime(row);
 }

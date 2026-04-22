@@ -7,6 +7,52 @@ export const fastapiTemplate: DashboardTemplate = {
   name: "FastAPI Performance",
   description: "Request latency, error rates, and endpoint metrics for FastAPI applications",
   tags: ["Python", "FastAPI", "HTTP"],
+  setupGuide: {
+    title: "Setup OpenTelemetry for FastAPI",
+    docsUrl: "https://opentelemetry.io/docs/languages/python/",
+    content: `
+## 1. Install dependencies
+
+\`\`\`bash
+pip install opentelemetry-distro opentelemetry-exporter-otlp
+opentelemetry-bootstrap -a install
+\`\`\`
+
+## 2. Configure your FastAPI app
+
+\`\`\`python
+# main.py
+from fastapi import FastAPI
+from opentelemetry import trace
+from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+from opentelemetry.sdk.resources import Resource
+
+# Configure tracer
+resource = Resource.create({"service.name": "my-fastapi-app"})
+provider = TracerProvider(resource=resource)
+processor = BatchSpanProcessor(OTLPSpanExporter(endpoint="http://localhost:4317"))
+provider.add_span_processor(processor)
+trace.set_tracer_provider(provider)
+
+app = FastAPI()
+FastAPIInstrumentor.instrument_app(app)
+\`\`\`
+
+## 3. Or use auto-instrumentation (no code changes)
+
+\`\`\`bash
+opentelemetry-instrument \\
+  --service_name my-fastapi-app \\
+  --exporter_otlp_endpoint http://localhost:4317 \\
+  uvicorn main:app
+\`\`\`
+
+This automatically instruments your FastAPI app without modifying any code.
+`,
+  },
   tiles: [
     // Row 0: Metrics
     {

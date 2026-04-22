@@ -7,6 +7,67 @@ export const rustRuntimeTemplate: DashboardTemplate = {
   name: "Rust Runtime Metrics",
   description: "Tokio runtime, memory allocation, and HTTP metrics for Rust applications",
   tags: ["Rust", "Tokio", "Performance"],
+  setupGuide: {
+    title: "Setup OpenTelemetry for Rust",
+    docsUrl: "https://docs.rs/opentelemetry/latest/opentelemetry/",
+    content: `
+## 1. Add dependencies to Cargo.toml
+
+\`\`\`toml
+[dependencies]
+opentelemetry = "0.22"
+opentelemetry_sdk = { version = "0.22", features = ["rt-tokio"] }
+opentelemetry-otlp = "0.15"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing-opentelemetry = "0.23"
+tokio-metrics = "0.3"
+\`\`\`
+
+## 2. Initialize OpenTelemetry tracer
+
+\`\`\`rust
+use opentelemetry::global;
+use opentelemetry_otlp::WithExportConfig;
+use opentelemetry_sdk::{runtime, trace as sdktrace, Resource};
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+
+fn init_tracer() -> Result<(), Box<dyn std::error::Error>> {
+    let tracer = opentelemetry_otlp::new_pipeline()
+        .tracing()
+        .with_exporter(
+            opentelemetry_otlp::new_exporter()
+                .tonic()
+                .with_endpoint("http://localhost:4317"),
+        )
+        .with_trace_config(
+            sdktrace::Config::default()
+                .with_resource(Resource::new(vec![
+                    opentelemetry::KeyValue::new("service.name", "my-rust-app"),
+                ])),
+        )
+        .install_batch(runtime::Tokio)?;
+
+    tracing_subscriber::registry()
+        .with(tracing_opentelemetry::layer().with_tracer(tracer))
+        .init();
+    Ok(())
+}
+\`\`\`
+
+## 3. Instrument Axum/Actix handlers
+
+Use tower-http middleware for automatic HTTP request tracing:
+
+\`\`\`rust
+use tower_http::trace::TraceLayer;
+
+let app = Router::new()
+    .route("/", get(handler))
+    .layer(TraceLayer::new_for_http());
+\`\`\`
+`,
+  },
   tiles: [
     // Row 0: Metrics
     {

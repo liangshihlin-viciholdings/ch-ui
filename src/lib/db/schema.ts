@@ -89,6 +89,7 @@ export interface SavedDashboard {
   tiles: unknown[];
   tags: string[];
   filters: unknown[];
+  templateId?: string;
   createdAt: Date;
   updatedAt: Date;
 }

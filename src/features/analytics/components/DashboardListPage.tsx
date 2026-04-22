@@ -101,6 +101,7 @@ export function DashboardListPage({ onSelect }: DashboardListPageProps) {
         })),
         tags: selectedTemplate.tags,
         filters: [],
+        templateId: selectedTemplate.id,
       });
       toast.success(`Created "${created.name}" from template`);
       setSelectedTemplate(null);

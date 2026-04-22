@@ -7,6 +7,35 @@ export const clickhouseServerTemplate: DashboardTemplate = {
   name: "ClickHouse Server",
   description: "Monitor ClickHouse server health, queries, memory, and disk usage",
   tags: ["ClickHouse", "Database"],
+  setupGuide: {
+    title: "ClickHouse Server Monitoring",
+    docsUrl: "https://clickhouse.com/docs/en/operations/system-tables",
+    content: `
+This dashboard queries ClickHouse system tables directly. **No additional setup required** if you're connected to a ClickHouse server.
+
+## Verify system tables access
+
+Run these queries to ensure your user has access:
+
+\`\`\`sql
+SELECT * FROM system.metrics LIMIT 5;
+SELECT * FROM system.query_log LIMIT 5;
+SELECT * FROM system.parts LIMIT 5;
+\`\`\`
+
+## Enable query logging (if needed)
+
+Query logging is usually enabled by default. If \`system.query_log\` is empty, ensure it's configured in your ClickHouse config:
+
+\`\`\`xml
+<query_log>
+  <database>system</database>
+  <table>query_log</table>
+  <flush_interval_milliseconds>7500</flush_interval_milliseconds>
+</query_log>
+\`\`\`
+`,
+  },
   tiles: [
     // Row 0: Metrics (4 cards, w=3 each = 12 cols)
     {
