@@ -9,10 +9,10 @@
 // The builder accepts callbacks so the SqlEditor component can wire its
 // own state without coupling this module to React.
 
-import { acceptCompletion, autocompletion } from "@codemirror/autocomplete";
+import { acceptCompletion, autocompletion, completionStatus } from "@codemirror/autocomplete";
 import { type SQLConfig, SQLDialect, sql } from "@codemirror/lang-sql";
-import type { Extension } from "@codemirror/state";
-import { keymap } from "@codemirror/view";
+import { Prec, type Extension } from "@codemirror/state";
+import { EditorView, keymap } from "@codemirror/view";
 import { clickhouse as clickhouseFormatter } from "sql-formatter";
 
 import { clickhouseCompletionSource } from "./completionSource";
@@ -88,6 +88,28 @@ export function createSqlExtensions(options: SqlExtensionOptions): Extension[] {
 	}
 
 	extensions.push(
+		// Tab accepts the active completion suggestion before vim's insert-mode
+		// Tab handler or basicSetup's indentWithTab can fire. Uses Prec.highest
+		// domEventHandlers — same pattern as the Ctrl+D/U scroll fix.
+		Prec.highest(
+			EditorView.domEventHandlers({
+				keydown(event, view) {
+					if (
+						event.key !== "Tab" ||
+						event.shiftKey ||
+						event.ctrlKey ||
+						event.metaKey ||
+						event.altKey
+					)
+						return false;
+					if (completionStatus(view.state) !== "active") return false;
+					event.preventDefault();
+					event.stopImmediatePropagation();
+					acceptCompletion(view);
+					return true;
+				},
+			}),
+		),
 		clickhouseSql(),
 		autocompletion({
 			override: [clickhouseCompletionSource],
@@ -115,10 +137,6 @@ export function createSqlExtensions(options: SqlExtensionOptions): Extension[] {
 					options.onSave();
 					return true;
 				},
-			},
-			{
-				key: "Tab",
-				run: acceptCompletion,
 			},
 		]),
 	);

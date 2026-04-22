@@ -486,8 +486,11 @@ function buildEditorTheme(colors: ThemeColors, dark: boolean): Extension {
       "& .cm-selectionBackground, ::selection": {
         backgroundColor: `${colors.selection} !important`,
       },
+      // Use boxShadow instead of backgroundColor so the selection layer
+      // (z-index:1, below content z-index:2) remains visible on the active line.
       ".cm-activeLine": {
-        backgroundColor: colors.lineHighlight,
+        backgroundColor: "transparent",
+        boxShadow: `inset 2px 0 0 0 ${colors.caret}`,
       },
       ".cm-gutters": {
         backgroundColor: colors.gutterBackground,
