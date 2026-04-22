@@ -1,7 +1,7 @@
 // src/features/analytics/dashboardTemplates/index.ts
 // Dashboard templates based on HyperDX patterns for common observability use cases.
 
-import type { DashboardTile, BuilderChartConfig } from "@/features/analytics/types";
+import type { DashboardTile, BuilderChartConfig, RawSqlChartConfig } from "@/features/analytics/types";
 
 export interface DashboardTemplate {
   id: string;
@@ -22,6 +22,12 @@ export interface PresetDashboard {
 // Each links to a template that will be created when clicked
 export const PRESET_DASHBOARDS: PresetDashboard[] = [
   {
+    id: "clickhouse-server",
+    name: "ClickHouse Server",
+    description: "Monitor your connected ClickHouse server health and performance",
+    templateId: "clickhouse-server",
+  },
+  {
     id: "http-performance",
     name: "HTTP Performance",
     description: "Monitor HTTP endpoints, latency, and error rates",
@@ -32,12 +38,6 @@ export const PRESET_DASHBOARDS: PresetDashboard[] = [
     name: "Node.js Runtime",
     description: "Event loop, heap, and CPU metrics for Node.js apps",
     templateId: "nodejs-runtime",
-  },
-  {
-    id: "jvm-runtime",
-    name: "JVM Runtime",
-    description: "Heap, GC, and thread metrics for Java applications",
-    templateId: "jvm-runtime",
   },
 ];
 
@@ -52,6 +52,18 @@ function builderConfig(
     granularity: "auto",
     fillNulls: true,
     ...overrides,
+  };
+}
+
+// Helper to create a raw SQL config
+function rawSqlConfig(
+  query: string,
+  displayType: RawSqlChartConfig["displayType"]
+): RawSqlChartConfig {
+  return {
+    type: "rawsql",
+    query,
+    displayType,
   };
 }
 
@@ -496,6 +508,184 @@ export const dotnetRuntimeTemplate: DashboardTemplate = {
   ],
 };
 
+// ClickHouse Server dashboard template
+export const clickhouseServerTemplate: DashboardTemplate = {
+  id: "clickhouse-server",
+  name: "ClickHouse Server",
+  description: "Monitor ClickHouse server health, queries, memory, and disk usage",
+  tags: ["ClickHouse", "Database"],
+  tiles: [
+    {
+      id: "ch-queries-running",
+      title: "Running Queries",
+      x: 0,
+      y: 0,
+      w: 6,
+      h: 3,
+      config: rawSqlConfig(
+        "SELECT value FROM system.metrics WHERE metric = 'Query'",
+        "number"
+      ),
+    },
+    {
+      id: "ch-memory-used",
+      title: "Memory Used",
+      x: 6,
+      y: 0,
+      w: 6,
+      h: 3,
+      config: rawSqlConfig(
+        "SELECT formatReadableSize(sum(value)) as memory FROM system.metrics WHERE metric IN ('MemoryTracking')",
+        "number"
+      ),
+    },
+    {
+      id: "ch-connections",
+      title: "Active Connections",
+      x: 12,
+      y: 0,
+      w: 6,
+      h: 3,
+      config: rawSqlConfig(
+        "SELECT value FROM system.metrics WHERE metric = 'TCPConnection'",
+        "number"
+      ),
+    },
+    {
+      id: "ch-parts-count",
+      title: "Total Parts",
+      x: 18,
+      y: 0,
+      w: 6,
+      h: 3,
+      config: rawSqlConfig(
+        "SELECT count() FROM system.parts WHERE active",
+        "number"
+      ),
+    },
+    {
+      id: "ch-queries-chart",
+      title: "Queries Over Time",
+      x: 0,
+      y: 3,
+      w: 12,
+      h: 7,
+      config: rawSqlConfig(
+        `SELECT
+          toStartOfMinute(event_time) as time,
+          count() as queries
+        FROM system.query_log
+        WHERE event_time >= now() - INTERVAL 1 HOUR
+          AND type = 'QueryFinish'
+        GROUP BY time
+        ORDER BY time`,
+        "line"
+      ),
+    },
+    {
+      id: "ch-query-duration",
+      title: "Query Duration (p50, p90, p99)",
+      x: 12,
+      y: 3,
+      w: 12,
+      h: 7,
+      config: rawSqlConfig(
+        `SELECT
+          toStartOfMinute(event_time) as time,
+          quantile(0.5)(query_duration_ms) as p50,
+          quantile(0.9)(query_duration_ms) as p90,
+          quantile(0.99)(query_duration_ms) as p99
+        FROM system.query_log
+        WHERE event_time >= now() - INTERVAL 1 HOUR
+          AND type = 'QueryFinish'
+        GROUP BY time
+        ORDER BY time`,
+        "line"
+      ),
+    },
+    {
+      id: "ch-memory-chart",
+      title: "Memory Usage Over Time",
+      x: 0,
+      y: 10,
+      w: 12,
+      h: 7,
+      config: rawSqlConfig(
+        `SELECT
+          toStartOfMinute(event_time) as time,
+          max(memory_usage) as memory_bytes
+        FROM system.query_log
+        WHERE event_time >= now() - INTERVAL 1 HOUR
+        GROUP BY time
+        ORDER BY time`,
+        "area"
+      ),
+    },
+    {
+      id: "ch-disk-usage",
+      title: "Disk Usage by Database",
+      x: 12,
+      y: 10,
+      w: 12,
+      h: 7,
+      config: rawSqlConfig(
+        `SELECT
+          database,
+          formatReadableSize(sum(bytes_on_disk)) as size
+        FROM system.parts
+        WHERE active
+        GROUP BY database
+        ORDER BY sum(bytes_on_disk) DESC
+        LIMIT 10`,
+        "bar"
+      ),
+    },
+    {
+      id: "ch-top-tables",
+      title: "Top Tables by Size",
+      x: 0,
+      y: 17,
+      w: 12,
+      h: 7,
+      config: rawSqlConfig(
+        `SELECT
+          concat(database, '.', table) as table_name,
+          formatReadableSize(sum(bytes_on_disk)) as size,
+          sum(rows) as rows,
+          count() as parts
+        FROM system.parts
+        WHERE active
+        GROUP BY database, table
+        ORDER BY sum(bytes_on_disk) DESC
+        LIMIT 10`,
+        "table"
+      ),
+    },
+    {
+      id: "ch-slow-queries",
+      title: "Slowest Queries (Last Hour)",
+      x: 12,
+      y: 17,
+      w: 12,
+      h: 7,
+      config: rawSqlConfig(
+        `SELECT
+          substring(query, 1, 80) as query_preview,
+          query_duration_ms,
+          formatReadableSize(memory_usage) as memory,
+          event_time
+        FROM system.query_log
+        WHERE event_time >= now() - INTERVAL 1 HOUR
+          AND type = 'QueryFinish'
+          AND query_kind = 'Select'
+        ORDER BY query_duration_ms DESC
+        LIMIT 10`,
+        "table"
+      ),
+    },
+  ],
+};
+
 // HTTP Performance template
 export const httpPerformanceTemplate: DashboardTemplate = {
   id: "http-performance",
@@ -615,6 +805,7 @@ export const httpPerformanceTemplate: DashboardTemplate = {
 
 // All importable templates
 export const DASHBOARD_TEMPLATES: DashboardTemplate[] = [
+  clickhouseServerTemplate,
   nodejsRuntimeTemplate,
   goRuntimeTemplate,
   jvmRuntimeTemplate,
