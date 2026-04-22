@@ -477,14 +477,14 @@ function buildEditorTheme(colors: ThemeColors, dark: boolean): Extension {
       ".cm-cursor, .cm-dropCursor": {
         borderLeftColor: colors.caret,
       },
-      "&.cm-focused .cm-selectionBackground": {
+      // Target the layer created by drawSelection() — the exact DOM path
+      // CM6 uses: editor > scroller > selectionLayer > selectionBackground
+      "&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground": {
         backgroundColor: colors.selection,
       },
-      ".cm-selectionBackground": {
-        backgroundColor: colors.selection,
-      },
-      "::selection": {
-        backgroundColor: colors.selection,
+      // Fallback for unfocused state and ::selection (native browser selection)
+      "& .cm-selectionBackground, ::selection": {
+        backgroundColor: `${colors.selection} !important`,
       },
       ".cm-activeLine": {
         backgroundColor: colors.lineHighlight,
