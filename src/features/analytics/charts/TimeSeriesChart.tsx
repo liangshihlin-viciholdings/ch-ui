@@ -88,7 +88,7 @@ export function TimeSeriesChart({ data, config, height }: ChartProps) {
   if (!hasTimeBucket && (displayType === "bar" || displayType === "stacked_bar")) {
     return (
       <ResponsiveContainer width="100%" height={chartHeight}>
-        <ReBarChart data={chartData} layout="vertical" margin={{ left: 10, right: 10 }}>
+        <ReBarChart data={chartData} layout="vertical" margin={{ left: 10, right: 30, top: 5, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
           <XAxis
             type="number"
@@ -134,6 +134,7 @@ export function TimeSeriesChart({ data, config, height }: ChartProps) {
       <YAxis
         stroke="var(--muted-foreground)"
         fontSize={10}
+        width={45}
         tickFormatter={(v: number) => formatNumber(v)}
       />
       <Tooltip
@@ -149,11 +150,13 @@ export function TimeSeriesChart({ data, config, height }: ChartProps) {
     </>
   );
 
+  const chartMargin = { top: 10, right: 10, left: 50, bottom: 20 };
+
   if (displayType === "bar" || displayType === "stacked_bar") {
     const stackId = displayType === "stacked_bar" ? "a" : undefined;
     return (
       <ResponsiveContainer width="100%" height={chartHeight}>
-        <ReBarChart data={chartData}>
+        <ReBarChart data={chartData} margin={chartMargin}>
           {commonAxes}
           {seriesKeys.map((key, idx) => (
             <Bar
@@ -171,7 +174,7 @@ export function TimeSeriesChart({ data, config, height }: ChartProps) {
   if (displayType === "area") {
     return (
       <ResponsiveContainer width="100%" height={chartHeight}>
-        <AreaChart data={chartData}>
+        <AreaChart data={chartData} margin={chartMargin}>
           {commonAxes}
           {seriesKeys.map((key, idx) => (
             <Area
@@ -191,7 +194,7 @@ export function TimeSeriesChart({ data, config, height }: ChartProps) {
   // default: line
   return (
     <ResponsiveContainer width="100%" height={chartHeight}>
-      <LineChart data={chartData}>
+      <LineChart data={chartData} margin={chartMargin}>
         {commonAxes}
         {seriesKeys.map((key, idx) => (
           <Line

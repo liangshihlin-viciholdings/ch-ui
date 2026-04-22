@@ -38,6 +38,7 @@ import {
   PRESET_DASHBOARDS,
   DASHBOARD_TEMPLATES,
   getDashboardTemplate,
+  type DashboardTemplate,
 } from "@/features/analytics/dashboardTemplates";
 
 export interface DashboardListPageProps {
@@ -50,6 +51,8 @@ export function DashboardListPage({ onSelect }: DashboardListPageProps) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [templatesOpen, setTemplatesOpen] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<DashboardTemplate | null>(null);
+  const [templateName, setTemplateName] = useState("");
 
   const handleCreate = async () => {
     if (!name.trim()) {
@@ -72,27 +75,39 @@ export function DashboardListPage({ onSelect }: DashboardListPageProps) {
     }
   };
 
-  const handleImportTemplate = async (templateId: string) => {
+  const handleSelectTemplate = (templateId: string) => {
     const template = getDashboardTemplate(templateId);
     if (!template) {
       toast.error("Template not found");
       return;
     }
+    setSelectedTemplate(template);
+    setTemplateName(template.name);
+    setTemplatesOpen(false);
+  };
+
+  const handleCreateFromTemplate = async () => {
+    if (!selectedTemplate) return;
+    if (!templateName.trim()) {
+      toast.error("Name is required");
+      return;
+    }
     try {
       const created = await createDashboard.mutateAsync({
-        name: template.name,
-        tiles: template.tiles.map((tile) => ({
+        name: templateName.trim(),
+        tiles: selectedTemplate.tiles.map((tile) => ({
           ...tile,
           id: crypto.randomUUID(),
         })),
-        tags: template.tags,
+        tags: selectedTemplate.tags,
         filters: [],
       });
       toast.success(`Created "${created.name}" from template`);
-      setTemplatesOpen(false);
+      setSelectedTemplate(null);
+      setTemplateName("");
       onSelect?.(created.id);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Import failed");
+      toast.error(err instanceof Error ? err.message : "Create failed");
     }
   };
 
@@ -134,7 +149,7 @@ export function DashboardListPage({ onSelect }: DashboardListPageProps) {
                 <Card
                   key={preset.id}
                   className="group cursor-pointer transition-colors hover:border-primary/50"
-                  onClick={() => handleImportTemplate(preset.templateId)}
+                  onClick={() => handleSelectTemplate(preset.templateId)}
                 >
                   <CardHeader className="p-4">
                     <div className="flex items-center justify-between">
@@ -235,8 +250,7 @@ export function DashboardListPage({ onSelect }: DashboardListPageProps) {
           <DialogHeader>
             <DialogTitle>Dashboard Templates</DialogTitle>
             <DialogDescription>
-              Import a pre-built dashboard template. Choose one to get started
-              quickly with common observability patterns.
+              Choose a template to preview. You can customize the name before creating.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-3 py-4 sm:grid-cols-2">
@@ -244,7 +258,7 @@ export function DashboardListPage({ onSelect }: DashboardListPageProps) {
               <Card
                 key={template.id}
                 className="cursor-pointer transition-colors hover:border-primary/50"
-                onClick={() => handleImportTemplate(template.id)}
+                onClick={() => handleSelectTemplate(template.id)}
               >
                 <CardHeader className="p-4">
                   <CardTitle className="text-sm font-medium">
@@ -253,6 +267,9 @@ export function DashboardListPage({ onSelect }: DashboardListPageProps) {
                   <CardDescription className="text-xs">
                     {template.description}
                   </CardDescription>
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    {template.tiles.length} charts
+                  </div>
                   <div className="mt-2 flex flex-wrap gap-1">
                     {template.tags.map((tag) => (
                       <span
@@ -270,6 +287,59 @@ export function DashboardListPage({ onSelect }: DashboardListPageProps) {
           <DialogFooter>
             <Button variant="outline" onClick={() => setTemplatesOpen(false)}>
               Cancel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!selectedTemplate} onOpenChange={(open) => !open && setSelectedTemplate(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create Dashboard from Template</DialogTitle>
+            <DialogDescription>
+              {selectedTemplate?.description}
+            </DialogDescription>
+          </DialogHeader>
+          {selectedTemplate && (
+            <div className="space-y-4">
+              <div className="rounded-md border border-border p-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">{selectedTemplate.name}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {selectedTemplate.tiles.length} charts
+                  </span>
+                </div>
+                <div className="mt-2 flex flex-wrap gap-1">
+                  {selectedTemplate.tags.map((tag) => (
+                    <span
+                      key={tag}
+                      className="rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="template-dashboard-name">Dashboard Name</Label>
+                <Input
+                  id="template-dashboard-name"
+                  value={templateName}
+                  onChange={(e) => setTemplateName(e.target.value)}
+                  placeholder="My dashboard"
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSelectedTemplate(null)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleCreateFromTemplate}
+              disabled={createDashboard.isPending}
+            >
+              {createDashboard.isPending ? "Creating..." : "Create Dashboard"}
             </Button>
           </DialogFooter>
         </DialogContent>
