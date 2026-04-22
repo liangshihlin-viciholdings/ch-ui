@@ -91,7 +91,7 @@ export function DashboardGrid({
       isDraggable={!!onLayoutChange}
       isResizable={!!onLayoutChange}
       resizeHandles={["s", "e", "se"]}
-      draggableHandle=".dashboard-tile-drag-handle, h3"
+      draggableHandle=".dashboard-tile-drag-handle"
       onLayoutChange={handleLayoutChange}
     >
       {tiles.map((tile) => (

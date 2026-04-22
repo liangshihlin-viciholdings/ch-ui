@@ -56,8 +56,8 @@ export function ChartContainer({
 
   return (
     <div className="flex h-full w-full flex-col rounded-md border border-border bg-background">
-      <div className="flex items-center justify-between border-b border-border px-2 py-1 select-none">
-        <h3 className="truncate text-xs font-medium text-foreground cursor-grab active:cursor-grabbing" title={title}>
+      <div className="dashboard-tile-drag-handle flex items-center justify-between border-b border-border px-2 py-1 select-none cursor-grab active:cursor-grabbing">
+        <h3 className="truncate text-xs font-medium text-foreground" title={title}>
           {title || "Untitled"}
         </h3>
         <DropdownMenu>
@@ -65,8 +65,9 @@ export function ChartContainer({
             <Button
               variant="ghost"
               size="icon"
-              className="h-6 w-6"
+              className="h-6 w-6 cursor-pointer"
               aria-label="Chart actions"
+              onPointerDown={(e) => e.stopPropagation()}
             >
               <MoreHorizontal className="h-4 w-4" />
             </Button>
