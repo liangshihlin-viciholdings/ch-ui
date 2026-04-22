@@ -5,7 +5,10 @@ import { useState } from "react";
 import { ChevronDown, ChevronRight, ExternalLink, BookOpen } from "lucide-react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { Button } from "@/components/ui/button";
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
+import { oneLight } from "react-syntax-highlighter/dist/esm/styles/prism";
+import { useTheme } from "@/components/common/theme-provider";
 import { cn } from "@/lib/utils";
 import type { SetupGuide } from "@/features/analytics/dashboardTemplates/types";
 
@@ -14,8 +17,14 @@ interface SetupGuideCardProps {
   className?: string;
 }
 
+function isLightTheme(theme: string): boolean {
+  return theme === "light" || theme === "catppuccin-latte" || theme === "rose-pine-dawn";
+}
+
 export function SetupGuideCard({ guide, className }: SetupGuideCardProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const { theme } = useTheme();
+  const syntaxTheme = isLightTheme(theme) ? oneLight : oneDark;
 
   return (
     <div
@@ -55,8 +64,41 @@ export function SetupGuideCard({ guide, className }: SetupGuideCardProps) {
 
       {isOpen && (
         <div className="border-t border-border p-4">
-          <div className="prose prose-sm dark:prose-invert max-w-none prose-pre:bg-background prose-pre:border prose-pre:border-border prose-code:text-xs prose-code:before:content-none prose-code:after:content-none">
-            <Markdown remarkPlugins={[remarkGfm]}>{guide.content}</Markdown>
+          <div className="prose prose-sm dark:prose-invert max-w-none prose-headings:text-foreground prose-p:text-muted-foreground prose-strong:text-foreground prose-code:text-xs prose-code:before:content-none prose-code:after:content-none prose-code:bg-muted prose-code:px-1 prose-code:py-0.5 prose-code:rounded">
+            <Markdown
+              remarkPlugins={[remarkGfm]}
+              components={{
+                code({ className, children, ...props }) {
+                  const match = /language-(\w+)/.exec(className || "");
+                  const codeString = String(children).replace(/\n$/, "");
+
+                  if (match) {
+                    return (
+                      <SyntaxHighlighter
+                        style={syntaxTheme}
+                        language={match[1]}
+                        PreTag="div"
+                        customStyle={{
+                          margin: 0,
+                          borderRadius: "0.375rem",
+                          fontSize: "0.75rem",
+                        }}
+                      >
+                        {codeString}
+                      </SyntaxHighlighter>
+                    );
+                  }
+
+                  return (
+                    <code className={className} {...props}>
+                      {children}
+                    </code>
+                  );
+                },
+              }}
+            >
+              {guide.content}
+            </Markdown>
           </div>
         </div>
       )}
