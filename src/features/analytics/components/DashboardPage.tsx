@@ -3,17 +3,24 @@
 // and a responsive grid of ChartContainer tiles.
 
 import { useCallback, useEffect, useState } from "react";
-import { Plus, Trash2, Loader2 } from "lucide-react";
+import { Plus, Trash2, Loader2, LayoutTemplate } from "lucide-react";
 import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Card,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -40,6 +47,10 @@ import { DashboardFilters } from "./DashboardFilters";
 import { TimePicker } from "./TimePicker";
 import { ChartBuilder } from "./ChartBuilder";
 import { createDefaultBuilderConfig } from "@/features/analytics/hooks/useChartConfig";
+import {
+  DASHBOARD_TEMPLATES,
+  getDashboardTemplate,
+} from "@/features/analytics/dashboardTemplates";
 
 export interface DashboardPageProps {
   dashboardId: string;
@@ -83,6 +94,7 @@ export function DashboardPage({
 
   const [editor, setEditor] = useState<TileEditorState | null>(null);
   const [confirmDeleteDashboard, setConfirmDeleteDashboard] = useState(false);
+  const [templatesOpen, setTemplatesOpen] = useState(false);
   // Default table used for newly-created tiles. Each tile currently shares a
   // single table — matches the HyperDX dashboard pattern.
   const [defaultTable, setDefaultTable] = useState<string>("");
@@ -121,6 +133,22 @@ export function DashboardPage({
   );
 
   const handleAddTile = () => setEditor(makeNewTile());
+
+  const handleImportTemplate = async (templateId: string) => {
+    const template = getDashboardTemplate(templateId);
+    if (!template) {
+      toast.error("Template not found");
+      return;
+    }
+    const newTiles = template.tiles.map((tile) => ({
+      ...tile,
+      id: crypto.randomUUID(),
+      y: Infinity,
+    }));
+    await persistTiles([...tiles, ...newTiles]);
+    setTemplatesOpen(false);
+    toast.success(`Added ${newTiles.length} charts from "${template.name}"`);
+  };
 
   const handleEditTile = (id: string) => {
     const tile = tiles.find((t) => t.id === id);
@@ -233,6 +261,14 @@ export function DashboardPage({
               onPresetChange={setPreset}
               onCustomChange={setCustom}
             />
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setTemplatesOpen(true)}
+            >
+              <LayoutTemplate className="mr-1 h-4 w-4" />
+              Templates
+            </Button>
             <Button size="sm" onClick={handleAddTile}>
               <Plus className="mr-1 h-4 w-4" />
               Add chart
@@ -319,6 +355,53 @@ export function DashboardPage({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={templatesOpen} onOpenChange={setTemplatesOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Import Template Charts</DialogTitle>
+            <DialogDescription>
+              Add pre-built charts from a template to this dashboard.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-3 py-4 sm:grid-cols-2">
+            {DASHBOARD_TEMPLATES.map((template) => (
+              <Card
+                key={template.id}
+                className="cursor-pointer transition-colors hover:border-primary/50"
+                onClick={() => handleImportTemplate(template.id)}
+              >
+                <CardHeader className="p-4">
+                  <CardTitle className="text-sm font-medium">
+                    {template.name}
+                  </CardTitle>
+                  <CardDescription className="text-xs">
+                    {template.description}
+                  </CardDescription>
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    {template.tiles.length} charts
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {template.tags.map((tag) => (
+                      <span
+                        key={tag}
+                        className="rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                </CardHeader>
+              </Card>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setTemplatesOpen(false)}>
+              Cancel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

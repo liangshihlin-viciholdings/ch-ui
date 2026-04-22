@@ -2,12 +2,18 @@
 // Landing page for dashboards: table of existing dashboards + a create button.
 
 import { useState } from "react";
-import { Plus, Loader2 } from "lucide-react";
+import { Plus, Loader2, LayoutTemplate, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import { Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Card,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -28,6 +34,11 @@ import {
   useDashboards,
   useCreateDashboard,
 } from "@/features/analytics/hooks/useDashboard";
+import {
+  PRESET_DASHBOARDS,
+  DASHBOARD_TEMPLATES,
+  getDashboardTemplate,
+} from "@/features/analytics/dashboardTemplates";
 
 export interface DashboardListPageProps {
   onSelect?: (id: string) => void;
@@ -38,6 +49,7 @@ export function DashboardListPage({ onSelect }: DashboardListPageProps) {
   const createDashboard = useCreateDashboard();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
+  const [templatesOpen, setTemplatesOpen] = useState(false);
 
   const handleCreate = async () => {
     if (!name.trim()) {
@@ -60,6 +72,30 @@ export function DashboardListPage({ onSelect }: DashboardListPageProps) {
     }
   };
 
+  const handleImportTemplate = async (templateId: string) => {
+    const template = getDashboardTemplate(templateId);
+    if (!template) {
+      toast.error("Template not found");
+      return;
+    }
+    try {
+      const created = await createDashboard.mutateAsync({
+        name: template.name,
+        tiles: template.tiles.map((tile) => ({
+          ...tile,
+          id: crypto.randomUUID(),
+        })),
+        tags: template.tags,
+        filters: [],
+      });
+      toast.success(`Created "${created.name}" from template`);
+      setTemplatesOpen(false);
+      onSelect?.(created.id);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Import failed");
+    }
+  };
+
   return (
     <div className="flex-1 w-full overflow-auto">
       <div className="container mx-auto py-4">
@@ -72,11 +108,52 @@ export function DashboardListPage({ onSelect }: DashboardListPageProps) {
               Build and share dashboards from your ClickHouse tables.
             </p>
           </div>
-          <Button size="sm" onClick={() => setOpen(true)}>
-            <Plus className="mr-1 h-4 w-4" />
-            New dashboard
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setTemplatesOpen(true)}
+            >
+              <LayoutTemplate className="mr-1 h-4 w-4" />
+              Templates
+            </Button>
+            <Button size="sm" onClick={() => setOpen(true)}>
+              <Plus className="mr-1 h-4 w-4" />
+              New dashboard
+            </Button>
+          </div>
         </div>
+
+        {PRESET_DASHBOARDS.length > 0 && (
+          <div className="mb-6">
+            <h2 className="mb-2 text-sm font-medium text-muted-foreground">
+              Preset Dashboards
+            </h2>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {PRESET_DASHBOARDS.map((preset) => (
+                <Link key={preset.id} to={preset.href}>
+                  <Card className="group cursor-pointer transition-colors hover:border-primary/50">
+                    <CardHeader className="p-4">
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="text-sm font-medium">
+                          {preset.name}
+                        </CardTitle>
+                        <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+                      </div>
+                      <CardDescription className="text-xs">
+                        {preset.description}
+                      </CardDescription>
+                    </CardHeader>
+                  </Card>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <h2 className="mb-2 text-sm font-medium text-muted-foreground">
+          Your Dashboards
+        </h2>
 
         {isLoading ? (
           <div className="flex h-40 items-center justify-center">
@@ -146,6 +223,51 @@ export function DashboardListPage({ onSelect }: DashboardListPageProps) {
               disabled={createDashboard.isPending}
             >
               {createDashboard.isPending ? "Creating…" : "Create"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={templatesOpen} onOpenChange={setTemplatesOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Dashboard Templates</DialogTitle>
+            <DialogDescription>
+              Import a pre-built dashboard template. Choose one to get started
+              quickly with common observability patterns.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-3 py-4 sm:grid-cols-2">
+            {DASHBOARD_TEMPLATES.map((template) => (
+              <Card
+                key={template.id}
+                className="cursor-pointer transition-colors hover:border-primary/50"
+                onClick={() => handleImportTemplate(template.id)}
+              >
+                <CardHeader className="p-4">
+                  <CardTitle className="text-sm font-medium">
+                    {template.name}
+                  </CardTitle>
+                  <CardDescription className="text-xs">
+                    {template.description}
+                  </CardDescription>
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {template.tags.map((tag) => (
+                      <span
+                        key={tag}
+                        className="rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                </CardHeader>
+              </Card>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setTemplatesOpen(false)}>
+              Cancel
             </Button>
           </DialogFooter>
         </DialogContent>
