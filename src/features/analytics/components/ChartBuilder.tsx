@@ -1,12 +1,12 @@
 // src/features/analytics/components/ChartBuilder.tsx
-// Form for editing a builder-type ChartConfig. Keeps raw-sql editing scoped
-// to a single <textarea> when the config is raw SQL.
+// Form for editing a builder-type ChartConfig. Uses CodeMirror for SQL editing
+// with ClickHouse syntax highlighting.
 
 import { Trash2, Plus } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { SqlCodeMirror } from "@/components/common/SqlCodeMirror";
 import {
   Select,
   SelectContent,
@@ -176,16 +176,15 @@ export function ChartBuilder({
           </div>
 
           <div className="space-y-1">
-            <Label htmlFor="chart-where" className="text-xs">
-              WHERE clause (optional)
-            </Label>
-            <Textarea
-              id="chart-where"
-              value={config.where}
-              onChange={(e) => updateBuilder({ where: e.target.value })}
-              placeholder="status = 'error'"
-              className="min-h-[60px] font-mono text-xs"
-            />
+            <Label className="text-xs">WHERE clause (optional)</Label>
+            <div className="rounded-md border border-input overflow-hidden">
+              <SqlCodeMirror
+                value={config.where}
+                onChange={(where) => updateBuilder({ where })}
+                placeholder="status = 'error'"
+                height="60px"
+              />
+            </div>
           </div>
 
           <div className="space-y-1">
@@ -229,15 +228,14 @@ export function ChartBuilder({
         </>
       ) : (
         <div className="space-y-1">
-          <Label htmlFor="chart-rawsql" className="text-xs">
-            Raw SQL
-          </Label>
-          <Textarea
-            id="chart-rawsql"
-            value={config.query}
-            onChange={(e) => onChange({ ...config, query: e.target.value })}
-            className="min-h-[160px] font-mono text-xs"
-          />
+          <Label className="text-xs">Raw SQL</Label>
+          <div className="rounded-md border border-input overflow-hidden">
+            <SqlCodeMirror
+              value={config.query}
+              onChange={(query) => onChange({ ...config, query })}
+              height="200px"
+            />
+          </div>
         </div>
       )}
     </div>
