@@ -43,7 +43,8 @@ function formatTick(ts: number): string {
   });
 }
 
-export function TimeSeriesChart({ data, config }: ChartProps) {
+export function TimeSeriesChart({ data, config, height }: ChartProps) {
+  const chartHeight = height ?? 200;
   const { chartData, seriesKeys, hasTimeBucket, categoryKey, valueKey } = useMemo(() => {
     if (!data.length) return { chartData: [], seriesKeys: [] as string[], hasTimeBucket: false, categoryKey: "", valueKey: "" };
 
@@ -86,7 +87,7 @@ export function TimeSeriesChart({ data, config }: ChartProps) {
   // Category bar chart (no time bucket)
   if (!hasTimeBucket && (displayType === "bar" || displayType === "stacked_bar")) {
     return (
-      <ResponsiveContainer width="100%" height="100%">
+      <ResponsiveContainer width="100%" height={chartHeight}>
         <ReBarChart data={chartData} layout="vertical" margin={{ left: 10, right: 10 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
           <XAxis
@@ -151,7 +152,7 @@ export function TimeSeriesChart({ data, config }: ChartProps) {
   if (displayType === "bar" || displayType === "stacked_bar") {
     const stackId = displayType === "stacked_bar" ? "a" : undefined;
     return (
-      <ResponsiveContainer width="100%" height="100%">
+      <ResponsiveContainer width="100%" height={chartHeight}>
         <ReBarChart data={chartData}>
           {commonAxes}
           {seriesKeys.map((key, idx) => (
@@ -169,7 +170,7 @@ export function TimeSeriesChart({ data, config }: ChartProps) {
 
   if (displayType === "area") {
     return (
-      <ResponsiveContainer width="100%" height="100%">
+      <ResponsiveContainer width="100%" height={chartHeight}>
         <AreaChart data={chartData}>
           {commonAxes}
           {seriesKeys.map((key, idx) => (
@@ -189,7 +190,7 @@ export function TimeSeriesChart({ data, config }: ChartProps) {
 
   // default: line
   return (
-    <ResponsiveContainer width="100%" height="100%">
+    <ResponsiveContainer width="100%" height={chartHeight}>
       <LineChart data={chartData}>
         {commonAxes}
         {seriesKeys.map((key, idx) => (

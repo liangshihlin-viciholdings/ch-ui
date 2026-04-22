@@ -7,7 +7,7 @@ import { DataTable } from "@/components/common/DataTable";
 import type { QueryResult } from "@/types/common";
 import type { ChartProps } from "./types";
 
-export function TableChart({ data }: ChartProps) {
+export function TableChart({ data, height }: ChartProps) {
   const synthesized: QueryResult = useMemo(() => {
     const meta = data.length
       ? Object.keys(data[0]).map((name) => ({ name, type: "String" }))
@@ -31,7 +31,7 @@ export function TableChart({ data }: ChartProps) {
 
   return (
     <div className="h-full w-full">
-      <DataTable data={synthesized} height="100%" enablePagination />
+      <DataTable data={synthesized} height={height ?? "100%"} enablePagination />
     </div>
   );
 }

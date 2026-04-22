@@ -33,6 +33,8 @@ export interface DashboardGridProps {
 const BREAKPOINTS = { lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 };
 const COLS = { lg: 12, md: 12, sm: 6, xs: 4, xxs: 2 };
 const ROW_HEIGHT = 50;
+const HEADER_HEIGHT = 28; // header + border
+const MARGIN = 6;
 
 export function DashboardGrid({
   tiles,
@@ -94,23 +96,29 @@ export function DashboardGrid({
       draggableHandle=".dashboard-tile-drag-handle"
       onLayoutChange={handleLayoutChange}
     >
-      {tiles.map((tile) => (
-        <div key={tile.id} className="h-full overflow-hidden">
-          <ChartContainer
-            title={tile.title}
-            config={tile.config}
-            dateRange={dateRange}
-            tableName={tableName}
-            timestampColumn={timestampColumn}
-            filters={filters}
-            onEdit={onEditTile ? () => onEditTile(tile.id) : undefined}
-            onDuplicate={
-              onDuplicateTile ? () => onDuplicateTile(tile.id) : undefined
-            }
-            onDelete={onDeleteTile ? () => onDeleteTile(tile.id) : undefined}
-          />
-        </div>
-      ))}
+      {tiles.map((tile) => {
+        // Calculate chart height: tile height - header - padding
+        const tileHeight = tile.h * ROW_HEIGHT + (tile.h - 1) * MARGIN;
+        const chartHeight = tileHeight - HEADER_HEIGHT - 8; // 8px for body padding
+        return (
+          <div key={tile.id} className="h-full overflow-hidden">
+            <ChartContainer
+              title={tile.title}
+              config={tile.config}
+              dateRange={dateRange}
+              tableName={tableName}
+              timestampColumn={timestampColumn}
+              filters={filters}
+              height={chartHeight}
+              onEdit={onEditTile ? () => onEditTile(tile.id) : undefined}
+              onDuplicate={
+                onDuplicateTile ? () => onDuplicateTile(tile.id) : undefined
+              }
+              onDelete={onDeleteTile ? () => onDeleteTile(tile.id) : undefined}
+            />
+          </div>
+        );
+      })}
     </ResponsiveGrid>
   );
 }
