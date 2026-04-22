@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import type { ResponseJSON } from "@clickhouse/client-web";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -54,7 +55,7 @@ export default function RolesLayer({ onAddChange }: RolesLayerProps) {
         `;
 
         const result = await clickHouseClient.query({ query });
-        const response = await result.json<{ data: RoleData[] }>();
+        const response = (await result.json()) as ResponseJSON<RoleData>;
 
         setRoles(response.data);
       } catch (error) {

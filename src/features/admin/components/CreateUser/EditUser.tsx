@@ -193,18 +193,18 @@ const EditUser: React.FC<EditUserProps> = ({
       }
 
       // 6. Handle permission changes - diff original vs new grants
-      const originalGrants = grants || [];
+      const originalGrants: GrantedPermission[] = directGrants || [];
       const newGrants: GrantedPermission[] = data.privileges.grants || [];
 
       // Create maps for quick lookup
       const originalGrantsMap = new Map(
-        originalGrants.map((g) => [
+        originalGrants.map((g: GrantedPermission) => [
           `${g.permissionId}:${JSON.stringify(g.scope)}`,
           g,
         ]),
       );
       const newGrantsMap = new Map(
-        newGrants.map((g) => [
+        newGrants.map((g: GrantedPermission) => [
           `${g.permissionId}:${JSON.stringify(g.scope)}`,
           g,
         ]),
@@ -249,7 +249,7 @@ const EditUser: React.FC<EditUserProps> = ({
         entityName: username,
         description: `Update user ${username}`,
         sqlStatements: statements,
-        originalState: { userInfo, grants },
+        originalState: { userInfo, grants: directGrants },
         newState: { ...data },
       });
 

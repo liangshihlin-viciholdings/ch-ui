@@ -136,7 +136,7 @@ const UserTable: React.FC<UserTableProps> = ({ onAddChange, refreshTrigger: exte
         `DROP USER IF EXISTS ${username}`,
       ],
       originalState: { username },
-      newState: null,
+      newState: undefined,
     });
 
     setShowDeleteDialog(false);

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import type { ResponseJSON } from "@clickhouse/client-web";
 import { ConfirmationDialog, ImpactItem } from "@/components/ConfirmationDialog";
 import useAppStore from "@/stores/workspaceStore";
 
@@ -58,7 +59,7 @@ export function DeleteConfirmationDialog({
               query_params: { name: entityName },
             });
 
-            const grantsData = await grantsResult.json<{ data: Array<{ grant_count: string }> }>();
+            const grantsData = (await grantsResult.json()) as ResponseJSON<{ grant_count: string }>;
             const grantCount = parseInt(grantsData.data[0]?.grant_count || "0");
 
             // Fetch role grants
@@ -73,7 +74,7 @@ export function DeleteConfirmationDialog({
               query_params: { name: entityName },
             });
 
-            const roleGrantsData = await roleGrantsResult.json<{ data: Array<{ role_count: string }> }>();
+            const roleGrantsData = (await roleGrantsResult.json()) as ResponseJSON<{ role_count: string }>;
             const roleCount = parseInt(roleGrantsData.data[0]?.role_count || "0");
 
             if (grantCount > 0) {
@@ -112,7 +113,7 @@ export function DeleteConfirmationDialog({
               query_params: { name: entityName },
             });
 
-            const roleUsersData = await roleUsersResult.json<{ data: Array<{ user_count: string }> }>();
+            const roleUsersData = (await roleUsersResult.json()) as ResponseJSON<{ user_count: string }>;
             const userCount = parseInt(roleUsersData.data[0]?.user_count || "0");
 
             if (userCount > 0) {
@@ -142,7 +143,7 @@ export function DeleteConfirmationDialog({
               query_params: { name: entityName },
             });
 
-            const quotaUsersData = await quotaUsersResult.json<{ data: Array<{ user_count: string }> }>();
+            const quotaUsersData = (await quotaUsersResult.json()) as ResponseJSON<{ user_count: string }>;
             const userCount = parseInt(quotaUsersData.data[0]?.user_count || "0");
 
             if (userCount > 0) {

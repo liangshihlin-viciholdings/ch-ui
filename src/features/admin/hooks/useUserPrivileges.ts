@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import type { ResponseJSON } from "@clickhouse/client-web";
 import useAppStore from "@/stores/workspaceStore";
 import { UserPrivileges } from "../types";
 
@@ -39,17 +40,22 @@ export function useUserPrivileges() {
         `;
 
         const result = await clickHouseClient.query({ query });
-        const response = await result.json<{
-          data: Array<{ access_type: string; grant_option: number }>
-        }>();
+        const response = (await result.json()) as ResponseJSON<{
+          access_type: string;
+          grant_option: number;
+        }>;
 
         // Create a set of granted access types for quick lookup
         const grantedPrivileges = new Set(
-          response.data.map(row => row.access_type.toUpperCase())
+          response.data.map((row: { access_type: string; grant_option: number }) =>
+            row.access_type.toUpperCase()
+          )
         );
 
         // Check for grant option
-        const hasGrantOption = response.data.some(row => row.grant_option === 1);
+        const hasGrantOption = response.data.some(
+          (row: { access_type: string; grant_option: number }) => row.grant_option === 1
+        );
 
         // Helper to check if user has specific privilege
         const hasPrivilege = (privilege: string): boolean => {

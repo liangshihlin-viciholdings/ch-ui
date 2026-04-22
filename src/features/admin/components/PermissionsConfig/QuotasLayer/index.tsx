@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import type { ResponseJSON } from "@clickhouse/client-web";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -76,7 +77,7 @@ export default function QuotasLayer({ onAddChange }: QuotasLayerProps) {
         `;
 
         const result = await clickHouseClient.query({ query });
-        const response = await result.json<{ data: QuotaData[] }>();
+        const response = (await result.json()) as ResponseJSON<QuotaData>;
 
         setQuotas(response.data);
       } catch (error) {

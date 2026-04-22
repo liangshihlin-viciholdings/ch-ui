@@ -8,7 +8,7 @@
 import { Store } from "@tanstack/store";
 import { useStore } from "@tanstack/react-store";
 import { createClient } from "@clickhouse/client-web";
-import type { ClickHouseClient } from "@clickhouse/client-web";
+import type { ClickHouseClient, ResponseJSON } from "@clickhouse/client-web";
 import type { OverflowMode } from "@clickhouse/client-common/dist/settings";
 import { toast } from "sonner";
 
@@ -922,15 +922,20 @@ export async function checkUserPrivileges(): Promise<void> {
     `;
 
     const result = await clickHouseClient.query({ query });
-    const response = await result.json<{
-      data: Array<{ access_type: string; grant_option: number }>;
-    }>();
+    const response = (await result.json()) as ResponseJSON<{
+      access_type: string;
+      grant_option: number;
+    }>;
 
     const grantedPrivileges = new Set(
-      response.data.map((row) => row.access_type.toUpperCase()),
+      response.data.map(
+        (row: { access_type: string; grant_option: number }) =>
+          row.access_type.toUpperCase(),
+      ),
     );
     const hasGrantOption = response.data.some(
-      (row) => row.grant_option === 1,
+      (row: { access_type: string; grant_option: number }) =>
+        row.grant_option === 1,
     );
 
     const hasPrivilege = (privilege: string): boolean =>
@@ -1047,10 +1052,10 @@ export async function updateSavedQuery(
   databaseName: string,
 ): Promise<void> {
   try {
+    void connectionId;
     await dbUpdateSavedQuery(id, {
       name,
       query,
-      connectionId,
       databaseName,
     });
     patch({ updatedSavedQueriesTrigger: Date.now().toString() });

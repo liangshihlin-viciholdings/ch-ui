@@ -251,10 +251,10 @@ export function useEnhancedToast() {
    * Custom toast with full control
    */
   const custom = (
-    component: React.ReactNode,
+    component: React.ReactElement,
     options: EnhancedToastOptions = {}
   ): ToastResult => {
-    const id = sonnerToast.custom(component, options);
+    const id = sonnerToast.custom(() => component, options);
 
     return {
       id,

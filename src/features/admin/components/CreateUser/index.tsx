@@ -97,7 +97,7 @@ const CreateNewUser: React.FC<CreateNewUserProps> = ({ onBack, onUserCreated, on
         entityName: data.username,
         description: `Create user ${data.username}`,
         sqlStatements: statements,
-        originalState: null,
+        originalState: undefined,
         newState: { ...data },
       });
 

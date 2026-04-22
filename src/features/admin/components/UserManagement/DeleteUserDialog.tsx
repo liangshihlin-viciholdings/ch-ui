@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { ConfirmationDialog, ImpactItem } from "@/components/ConfirmationDialog";
 import useAppStore from "@/stores/workspaceStore";
+import type { ResponseJSON } from "@clickhouse/client-web";
 
 interface DeleteUserDialogProps {
   open: boolean;
@@ -50,7 +51,7 @@ const DeleteUserDialog: React.FC<DeleteUserDialogProps> = ({
           query_params: { username: selectedUser },
         });
 
-        const grantsData = await grantsResult.json<{ data: Array<{ grant_count: string }> }>();
+        const grantsData = (await grantsResult.json()) as ResponseJSON<{ grant_count: string }>;
         const grantCount = parseInt(grantsData.data[0]?.grant_count || "0");
 
         // Fetch role grants
@@ -65,7 +66,7 @@ const DeleteUserDialog: React.FC<DeleteUserDialogProps> = ({
           query_params: { username: selectedUser },
         });
 
-        const roleGrantsData = await roleGrantsResult.json<{ data: Array<{ role_count: string }> }>();
+        const roleGrantsData = (await roleGrantsResult.json()) as ResponseJSON<{ role_count: string }>;
         const roleCount = parseInt(roleGrantsData.data[0]?.role_count || "0");
 
         const items: ImpactItem[] = [];
@@ -117,7 +118,11 @@ const DeleteUserDialog: React.FC<DeleteUserDialogProps> = ({
       confirmText="Delete User"
       cancelText="Cancel"
       variant="destructive"
-      onConfirm={() => selectedUser && onDeleteUser(selectedUser)}
+      onConfirm={() => {
+        if (selectedUser) {
+          onDeleteUser(selectedUser);
+        }
+      }}
       isLoading={deleting || loading}
       requiresTypedConfirmation={true}
       entityName={selectedUser || ""}

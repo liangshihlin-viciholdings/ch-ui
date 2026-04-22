@@ -137,7 +137,7 @@ const ScopeSelector: React.FC<ScopeSelectorProps> = ({
     >
       <ComboboxInput
         value={inputValue}
-        onValueChange={setInputValue}
+        onChange={(e) => setInputValue(e.target.value)}
         placeholder={currentValue}
         className={compact ? "h-7 w-[140px] text-xs [&_input]:focus:ring-0 [&_input]:focus:ring-offset-0" : "w-[180px] [&_input]:focus:ring-0 [&_input]:focus:ring-offset-0"}
         showTrigger

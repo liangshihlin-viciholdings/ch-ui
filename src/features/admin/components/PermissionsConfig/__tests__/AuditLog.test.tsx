@@ -57,7 +57,7 @@ describe("Audit Logging System", () => {
       );
       expect(createTableCall).toBeDefined();
 
-      const sql = createTableCall[0];
+      const sql = createTableCall![0];
       expect(sql).toContain("id String");
       expect(sql).toContain("timestamp DateTime64(3)");
       expect(sql).toContain("username String");
@@ -317,7 +317,7 @@ describe("Audit Logging System", () => {
         const createTableCall = mockRunQuery.mock.calls.find((call) =>
           call[0].includes("CREATE TABLE")
         );
-        expect(createTableCall[0]).toContain("TTL timestamp + INTERVAL 90 DAY");
+        expect(createTableCall![0]).toContain("TTL timestamp + INTERVAL 90 DAY");
       });
     });
   });
@@ -396,7 +396,7 @@ describe("Audit Logging System", () => {
         const createTableCall = mockRunQuery.mock.calls.find((call) =>
           call[0].includes("CREATE TABLE")
         );
-        expect(createTableCall[0]).toContain("PARTITION BY toYYYYMM(timestamp)");
+        expect(createTableCall![0]).toContain("PARTITION BY toYYYYMM(timestamp)");
       });
     });
   });

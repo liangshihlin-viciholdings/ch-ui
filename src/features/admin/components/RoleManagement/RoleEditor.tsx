@@ -13,7 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { Role } from "../CreateUser/PrivilegesSection/types";
-import { GrantedPermission } from "../CreateUser/PrivilegesSection/permissions";
+import { GrantedPermission, findPermissionById } from "../CreateUser/PrivilegesSection/permissions";
 import PrivilegesPanel from "../CreateUser/PrivilegesSection/PrivilegesPanel";
 import { useGrants } from "../PermissionsConfig/hooks/useGrants";
 import { useSqlGenerator } from "../PermissionsConfig/hooks/useSqlGenerator";
@@ -62,7 +62,9 @@ const RoleEditor: React.FC<RoleEditorProps> = ({ role, isCreating, onClose, onAd
 
         // Grant privileges
         for (const grant of grants) {
-          const grantSql = generateGrant(grant, roleName);
+          const permission = findPermissionById(grant.permissionId);
+          if (!permission) continue;
+          const grantSql = generateGrant(permission, grant.scope, roleName);
           if (grantSql) {
             sqlStatements.push(...grantSql);
           }
@@ -90,7 +92,9 @@ const RoleEditor: React.FC<RoleEditorProps> = ({ role, isCreating, onClose, onAd
         for (const grant of existingGrants) {
           const grantId = `${grant.permissionId}:${JSON.stringify(grant.scope)}`;
           if (!newGrantIds.has(grantId)) {
-            const revokeSql = generateRevoke(grant, roleName);
+            const permission = findPermissionById(grant.permissionId);
+            if (!permission) continue;
+            const revokeSql = generateRevoke(permission, grant.scope, roleName);
             if (revokeSql) {
               sqlStatements.push(...revokeSql);
             }
@@ -101,7 +105,9 @@ const RoleEditor: React.FC<RoleEditorProps> = ({ role, isCreating, onClose, onAd
         for (const grant of grants) {
           const grantId = `${grant.permissionId}:${JSON.stringify(grant.scope)}`;
           if (!existingGrantIds.has(grantId)) {
-            const grantSql = generateGrant(grant, roleName);
+            const permission = findPermissionById(grant.permissionId);
+            if (!permission) continue;
+            const grantSql = generateGrant(permission, grant.scope, roleName);
             if (grantSql) {
               sqlStatements.push(...grantSql);
             }

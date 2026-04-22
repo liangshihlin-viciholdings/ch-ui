@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import type { ResponseJSON } from "@clickhouse/client-web";
 import useAppStore from "@/stores/workspaceStore";
 import { Role } from "../../CreateUser/PrivilegesSection/types";
 
@@ -76,8 +77,8 @@ export function useRoles(options: UseRolesOptions = {}): UseRolesResult {
           query,
         });
 
-        const response = await result.json<{ data: SystemRoleRow[] }>();
-        const transformedRoles: Role[] = response.data.map((row) => ({
+        const response = (await result.json()) as ResponseJSON<SystemRoleRow>;
+        const transformedRoles: Role[] = response.data.map((row: SystemRoleRow) => ({
           name: row.name,
           id: row.id,
           storage: row.storage || undefined,

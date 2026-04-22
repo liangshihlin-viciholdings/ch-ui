@@ -259,7 +259,7 @@ export function useAuditLog() {
         const result = await runQuery(querySQL);
 
         // Parse the result into AuditLogEntry objects
-        const entries: AuditLogEntry[] = (result.rows || []).map((row: any) => ({
+        const entries: AuditLogEntry[] = (result.data || []).map((row: any) => ({
           id: row.id,
           timestamp: new Date(row.timestamp),
           username: row.username,
@@ -345,12 +345,12 @@ export function useAuditLog() {
       ]);
 
       return {
-        totalChanges: stats.rows?.[0]?.total_changes || 0,
-        successfulChanges: stats.rows?.[0]?.successful_changes || 0,
-        failedChanges: stats.rows?.[0]?.failed_changes || 0,
-        recentActivity: recentActivity.rows || [],
-        topUsers: topUsers.rows || [],
-        operationBreakdown: operationBreakdown.rows || [],
+        totalChanges: stats.data?.[0]?.total_changes || 0,
+        successfulChanges: stats.data?.[0]?.successful_changes || 0,
+        failedChanges: stats.data?.[0]?.failed_changes || 0,
+        recentActivity: recentActivity.data || [],
+        topUsers: topUsers.data || [],
+        operationBreakdown: operationBreakdown.data || [],
       };
     } catch (error) {
       console.error("Failed to get audit stats:", error);

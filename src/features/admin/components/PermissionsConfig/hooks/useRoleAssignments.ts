@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import type { ResponseJSON } from "@clickhouse/client-web";
 import useAppStore from "@/stores/workspaceStore";
 import { RoleAssignment } from "../../CreateUser/PrivilegesSection/types";
 
@@ -77,8 +78,8 @@ export function useRoleAssignments(userName?: string): UseRoleAssignmentsResult 
           },
         });
 
-        const response = await result.json<{ data: SystemRoleGrantRow[] }>();
-        const assignments: RoleAssignment[] = response.data.map((row) => ({
+        const response = (await result.json()) as ResponseJSON<SystemRoleGrantRow>;
+        const assignments: RoleAssignment[] = response.data.map((row: SystemRoleGrantRow) => ({
           roleName: row.granted_role_name,
           adminOption: row.with_admin_option === 1,
         }));

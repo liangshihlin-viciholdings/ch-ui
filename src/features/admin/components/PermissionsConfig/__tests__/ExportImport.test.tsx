@@ -284,7 +284,13 @@ describe("Export/Import Functionality", () => {
           <button
             onClick={() => {
               downloadExport(
-                { version: "1.0", users: [], roles: [] },
+                {
+                  version: "1.0",
+                  exportedAt: new Date().toISOString(),
+                  exportedBy: "admin",
+                  users: [],
+                  roles: [],
+                },
                 "permissions-backup.json"
               );
             }}
@@ -354,6 +360,8 @@ describe("Export/Import Functionality", () => {
               onClick={async () => {
                 const importData = {
                   version: "1.0",
+                  exportedAt: new Date().toISOString(),
+                  exportedBy: "admin",
                   users: [{ name: "user1" }],
                   roles: [{ name: "role1" }],
                   quotas: [{ name: "quota1" }],

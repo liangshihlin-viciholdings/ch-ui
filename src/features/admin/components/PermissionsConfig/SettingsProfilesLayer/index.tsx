@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import type { ResponseJSON } from "@clickhouse/client-web";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -58,9 +59,7 @@ export default function SettingsProfilesLayer({
         `;
 
         const result = await clickHouseClient.query({ query });
-        const response = await result.json<{
-          data: Array<{ name: string; id: string }>;
-        }>();
+        const response = (await result.json()) as ResponseJSON<{ name: string; id: string }>;
 
         // For each profile, fetch its settings
         const profilesWithSettings: SettingsProfileData[] = [];
@@ -73,9 +72,10 @@ export default function SettingsProfilesLayer({
           const settingsResult = await clickHouseClient.query({
             query: settingsQuery,
           });
-          const settingsResponse = await settingsResult.json<{
-            data: Array<{ name: string; value: string }>;
-          }>();
+          const settingsResponse = (await settingsResult.json()) as ResponseJSON<{
+            name: string;
+            value: string;
+          }>;
 
           profilesWithSettings.push({
             ...profile,

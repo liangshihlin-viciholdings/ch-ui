@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import type { ResponseJSON } from "@clickhouse/client-web";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { UserPlus, Edit, Trash2 } from "lucide-react";
@@ -70,7 +71,7 @@ export default function UsersLayer({ onAddChange }: UsersLayerProps) {
         `;
 
         const result = await clickHouseClient.query({ query });
-        const response = await result.json<{ data: UserData[] }>();
+        const response = (await result.json()) as ResponseJSON<UserData>;
 
         setUsers(response.data);
       } catch (error) {

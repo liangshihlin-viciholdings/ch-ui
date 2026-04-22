@@ -157,7 +157,7 @@ const DatabaseExplorer: React.FC = () => {
 
   // Re-expand all nodes when data changes
   useEffect(() => {
-    const allPaths = collectParentPaths(organizedDatabases);
+    const allPaths = collectParentPaths(organizedDatabases as TreeNodeData[]);
     setExpandedPaths(new Set(allPaths));
   }, [organizedDatabases]);
 
@@ -181,7 +181,7 @@ const DatabaseExplorer: React.FC = () => {
   );
 
   const handleExpandAll = useCallback(() => {
-    const allPaths = collectParentPaths(organizedDatabases);
+    const allPaths = collectParentPaths(organizedDatabases as TreeNodeData[]);
     setExpandedPaths(new Set(allPaths));
   }, [organizedDatabases]);
 

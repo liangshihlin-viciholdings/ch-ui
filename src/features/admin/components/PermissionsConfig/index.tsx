@@ -22,7 +22,7 @@ import { toast } from "sonner";
  * Main container for the comprehensive permissions configuration system
  */
 export default function PermissionsConfig() {
-  const { userPrivileges } = useAppStore();
+  const { userPrivileges, credential } = useAppStore();
   const permissionsState = usePermissionsState();
   const {
     pendingChanges,
@@ -185,7 +185,7 @@ export default function PermissionsConfig() {
                 aria-selected={activeLayer === layer.id}
                 aria-controls={`panel-${layer.id}`}
               >
-                {React.cloneElement(layer.icon as React.ReactElement, { "aria-hidden": true })}
+                {React.cloneElement(layer.icon as React.ReactElement<{ "aria-hidden"?: boolean }>, { "aria-hidden": true })}
                 {layer.label}
               </TabsTrigger>
             ))}
@@ -203,7 +203,7 @@ export default function PermissionsConfig() {
               onError={(error, errorInfo) => {
                 console.error("Users layer error:", {
                   layer: "users",
-                  user: userPrivileges?.username || "unknown",
+                  user: credential?.username || "unknown",
                   error: error.message,
                   stack: error.stack,
                   componentStack: errorInfo.componentStack,
@@ -226,7 +226,7 @@ export default function PermissionsConfig() {
               onError={(error, errorInfo) => {
                 console.error("Roles layer error:", {
                   layer: "roles",
-                  user: userPrivileges?.username || "unknown",
+                  user: credential?.username || "unknown",
                   error: error.message,
                   stack: error.stack,
                   componentStack: errorInfo.componentStack,
@@ -249,7 +249,7 @@ export default function PermissionsConfig() {
               onError={(error, errorInfo) => {
                 console.error("Quotas layer error:", {
                   layer: "quotas",
-                  user: userPrivileges?.username || "unknown",
+                  user: credential?.username || "unknown",
                   error: error.message,
                   stack: error.stack,
                   componentStack: errorInfo.componentStack,
@@ -272,7 +272,7 @@ export default function PermissionsConfig() {
               onError={(error, errorInfo) => {
                 console.error("Row Policies layer error:", {
                   layer: "row_policies",
-                  user: userPrivileges?.username || "unknown",
+                  user: credential?.username || "unknown",
                   error: error.message,
                   stack: error.stack,
                   componentStack: errorInfo.componentStack,
@@ -295,7 +295,7 @@ export default function PermissionsConfig() {
               onError={(error, errorInfo) => {
                 console.error("Settings Profiles layer error:", {
                   layer: "settings_profiles",
-                  user: userPrivileges?.username || "unknown",
+                  user: credential?.username || "unknown",
                   error: error.message,
                   stack: error.stack,
                   componentStack: errorInfo.componentStack,
@@ -318,7 +318,7 @@ export default function PermissionsConfig() {
               onError={(error, errorInfo) => {
                 console.error("Permissions Matrix error:", {
                   layer: "matrix",
-                  user: userPrivileges?.username || "unknown",
+                  user: credential?.username || "unknown",
                   error: error.message,
                   stack: error.stack,
                   componentStack: errorInfo.componentStack,

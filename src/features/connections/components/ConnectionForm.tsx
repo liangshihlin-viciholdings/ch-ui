@@ -135,7 +135,7 @@ export default function ConnectionForm({
         pathname,
         username: formValues.username,
         password: formValues.password || "",
-        request_timeout: formValues.requestTimeout || 30000,
+        request_timeout: Number(formValues.requestTimeout) || 30000,
       });
 
       await client.ping();
@@ -353,7 +353,12 @@ export default function ConnectionForm({
             <FormItem>
               <FormLabel>Request Timeout (ms)</FormLabel>
               <FormControl>
-                <Input type="number" disabled={isSubmitting} {...field} />
+                <Input
+                  type="number"
+                  disabled={isSubmitting}
+                  {...field}
+                  value={field.value as number | string | undefined}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>

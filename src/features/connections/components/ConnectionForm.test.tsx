@@ -91,7 +91,7 @@ describe("ConnectionForm - Connection Test Button", () => {
         return new Promise(() => {}); // Never resolves to keep loading state
       });
       const mockClient = { ping: mockPing };
-      mockCreateClient.mockReturnValue(mockClient);
+      mockCreateClient.mockReturnValue(mockClient as any);
 
       render(
         <ConnectionForm
@@ -129,7 +129,7 @@ describe("ConnectionForm - Connection Test Button", () => {
         return new Promise(() => {}); // Never resolves
       });
       const mockClient = { ping: mockPing };
-      mockCreateClient.mockReturnValue(mockClient);
+      mockCreateClient.mockReturnValue(mockClient as any);
 
       render(
         <ConnectionForm
@@ -170,7 +170,7 @@ describe("ConnectionForm - Connection Test Button", () => {
         ping: mockPing,
         query: mockQuery,
       };
-      mockCreateClient.mockReturnValue(mockClient);
+      mockCreateClient.mockReturnValue(mockClient as any);
 
       render(
         <ConnectionForm
@@ -217,7 +217,7 @@ describe("ConnectionForm - Connection Test Button", () => {
         ping: mockPing,
         query: mockQuery,
       };
-      mockCreateClient.mockReturnValue(mockClient);
+      mockCreateClient.mockReturnValue(mockClient as any);
 
       render(
         <ConnectionForm
@@ -255,7 +255,7 @@ describe("ConnectionForm - Connection Test Button", () => {
         ping: mockPing,
         query: mockQuery,
       };
-      mockCreateClient.mockReturnValue(mockClient);
+      mockCreateClient.mockReturnValue(mockClient as any);
 
       render(
         <ConnectionForm
@@ -295,7 +295,7 @@ describe("ConnectionForm - Connection Test Button", () => {
         ping: mockPing,
         query: mockQuery,
       };
-      mockCreateClient.mockReturnValue(mockClient);
+      mockCreateClient.mockReturnValue(mockClient as any);
 
       render(
         <ConnectionForm
@@ -341,7 +341,7 @@ describe("ConnectionForm - Connection Test Button", () => {
         ping: mockPing,
         query: mockQuery,
       };
-      mockCreateClient.mockReturnValue(mockClient);
+      mockCreateClient.mockReturnValue(mockClient as any);
 
       render(
         <ConnectionForm
@@ -379,7 +379,7 @@ describe("ConnectionForm - Connection Test Button", () => {
         ping: mockPing,
         query: mockQuery,
       };
-      mockCreateClient.mockReturnValue(mockClient);
+      mockCreateClient.mockReturnValue(mockClient as any);
 
       render(
         <ConnectionForm
@@ -415,7 +415,7 @@ describe("ConnectionForm - Connection Test Button", () => {
       const mockClient = {
         ping: mockPing,
       };
-      mockCreateClient.mockReturnValue(mockClient);
+      mockCreateClient.mockReturnValue(mockClient as any);
 
       render(
         <ConnectionForm
@@ -448,7 +448,7 @@ describe("ConnectionForm - Connection Test Button", () => {
       const mockClient = {
         ping: mockPing,
       };
-      mockCreateClient.mockReturnValue(mockClient);
+      mockCreateClient.mockReturnValue(mockClient as any);
 
       render(
         <ConnectionForm
@@ -488,7 +488,7 @@ describe("ConnectionForm - Connection Test Button", () => {
       const mockClient = {
         ping: mockPing,
       };
-      mockCreateClient.mockReturnValue(mockClient);
+      mockCreateClient.mockReturnValue(mockClient as any);
 
       render(
         <ConnectionForm
@@ -520,7 +520,7 @@ describe("ConnectionForm - Connection Test Button", () => {
       const mockClient = {
         ping: mockPing,
       };
-      mockCreateClient.mockReturnValue(mockClient);
+      mockCreateClient.mockReturnValue(mockClient as any);
 
       render(
         <ConnectionForm
@@ -555,7 +555,7 @@ describe("ConnectionForm - Connection Test Button", () => {
       const mockClient = {
         ping: mockPing,
       };
-      mockCreateClient.mockReturnValue(mockClient);
+      mockCreateClient.mockReturnValue(mockClient as any);
 
       render(
         <ConnectionForm
@@ -589,7 +589,7 @@ describe("ConnectionForm - Connection Test Button", () => {
       const mockClient = {
         ping: mockPing,
       };
-      mockCreateClient.mockReturnValue(mockClient);
+      mockCreateClient.mockReturnValue(mockClient as any);
 
       render(
         <ConnectionForm
@@ -726,7 +726,7 @@ describe("ConnectionForm - Connection Test Button", () => {
         ping: mockPing,
         query: mockQuery,
       };
-      mockCreateClient.mockReturnValue(mockClient);
+      mockCreateClient.mockReturnValue(mockClient as any);
 
       render(
         <ConnectionForm
@@ -768,7 +768,7 @@ describe("ConnectionForm - Connection Test Button", () => {
         ping: mockPing,
         query: mockQuery,
       };
-      mockCreateClient.mockReturnValue(mockClient);
+      mockCreateClient.mockReturnValue(mockClient as any);
 
       render(
         <ConnectionForm
@@ -822,7 +822,7 @@ describe("ConnectionForm - Connection Test Button", () => {
         ping: mockPing,
         query: mockQuery,
       };
-      mockCreateClient.mockReturnValue(mockClient);
+      mockCreateClient.mockReturnValue(mockClient as any);
 
       render(
         <ConnectionForm
@@ -866,7 +866,7 @@ describe("ConnectionForm - Connection Test Button", () => {
         ping: mockPing,
         query: mockQuery,
       };
-      mockCreateClient.mockReturnValue(mockClient);
+      mockCreateClient.mockReturnValue(mockClient as any);
 
       render(
         <ConnectionForm
@@ -910,7 +910,7 @@ describe("ConnectionForm - Connection Test Button", () => {
         ping: mockPing,
         query: mockQuery,
       };
-      mockCreateClient.mockReturnValue(mockClient);
+      mockCreateClient.mockReturnValue(mockClient as any);
 
       render(
         <ConnectionForm
@@ -954,7 +954,7 @@ describe("ConnectionForm - Connection Test Button", () => {
         ping: mockPing,
         query: mockQuery,
       };
-      mockCreateClient.mockReturnValue(mockClient);
+      mockCreateClient.mockReturnValue(mockClient as any);
 
       render(
         <ConnectionForm
@@ -1000,7 +1000,7 @@ describe("ConnectionForm - Connection Test Button", () => {
         ping: mockPing,
         query: mockQuery,
       };
-      mockCreateClient.mockReturnValue(mockClient);
+      mockCreateClient.mockReturnValue(mockClient as any);
 
       render(
         <ConnectionForm
@@ -1046,7 +1046,7 @@ describe("ConnectionForm - Connection Test Button", () => {
       const mockClient = {
         ping: mockPing,
       };
-      mockCreateClient.mockReturnValue(mockClient);
+      mockCreateClient.mockReturnValue(mockClient as any);
 
       render(
         <ConnectionForm

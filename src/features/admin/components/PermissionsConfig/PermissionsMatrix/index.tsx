@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import type { ResponseJSON } from "@clickhouse/client-web";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Search, Check, X } from "lucide-react";
@@ -75,7 +76,7 @@ export default function PermissionsMatrix() {
         `;
 
         const result = await clickHouseClient.query({ query });
-        const response = await result.json<{ data: GrantData[] }>();
+        const response = (await result.json()) as ResponseJSON<GrantData>;
 
         // Process grants into matrix format
         const entityGrants = new Map<string, MatrixRow>();

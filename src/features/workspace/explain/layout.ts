@@ -201,12 +201,12 @@ export class TreeLayout {
       }
 
       if (this.nextRight(vInnerLeft) && !this.nextRight(vOuterRight)) {
-        vOuterRight.thread = this.nextRight(vInnerLeft);
+        vOuterRight.thread = this.nextRight(vInnerLeft) ?? undefined;
         vOuterRight.mod += sInnerLeft - sOuterRight;
       }
 
       if (this.nextLeft(vInnerRight) && !this.nextLeft(vOuterLeft)) {
-        vOuterLeft.thread = this.nextLeft(vInnerRight);
+        vOuterLeft.thread = this.nextLeft(vInnerRight) ?? undefined;
         vOuterLeft.mod += sInnerRight - sOuterLeft;
         defaultAncestor = node;
       }

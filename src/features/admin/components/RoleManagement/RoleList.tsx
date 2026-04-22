@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import type { ResponseJSON } from "@clickhouse/client-web";
 import {
   Table,
   TableBody,
@@ -64,7 +65,7 @@ const RoleList: React.FC<RoleListProps> = ({ roles, onEditRole, onAddChange }) =
             },
           });
 
-          const response = await result.json<{ data: { count: string }[] }>();
+          const response = (await result.json()) as ResponseJSON<{ count: string }>;
           const count = parseInt(response.data[0]?.count || "0", 10);
           counts.set(role.name, count);
         }

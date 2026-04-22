@@ -1,4 +1,5 @@
 import { useCallback } from "react";
+import type { ResponseJSON } from "@clickhouse/client-web";
 import useAppStore from "@/stores/workspaceStore";
 import { toast } from "sonner";
 
@@ -46,7 +47,7 @@ export interface DiffResult {
  * Hook for exporting and importing permissions
  */
 export function useExportImport() {
-  const { clickHouseClient, credential, userPrivileges } = useAppStore();
+  const { clickHouseClient, credential } = useAppStore();
 
   /**
    * Export permissions to JSON format
@@ -60,7 +61,7 @@ export function useExportImport() {
       const exportData: ExportData = {
         version: EXPORT_VERSION,
         exportedAt: new Date().toISOString(),
-        exportedBy: credential?.username || userPrivileges?.username || "unknown",
+        exportedBy: credential?.username || "unknown",
       };
 
       try {
@@ -77,7 +78,7 @@ export function useExportImport() {
             ORDER BY name
           `;
           const usersResult = await clickHouseClient.query({ query: usersQuery });
-          const usersResponse = await usersResult.json<{ data: any[] }>();
+          const usersResponse = (await usersResult.json()) as ResponseJSON<any>;
           exportData.users = usersResponse.data;
         }
 
@@ -90,7 +91,7 @@ export function useExportImport() {
             ORDER BY name
           `;
           const rolesResult = await clickHouseClient.query({ query: rolesQuery });
-          const rolesResponse = await rolesResult.json<{ data: any[] }>();
+          const rolesResponse = (await rolesResult.json()) as ResponseJSON<any>;
           exportData.roles = rolesResponse.data;
         }
 
@@ -107,7 +108,7 @@ export function useExportImport() {
             ORDER BY name
           `;
           const quotasResult = await clickHouseClient.query({ query: quotasQuery });
-          const quotasResponse = await quotasResult.json<{ data: any[] }>();
+          const quotasResponse = (await quotasResult.json()) as ResponseJSON<any>;
           exportData.quotas = quotasResponse.data;
         }
 
@@ -122,7 +123,7 @@ export function useExportImport() {
             ORDER BY database, table, name
           `;
           const policiesResult = await clickHouseClient.query({ query: policiesQuery });
-          const policiesResponse = await policiesResult.json<{ data: any[] }>();
+          const policiesResponse = (await policiesResult.json()) as ResponseJSON<any>;
           exportData.row_policies = policiesResponse.data;
         }
 
@@ -135,7 +136,7 @@ export function useExportImport() {
             ORDER BY name
           `;
           const profilesResult = await clickHouseClient.query({ query: profilesQuery });
-          const profilesResponse = await profilesResult.json<{ data: any[] }>();
+          const profilesResponse = (await profilesResult.json()) as ResponseJSON<any>;
           exportData.settings_profiles = profilesResponse.data;
         }
 
@@ -145,7 +146,7 @@ export function useExportImport() {
         throw error;
       }
     },
-    [clickHouseClient, credential, userPrivileges]
+    [clickHouseClient, credential]
   );
 
   /**

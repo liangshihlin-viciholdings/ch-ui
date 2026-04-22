@@ -39,10 +39,10 @@ describe("Loading Skeletons and States", () => {
 
     it("should not cause layout shift", () => {
       const { container, rerender } = render(<ListSkeleton rows={3} />);
-      const initialHeight = container.firstChild?.clientHeight;
+      const initialHeight = (container.firstChild as HTMLElement)?.clientHeight;
 
       rerender(<ListSkeleton rows={3} />);
-      const afterHeight = container.firstChild?.clientHeight;
+      const afterHeight = (container.firstChild as HTMLElement)?.clientHeight;
 
       expect(initialHeight).toBe(afterHeight);
     });
@@ -120,7 +120,7 @@ describe("Loading Skeletons and States", () => {
   describe("Loading State Integration", () => {
     it("should prevent layout shift when switching from loading to content", () => {
       const { container, rerender } = render(<ListSkeleton rows={5} />);
-      const skeletonHeight = container.firstChild?.clientHeight;
+      const skeletonHeight = (container.firstChild as HTMLElement)?.clientHeight;
 
       // Simulate transition to actual content
       rerender(
@@ -134,7 +134,7 @@ describe("Loading Skeletons and States", () => {
       );
 
       // Heights should be similar (within reasonable margin)
-      const contentHeight = container.firstChild?.clientHeight;
+      const contentHeight = (container.firstChild as HTMLElement)?.clientHeight;
       expect(Math.abs(skeletonHeight - contentHeight)).toBeLessThan(20);
     });
   });

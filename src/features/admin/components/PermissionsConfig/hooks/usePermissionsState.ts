@@ -15,7 +15,7 @@ import { useEnhancedToast } from "./useEnhancedToast";
  * Handles pending changes queue and execution
  */
 export function usePermissionsState(): PermissionsState & PermissionsActions {
-  const { runQuery, credential, userPrivileges } = useAppStore();
+  const { runQuery, credential } = useAppStore();
   const { initializeAuditTable, logChange } = useAuditLog();
   const toast = useEnhancedToast();
   const [pendingChanges, setPendingChanges] = useState<PendingChange[]>([]);
@@ -131,14 +131,14 @@ export function usePermissionsState(): PermissionsState & PermissionsActions {
       }
 
       // Log to audit table (don't await - fire and forget)
-      const username = credential?.username || userPrivileges?.username || "unknown";
+      const username = credential?.username || "unknown";
       logChange(change, result, username).catch((err) => {
         console.error("Failed to log change to audit:", err);
       });
 
       return result;
     },
-    [pendingChanges, runQuery, credential, userPrivileges, logChange]
+    [pendingChanges, runQuery, credential, logChange]
   );
 
   /**

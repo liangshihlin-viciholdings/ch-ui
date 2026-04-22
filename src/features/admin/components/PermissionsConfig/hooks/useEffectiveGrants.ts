@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import type { ResponseJSON } from "@clickhouse/client-web";
 import useAppStore from "@/stores/workspaceStore";
 import {
   GrantedPermission,
@@ -103,7 +104,7 @@ export function useEffectiveGrants(userName?: string): UseEffectiveGrantsResult 
           },
         });
 
-        const directResponse = await directResult.json<{ data: SystemGrantRow[] }>();
+        const directResponse = (await directResult.json()) as ResponseJSON<SystemGrantRow>;
         const transformedDirectGrants = transformGrantsToPermissions(directResponse.data);
         setDirectGrants(transformedDirectGrants);
 
@@ -124,11 +125,10 @@ export function useEffectiveGrants(userName?: string): UseEffectiveGrantsResult 
           },
         });
 
-        const roleAssignmentsResponse = await roleAssignmentsResult.json<{
-          data: SystemRoleGrantRow[];
-        }>();
+        const roleAssignmentsResponse =
+          (await roleAssignmentsResult.json()) as ResponseJSON<SystemRoleGrantRow>;
         const transformedRoleAssignments: RoleAssignment[] = roleAssignmentsResponse.data.map(
-          (row) => ({
+          (row: SystemRoleGrantRow) => ({
             roleName: row.granted_role_name,
             adminOption: row.with_admin_option === 1,
           })
@@ -166,7 +166,8 @@ export function useEffectiveGrants(userName?: string): UseEffectiveGrantsResult 
             query_params: roleQueryParams,
           });
 
-          const roleGrantsResponse = await roleGrantsResult.json<{ data: SystemGrantRow[] }>();
+          const roleGrantsResponse =
+            (await roleGrantsResult.json()) as ResponseJSON<SystemGrantRow>;
 
           // Group grants by role name
           for (const row of roleGrantsResponse.data) {

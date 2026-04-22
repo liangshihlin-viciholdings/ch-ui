@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import type { ResponseJSON } from "@clickhouse/client-web";
 import useAppStore from "@/stores/workspaceStore";
 import { GrantedPermission, PermissionScope } from "../../CreateUser/PrivilegesSection/permissions";
 
@@ -63,7 +64,7 @@ export function useGrants({ userName, roleName }: UseGrantsOptions) {
           },
         });
 
-        const response = await result.json<{ data: SystemGrantRow[] }>();
+        const response = (await result.json()) as ResponseJSON<SystemGrantRow>;
         const transformedGrants = transformGrantsToPermissions(response.data);
         setGrants(transformedGrants);
       } catch (err) {
