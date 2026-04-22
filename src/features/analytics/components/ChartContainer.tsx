@@ -56,8 +56,8 @@ export function ChartContainer({
 
   return (
     <div className="flex h-full w-full flex-col rounded-md border border-border bg-background">
-      <div className="flex items-center justify-between border-b border-border px-2 py-1">
-        <h3 className="truncate text-xs font-medium text-foreground" title={title}>
+      <div className="flex items-center justify-between border-b border-border px-2 py-1 select-none">
+        <h3 className="truncate text-xs font-medium text-foreground cursor-grab active:cursor-grabbing" title={title}>
           {title || "Untitled"}
         </h3>
         <DropdownMenu>

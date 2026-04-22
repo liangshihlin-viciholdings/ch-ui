@@ -1124,3 +1124,14 @@
   z-index: 10 !important;
 }
 
+/* React Grid Layout drag UX improvements */
+.react-grid-item.react-draggable-dragging {
+  cursor: grabbing !important;
+  z-index: 100;
+  box-shadow: 0 10px 25px -5px rgb(0 0 0 / 0.2);
+}
+
+.react-grid-item.react-draggable-dragging h3 {
+  cursor: grabbing !important;
+}
+
