@@ -32,7 +32,7 @@ export interface DashboardGridProps {
 
 const BREAKPOINTS = { lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 };
 const COLS = { lg: 12, md: 12, sm: 6, xs: 4, xxs: 2 };
-const ROW_HEIGHT = 60;
+const ROW_HEIGHT = 50;
 
 export function DashboardGrid({
   tiles,
@@ -73,7 +73,7 @@ export function DashboardGrid({
 
   if (!tiles.length) {
     return (
-      <div className="flex h-64 items-center justify-center rounded-md border border-dashed border-border text-sm text-muted-foreground">
+      <div className="flex h-40 items-center justify-center rounded-md border border-dashed border-border text-xs text-muted-foreground">
         No tiles yet. Add a chart to get started.
       </div>
     );
@@ -86,7 +86,7 @@ export function DashboardGrid({
       breakpoints={BREAKPOINTS}
       cols={COLS}
       rowHeight={ROW_HEIGHT}
-      margin={[8, 8]}
+      margin={[6, 6]}
       containerPadding={[0, 0]}
       isDraggable={!!onLayoutChange}
       isResizable={!!onLayoutChange}

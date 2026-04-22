@@ -7,7 +7,7 @@ import { DataTable } from "@/components/common/DataTable";
 import type { QueryResult } from "@/types/common";
 import type { ChartProps } from "./types";
 
-export function TableChart({ data, height = 320 }: ChartProps) {
+export function TableChart({ data, height = 260 }: ChartProps) {
   const synthesized: QueryResult = useMemo(() => {
     const meta = data.length
       ? Object.keys(data[0]).map((name) => ({ name, type: "String" }))

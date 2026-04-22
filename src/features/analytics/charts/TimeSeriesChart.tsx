@@ -43,7 +43,7 @@ function formatTick(ts: number): string {
   });
 }
 
-export function TimeSeriesChart({ data, config, height = 260 }: ChartProps) {
+export function TimeSeriesChart({ data, config, height = 200 }: ChartProps) {
   const { chartData, seriesKeys } = useMemo(() => {
     if (!data.length) return { chartData: [], seriesKeys: [] as string[] };
 
