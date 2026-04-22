@@ -4,6 +4,10 @@ import type {
   AggregateFunction,
   DashboardFilter,
 } from "@/features/analytics/types";
+import {
+  interpolateQuery,
+  hasTemplateVariables,
+} from "@/features/analytics/utils/queryInterpolation";
 
 export function resolveGranularity(
   granularity: string | "auto",
@@ -115,7 +119,11 @@ export function generateChartSql(
   timestampColumn: string = "timestamp",
   filters: DashboardFilter[] = []
 ): string {
-  if (config.type === "rawsql") return config.query;
+  if (config.type === "rawsql") {
+    return hasTemplateVariables(config.query)
+      ? interpolateQuery(config.query, dateRange)
+      : config.query;
+  }
   return generateBuilderSql(config, dateRange, tableName, timestampColumn, filters);
 }
 
