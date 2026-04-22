@@ -13,13 +13,18 @@ import {
   type Row as TRow,
 } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { Copy, X } from "lucide-react";
+import { Copy, Expand, X } from "lucide-react";
 import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from "@/components/ui/hover-card";
 import { TableHeaderMenu } from "./TableHeaderMenu";
 import {
   TablePagination,
@@ -28,6 +33,13 @@ import {
 import DownloadDialog from "./DownloadDialog";
 import { toast } from "sonner";
 import type { QueryResult } from "@/types/common";
+import {
+  parseClickHouseType,
+  isComplexType,
+  type ColumnTypeAst,
+} from "./clickhouseTypes";
+import { CellDetailViewer } from "./CellDetailViewer";
+import { CellDetailSheet, type DetailCell } from "./CellDetailSheet";
 
 /** Datasets larger than this disable non-essential animations. */
 const LARGE_DATASET = 500;
@@ -40,7 +52,7 @@ const DEFAULT_COLUMN_WIDTH = 180;
 const DEFAULT_ROW_HEIGHT = 32;
 
 type RowData = Record<string, unknown>;
-type SelectedCell = { rowId: string; columnId: string; value: unknown };
+type SelectedCell = { rowId: string; columnId: string; value: unknown; typeAst: ColumnTypeAst | null; rawType: string };
 
 export interface DataTableProps {
   /** Query result from workspaceStore (meta, data, statistics, …). */
@@ -65,16 +77,41 @@ function formatCellValue(value: unknown): string {
   return String(value);
 }
 
-function CellContent({ value }: { value: unknown }) {
+function CellContent({
+  value,
+  typeAst,
+  enableHover,
+}: {
+  value: unknown;
+  typeAst: ColumnTypeAst | null;
+  enableHover: boolean;
+}) {
   const formatted = formatCellValue(value);
   const isNull = value === null || value === undefined;
-  return (
+  const complex = typeAst !== null && isComplexType(typeAst);
+
+  const span = (
     <span
-      className={`block truncate ${isNull ? "italic text-muted-foreground" : ""}`}
-      title={formatted}
+      className={`block truncate ${isNull ? "italic text-muted-foreground" : ""} ${complex ? "cursor-pointer underline decoration-dotted decoration-muted-foreground/50 underline-offset-2" : ""}`}
+      title={complex ? undefined : formatted}
     >
       {formatted}
     </span>
+  );
+
+  if (!complex || !enableHover) return span;
+
+  return (
+    <HoverCard openDelay={200} closeDelay={100}>
+      <HoverCardTrigger asChild>{span}</HoverCardTrigger>
+      <HoverCardContent
+        className="w-80 p-3 font-mono text-xs"
+        side="bottom"
+        align="start"
+      >
+        <CellDetailViewer value={value} typeAst={typeAst} mode="hover" />
+      </HoverCardContent>
+    </HoverCard>
   );
 }
 const MemoizedCellContent = memo(CellContent);
@@ -85,8 +122,10 @@ interface MemoizedRowProps {
   selectedCellRowId: string | null;
   selectedCellColId: string | null;
   isLargeDataset: boolean;
-  onCellClick: (rowId: string, colId: string, value: unknown) => void;
-  onCellContextMenu: (value: unknown) => void;
+  typeAstMap: Record<string, ColumnTypeAst>;
+  typeRawMap: Record<string, string>;
+  onCellClick: (rowId: string, colId: string, value: unknown, typeAst: ColumnTypeAst | null, rawType: string) => void;
+  onCellContextMenu: (value: unknown, typeAst: ColumnTypeAst | null, rawType: string, columnId: string) => void;
 }
 
 function TableRowComponent({
@@ -95,6 +134,8 @@ function TableRowComponent({
   selectedCellRowId,
   selectedCellColId,
   isLargeDataset,
+  typeAstMap,
+  typeRawMap,
   onCellClick,
   onCellContextMenu,
 }: MemoizedRowProps) {
@@ -110,6 +151,8 @@ function TableRowComponent({
         const isMetaCol =
           cell.column.id === SELECT_COLUMN_ID ||
           cell.column.id === ROW_NUM_COLUMN_ID;
+        const colTypeAst = isMetaCol ? null : (typeAstMap[cell.column.id] ?? null);
+        const colRawType = isMetaCol ? "" : (typeRawMap[cell.column.id] ?? "");
         return (
           <td
             key={cell.id}
@@ -120,12 +163,12 @@ function TableRowComponent({
             onClick={
               isMetaCol
                 ? undefined
-                : () => onCellClick(row.id, cell.column.id, row.original[cell.column.id])
+                : () => onCellClick(row.id, cell.column.id, row.original[cell.column.id], colTypeAst, colRawType)
             }
             onContextMenu={
               isMetaCol
                 ? undefined
-                : () => onCellContextMenu(row.original[cell.column.id])
+                : () => onCellContextMenu(row.original[cell.column.id], colTypeAst, colRawType, cell.column.id)
             }
           >
             {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -144,7 +187,9 @@ const MemoizedTableRow = memo(TableRowComponent, (prev, next) => {
     prev.isRowSelected === next.isRowSelected &&
     wasThisRowCellSelected === isThisRowCellSelected &&
     (!isThisRowCellSelected || prev.selectedCellColId === next.selectedCellColId) &&
-    prev.isLargeDataset === next.isLargeDataset
+    prev.isLargeDataset === next.isLargeDataset &&
+    prev.typeAstMap === next.typeAstMap &&
+    prev.typeRawMap === next.typeRawMap
   );
 });
 
@@ -161,7 +206,7 @@ export function DataTable({
   pageSize: initialPageSize = 100,
 }: DataTableProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const contextMenuValueRef = useRef<unknown>(undefined);
+  const contextMenuCellRef = useRef<{ value: unknown; typeAst: ColumnTypeAst | null; rawType: string; columnId: string } | null>(null);
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnPinning, setColumnPinning] = useState<ColumnPinningState>({});
   const [columnSizing, setColumnSizing] = useState<ColumnSizingState>({});
@@ -171,6 +216,7 @@ export function DataTable({
   });
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const [selectedCell, setSelectedCell] = useState<SelectedCell | null>(null);
+  const [detailCell, setDetailCell] = useState<DetailCell | null>(null);
 
   const rows = useMemo(() => (data?.data ?? []) as RowData[], [data?.data]);
   const meta = useMemo(
@@ -199,15 +245,34 @@ export function DataTable({
   }, [selectedCell]);
 
   const handleCellClick = useCallback(
-    (rowId: string, colId: string, value: unknown) => {
-      setSelectedCell({ rowId, columnId: colId, value });
+    (rowId: string, colId: string, value: unknown, typeAst: ColumnTypeAst | null, rawType: string) => {
+      setSelectedCell({ rowId, columnId: colId, value, typeAst, rawType });
     },
     []
   );
 
-  const handleCellContextMenu = useCallback((value: unknown) => {
-    contextMenuValueRef.current = value;
-  }, []);
+  const handleCellContextMenu = useCallback(
+    (value: unknown, typeAst: ColumnTypeAst | null, rawType: string, columnId: string) => {
+      contextMenuCellRef.current = { value, typeAst, rawType, columnId };
+    },
+    []
+  );
+
+  const typeAstMap = useMemo<Record<string, ColumnTypeAst>>(() => {
+    return Object.fromEntries(
+      meta
+        .filter((m): m is { name: string; type: string } => typeof m.name === "string" && typeof m.type === "string")
+        .map((m) => [m.name, parseClickHouseType(m.type)])
+    );
+  }, [meta]);
+
+  const typeRawMap = useMemo<Record<string, string>>(() => {
+    return Object.fromEntries(
+      meta
+        .filter((m): m is { name: string; type: string } => typeof m.name === "string" && typeof m.type === "string")
+        .map((m) => [m.name, m.type])
+    );
+  }, [meta]);
 
   const columns = useMemo<ColumnDef<RowData>[]>(() => {
     if (!rows.length) return [];
@@ -282,11 +347,17 @@ export function DataTable({
       minSize: 80,
       enableResizing: true,
       enableSorting: true,
-      cell: ({ getValue }) => <MemoizedCellContent value={getValue()} />,
+      cell: ({ getValue }) => (
+        <MemoizedCellContent
+          value={getValue()}
+          typeAst={typeAstMap[key] ?? null}
+          enableHover={!isLargeDataset}
+        />
+      ),
     }));
 
     return [selectCol, rowNumCol, ...dataCols];
-  }, [rows, meta]);
+  }, [rows, meta, typeAstMap, isLargeDataset]);
 
   const table = useReactTable({
     data: rows,
@@ -407,6 +478,23 @@ export function DataTable({
                 <Copy className="h-3.5 w-3.5" />
                 Copy
               </button>
+              {selectedCell.typeAst && isComplexType(selectedCell.typeAst) && (
+                <button
+                  onClick={() =>
+                    setDetailCell({
+                      columnId: selectedCell.columnId,
+                      rawType: selectedCell.rawType,
+                      typeAst: selectedCell.typeAst!,
+                      value: selectedCell.value,
+                    })
+                  }
+                  className="flex items-center gap-1 px-2 py-0.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground"
+                  title="View formatted value"
+                >
+                  <Expand className="h-3.5 w-3.5" />
+                  View
+                </button>
+              )}
             </>
           )}
           <button
@@ -484,6 +572,8 @@ export function DataTable({
                       selectedCellRowId={selectedCellRowId}
                       selectedCellColId={selectedCellColId}
                       isLargeDataset={isLargeDataset}
+                      typeAstMap={typeAstMap}
+                      typeRawMap={typeRawMap}
                       onCellClick={handleCellClick}
                       onCellContextMenu={handleCellContextMenu}
                     />
@@ -499,14 +589,37 @@ export function DataTable({
             <ContextMenuContent className="w-48">
               <ContextMenuItem
                 onClick={() => {
-                  const val = contextMenuValueRef.current;
-                  if (val !== undefined) {
-                    navigator.clipboard.writeText(formatCellValue(val));
+                  const cell = contextMenuCellRef.current;
+                  if (cell) {
+                    navigator.clipboard.writeText(formatCellValue(cell.value));
                   }
                 }}
               >
                 <Copy className="mr-2 h-4 w-4" />
                 Copy Cell Value
+              </ContextMenuItem>
+              <ContextMenuItem
+                onClick={() => {
+                  const cell = contextMenuCellRef.current;
+                  if (cell?.typeAst && isComplexType(cell.typeAst)) {
+                    setDetailCell({
+                      columnId: cell.columnId,
+                      rawType: cell.rawType,
+                      typeAst: cell.typeAst,
+                      value: cell.value,
+                    });
+                  } else if (cell) {
+                    setDetailCell({
+                      columnId: cell.columnId,
+                      rawType: cell.rawType,
+                      typeAst: cell.typeAst ?? { kind: "Unknown", raw: cell.rawType },
+                      value: cell.value,
+                    });
+                  }
+                }}
+              >
+                <Expand className="mr-2 h-4 w-4" />
+                View Details
               </ContextMenuItem>
             </ContextMenuContent>
           </ContextMenu>
@@ -518,6 +631,7 @@ export function DataTable({
           statistics={(data?.statistics as TablePaginationStatistics | undefined) ?? null}
         />
       )}
+      <CellDetailSheet cell={detailCell} onClose={() => setDetailCell(null)} />
     </div>
   );
 }
