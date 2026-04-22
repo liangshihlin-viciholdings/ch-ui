@@ -90,6 +90,7 @@ export function DashboardGrid({
       containerPadding={[0, 0]}
       isDraggable={!!onLayoutChange}
       isResizable={!!onLayoutChange}
+      resizeHandles={["s", "e", "se"]}
       draggableHandle=".dashboard-tile-drag-handle, h3"
       onLayoutChange={handleLayoutChange}
     >
