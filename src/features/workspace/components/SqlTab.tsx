@@ -340,12 +340,12 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
 		return renderResultTabs();
 	};
 
-	if (!tab) return null;
-
 	const { defaultLayout, onLayoutChanged } = useDefaultLayout({
 		groupId: "sql-tab-layout",
 		storage: localStorage,
 	});
+
+	if (!tab) return null;
 
 	return (
 		<div className="h-full">
