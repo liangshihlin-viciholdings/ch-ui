@@ -184,12 +184,12 @@ This dashboard uses time range variables that adapt to your selected time range:
       h: 5,
       config: rawSqlConfig(
         `SELECT
-          $__timeBucket AS bucket,
+          $__timeBucket AS time_bucket,
           COUNT(*) AS query_count
         FROM system.query_log
         WHERE event_time BETWEEN $__timeFromTo
-        GROUP BY bucket
-        ORDER BY bucket`,
+        GROUP BY time_bucket
+        ORDER BY time_bucket`,
         "line"
       ),
     },
@@ -227,13 +227,13 @@ This dashboard uses time range variables that adapt to your selected time range:
       h: 5,
       config: rawSqlConfig(
         `SELECT
-          $__timeBucket AS bucket,
+          $__timeBucket AS time_bucket,
           sum(read_bytes) AS read_bytes
         FROM system.query_log
         WHERE event_time BETWEEN $__timeFromTo
           AND type = 'QueryFinish'
-        GROUP BY bucket
-        ORDER BY bucket`,
+        GROUP BY time_bucket
+        ORDER BY time_bucket`,
         "line"
       ),
     },
@@ -246,13 +246,13 @@ This dashboard uses time range variables that adapt to your selected time range:
       h: 5,
       config: rawSqlConfig(
         `SELECT
-          $__timeBucket AS bucket,
+          $__timeBucket AS time_bucket,
           max(memory_usage) AS peak_memory
         FROM system.query_log
         WHERE event_time BETWEEN $__timeFromTo
           AND type = 'QueryFinish'
-        GROUP BY bucket
-        ORDER BY bucket`,
+        GROUP BY time_bucket
+        ORDER BY time_bucket`,
         "area"
       ),
     },
@@ -269,13 +269,13 @@ This dashboard uses time range variables that adapt to your selected time range:
       h: 5,
       config: rawSqlConfig(
         `SELECT
-          $__timeBucket AS bucket,
+          $__timeBucket AS time_bucket,
           sum(written_bytes) AS written_bytes
         FROM system.query_log
         WHERE event_time BETWEEN $__timeFromTo
           AND type = 'QueryFinish'
-        GROUP BY bucket
-        ORDER BY bucket`,
+        GROUP BY time_bucket
+        ORDER BY time_bucket`,
         "area"
       ),
     },
@@ -288,13 +288,13 @@ This dashboard uses time range variables that adapt to your selected time range:
       h: 5,
       config: rawSqlConfig(
         `SELECT
-          $__timeBucket AS bucket,
+          $__timeBucket AS time_bucket,
           sum(read_rows) AS rows_read
         FROM system.query_log
         WHERE event_time BETWEEN $__timeFromTo
           AND type = 'QueryFinish'
-        GROUP BY bucket
-        ORDER BY bucket`,
+        GROUP BY time_bucket
+        ORDER BY time_bucket`,
         "line"
       ),
     },
@@ -341,13 +341,13 @@ This dashboard uses time range variables that adapt to your selected time range:
       h: 5,
       config: rawSqlConfig(
         `SELECT
-          $__timeBucket AS bucket,
+          $__timeBucket AS time_bucket,
           COUNT(*) AS queries
         FROM system.query_log
         WHERE type = 'QueryFinish'
           AND event_time BETWEEN $__timeFromTo
-        GROUP BY bucket
-        ORDER BY bucket`,
+        GROUP BY time_bucket
+        ORDER BY time_bucket`,
         "area"
       ),
     },
@@ -458,12 +458,12 @@ This dashboard uses time range variables that adapt to your selected time range:
       w: 6,
       h: 5,
       config: rawSqlConfig(
-        `SELECT $__timeGroupExpr AS bucket, COUNT(*) AS exception_count
+        `SELECT $__timeGroupExpr AS time_bucket, COUNT(*) AS exception_count
         FROM system.query_log
         WHERE type IN ('ExceptionBeforeStart', 'ExceptionWhileProcessing')
           AND event_time BETWEEN $__timeFromTo
-        GROUP BY bucket
-        ORDER BY bucket`,
+        GROUP BY time_bucket
+        ORDER BY time_bucket`,
         "line"
       ),
     },
