@@ -18,9 +18,64 @@ import {
   AUTO_REFRESH_INTERVALS,
 } from "@/features/analytics/contexts/AutoRefreshContext";
 
+function CountdownRing({ progress }: { progress: number }) {
+  const size = 16;
+  const strokeWidth = 2;
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const strokeDashoffset = circumference * (1 - progress);
+
+  return (
+    <svg
+      width={size}
+      height={size}
+      className="absolute inset-0 -rotate-90"
+      style={{ margin: "auto" }}
+    >
+      <circle
+        cx={size / 2}
+        cy={size / 2}
+        r={radius}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={strokeWidth}
+        opacity={0.2}
+      />
+      <circle
+        cx={size / 2}
+        cy={size / 2}
+        r={radius}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={strokeWidth}
+        strokeDasharray={circumference}
+        strokeDashoffset={strokeDashoffset}
+        strokeLinecap="round"
+        className="transition-[stroke-dashoffset] duration-100"
+      />
+    </svg>
+  );
+}
+
 export function AutoRefreshControl() {
-  const { enabled, intervalMs, intervalLabel, setEnabled, setInterval } =
-    useAutoRefresh();
+  const {
+    enabled,
+    intervalMs,
+    intervalLabel,
+    setEnabled,
+    setInterval,
+    secondsRemaining,
+    countdownProgress,
+  } = useAutoRefresh();
+
+  const formatCountdown = (seconds: number): string => {
+    if (seconds >= 60) {
+      const mins = Math.floor(seconds / 60);
+      const secs = seconds % 60;
+      return secs > 0 ? `${mins}m${secs}s` : `${mins}m`;
+    }
+    return `${seconds}s`;
+  };
 
   return (
     <div className="flex items-center gap-1.5">
@@ -34,8 +89,13 @@ export function AutoRefreshControl() {
               enabled && "border-primary bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary"
             )}
           >
-            <RefreshCw className={cn("h-3.5 w-3.5", enabled && "animate-spin")} style={{ animationDuration: "2s" }} />
-            <span className="tabular-nums">{intervalLabel}</span>
+            <span className="relative flex h-4 w-4 items-center justify-center">
+              <RefreshCw className="h-3 w-3" />
+              {enabled && <CountdownRing progress={countdownProgress} />}
+            </span>
+            <span className="tabular-nums min-w-[2.5rem] text-left">
+              {enabled ? formatCountdown(secondsRemaining) : intervalLabel}
+            </span>
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-40">

@@ -1,7 +1,15 @@
 // src/features/analytics/contexts/AutoRefreshContext.tsx
 // Context for managing dashboard auto-refresh state (interval and enabled).
 
-import { createContext, useContext, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  type ReactNode,
+} from "react";
 
 const STORAGE_KEY = "ch-ui-auto-refresh";
 
@@ -26,6 +34,10 @@ interface AutoRefreshState {
   setEnabled: (enabled: boolean) => void;
   setInterval: (ms: number) => void;
   refetchInterval: number | false;
+  /** Seconds remaining until next refetch (0 when disabled) */
+  secondsRemaining: number;
+  /** Progress from 0-1 representing countdown (1 = just refreshed, 0 = about to refresh) */
+  countdownProgress: number;
 }
 
 const AutoRefreshContext = createContext<AutoRefreshState | undefined>(undefined);
@@ -52,23 +64,64 @@ function saveState(enabled: boolean, intervalMs: number): void {
 
 export function AutoRefreshProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState(loadStoredState);
+  const [msRemaining, setMsRemaining] = useState(state.intervalMs);
+  const lastTickRef = useRef(Date.now());
 
-  const setEnabled = (enabled: boolean) => {
+  const resetCountdown = useCallback(() => {
+    setMsRemaining(state.intervalMs);
+    lastTickRef.current = Date.now();
+  }, [state.intervalMs]);
+
+  const setEnabled = useCallback((enabled: boolean) => {
     setState((prev) => {
       saveState(enabled, prev.intervalMs);
       return { ...prev, enabled };
     });
-  };
+    if (enabled) {
+      resetCountdown();
+    }
+  }, [resetCountdown]);
 
-  const setInterval = (ms: number) => {
+  const setInterval = useCallback((ms: number) => {
     setState((prev) => {
       saveState(prev.enabled, ms);
       return { ...prev, intervalMs: ms };
     });
-  };
+    setMsRemaining(ms);
+    lastTickRef.current = Date.now();
+  }, []);
+
+  // Countdown timer
+  useEffect(() => {
+    if (!state.enabled) {
+      setMsRemaining(state.intervalMs);
+      return;
+    }
+
+    const tick = () => {
+      const now = Date.now();
+      const elapsed = now - lastTickRef.current;
+      lastTickRef.current = now;
+
+      setMsRemaining((prev) => {
+        const next = prev - elapsed;
+        if (next <= 0) {
+          // Reset countdown - TanStack Query handles the actual refetch
+          return state.intervalMs;
+        }
+        return next;
+      });
+    };
+
+    const intervalId = window.setInterval(tick, 100);
+    return () => window.clearInterval(intervalId);
+  }, [state.enabled, state.intervalMs]);
 
   const intervalLabel =
     AUTO_REFRESH_INTERVALS.find((i) => i.ms === state.intervalMs)?.label ?? "30s";
+
+  const secondsRemaining = Math.ceil(msRemaining / 1000);
+  const countdownProgress = msRemaining / state.intervalMs;
 
   const value: AutoRefreshState = {
     enabled: state.enabled,
@@ -77,6 +130,8 @@ export function AutoRefreshProvider({ children }: { children: ReactNode }) {
     setEnabled,
     setInterval,
     refetchInterval: state.enabled ? state.intervalMs : false,
+    secondsRemaining,
+    countdownProgress,
   };
 
   return (
