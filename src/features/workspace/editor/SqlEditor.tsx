@@ -233,7 +233,7 @@ const SQLEditor: React.FC<SQLEditorProps> = ({
 
   const cmRef = useRef<ReactCodeMirrorRef>(null);
   const value = typeof tab?.content === "string" ? tab.content : "";
-  const [parsedQueries, setParsedQueries] = useState<ParsedQuery[]>([]);
+  const parsedQueries = useMemo(() => parseQueries(value), [value]);
   const [currentQueryIndex, setCurrentQueryIndex] = useState<number>(-1);
 
   const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
@@ -291,16 +291,13 @@ const SQLEditor: React.FC<SQLEditorProps> = ({
     [],
   );
 
-  // Re-run parseQueries whenever the document changes.
+  // Update highlighting whenever the document or parsed queries change.
   useEffect(() => {
-    const queries = parseQueries(value);
-    setParsedQueries(queries);
-
     const view = cmRef.current?.view;
     if (view) {
-      updateHighlightForCursor(view, value, queries);
+      updateHighlightForCursor(view, value, parsedQueries);
     }
-  }, [value, updateHighlightForCursor]);
+  }, [value, parsedQueries, updateHighlightForCursor]);
 
   // ─── Callbacks that operate on the current editor state ─────────────────
 
