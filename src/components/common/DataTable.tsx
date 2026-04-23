@@ -27,6 +27,7 @@ import {
 	HoverCardTrigger,
 } from "@/components/ui/hover-card";
 import {
+	Table,
 	TableBody,
 	TableCell,
 	TableHead,
@@ -588,7 +589,7 @@ export function DataTable({
 				ref={containerRef}
 				className="flex-1 min-h-0 overflow-scroll border border-border rounded-md bg-background"
 			>
-				<table
+				<Table
 					className="text-sm border-collapse w-full"
 					style={{ minWidth: table.getTotalSize() }}
 				>
@@ -605,7 +606,7 @@ export function DataTable({
 									<TableHead
 										key={header.id}
 										className="relative px-3 py-2 h-auto text-left font-medium text-muted-foreground select-none"
-										style={{ width: header.getSize() }}
+										style={{ maxWidth: header.getSize() }}
 									>
 										{header.isPlaceholder ? null : header.column.id ===
 											SELECT_COLUMN_ID ? (
@@ -703,7 +704,7 @@ export function DataTable({
 							</ContextMenuItem>
 						</ContextMenuContent>
 					</ContextMenu>
-				</table>
+				</Table>
 			</div>
 			{enablePagination && (
 				<TablePagination
