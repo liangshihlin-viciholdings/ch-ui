@@ -27,7 +27,6 @@ import {
 	HoverCardTrigger,
 } from "@/components/ui/hover-card";
 import {
-	Table,
 	TableBody,
 	TableCell,
 	TableHead,
@@ -587,9 +586,9 @@ export function DataTable({
 			{/* Scroll container — needs min-h-0 so flex-1 actually constrains height */}
 			<div
 				ref={containerRef}
-				className="flex-1 min-h-0 overflow-scroll border border-border rounded-md bg-background"
+				className="flex-1 min-h-0 max-h-full max-w-full overflow-scroll border border-border rounded-md bg-background"
 			>
-				<Table
+				<table
 					className="text-sm border-collapse w-full"
 					style={{ minWidth: table.getTotalSize() }}
 				>
@@ -704,7 +703,7 @@ export function DataTable({
 							</ContextMenuItem>
 						</ContextMenuContent>
 					</ContextMenu>
-				</Table>
+				</table>
 			</div>
 			{enablePagination && (
 				<TablePagination
