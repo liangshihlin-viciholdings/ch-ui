@@ -491,8 +491,6 @@
     --chart-10: 220 100% 60%;
   }
 
-  /* ── New themes ──────────────────────────────────────────────────── */
-
   .monokai-pro {
     --background: 330 5% 17%;
     --foreground: 30 33% 98%;
@@ -1033,72 +1031,6 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   gap: 20px;
-}
-
-/* ============================================================================
-   AG Grid Cell Selection Styles
-   ============================================================================ */
-
-/* Selected cell background and border */
-.ag-theme-balham .cell-selected,
-.ag-theme-balham-dark .cell-selected {
-  background-color: hsl(var(--primary) / 0.15) !important;
-  border-color: hsl(var(--primary) / 0.3) !important;
-}
-
-/* Selection border overlay */
-.ag-theme-balham .cell-selected::after,
-.ag-theme-balham-dark .cell-selected::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border: 1px solid hsl(var(--primary) / 0.5);
-  pointer-events: none;
-}
-
-/* AG Grid selected row - using secondary color like inactive tabs */
-
-/* General styling for both themes */
-.ag-theme-balham .ag-row-selected,
-.ag-theme-balham-dark .ag-row-selected {
-  background-color: hsl(var(--secondary)) !important;
-}
-
-.ag-theme-balham .ag-row-selected .ag-cell,
-.ag-theme-balham-dark .ag-row-selected .ag-cell {
-  color: hsl(var(--secondary-foreground)) !important;
-  font-weight: 600 !important;
-  background-color: transparent !important;
-}
-
-.ag-theme-balham .ag-row-selected:hover,
-.ag-theme-balham-dark .ag-row-selected:hover {
-  background-color: hsl(var(--secondary) / 0.8) !important;
-}
-
-/* Ensure checkbox is visible */
-.ag-theme-balham .ag-row-selected .ag-selection-checkbox,
-.ag-theme-balham-dark .ag-row-selected .ag-selection-checkbox {
-  opacity: 1 !important;
-  filter: none !important;
-}
-
-/* Theme-specific overrides using secondary color */
-.tokyo-night .ag-theme-balham-dark .ag-row-selected,
-.gruvbox-dark .ag-theme-balham-dark .ag-row-selected {
-  background-color: hsl(var(--secondary)) !important;
-}
-
-.tokyo-night .ag-theme-balham-dark .ag-row-selected .ag-cell,
-.gruvbox-dark .ag-theme-balham-dark .ag-row-selected .ag-cell {
-  color: hsl(var(--secondary-foreground)) !important;
-  font-weight: 600 !important;
-  background-color: transparent !important;
-}
-
-.tokyo-night .ag-theme-balham-dark .ag-row-selected:hover,
-.gruvbox-dark .ag-theme-balham-dark .ag-row-selected:hover {
-  background-color: hsl(var(--secondary) / 0.8) !important;
 }
 
 /* Row number column hover effect */
