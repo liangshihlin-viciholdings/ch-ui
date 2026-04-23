@@ -2,6 +2,8 @@ import { type ReactNode, useMemo } from "react";
 import CodeMirror from "@uiw/react-codemirror";
 import { json } from "@codemirror/lang-json";
 import { EditorView } from "@codemirror/view";
+import Markdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { useTheme } from "@/components/common/theme-provider";
 import { getCodeMirrorTheme } from "@/features/workspace/editor/codeMirrorThemes";
 import { type ColumnTypeAst, unwrapNullable } from "./clickhouseTypes";
@@ -151,9 +153,11 @@ export function CellDetailViewer({ value, typeAst, mode }: CellDetailViewerProps
       );
     }
     return (
-      <pre className="max-h-64 overflow-auto text-xs font-mono whitespace-pre-wrap break-all">
-        {jsonString}
-      </pre>
+      <div className="max-h-64 overflow-auto text-xs prose prose-sm dark:prose-invert max-w-none prose-pre:m-0 prose-pre:p-0 prose-code:text-xs">
+        <Markdown remarkPlugins={[remarkGfm]}>
+          {`\`\`\`json\n${jsonString}\n\`\`\``}
+        </Markdown>
+      </div>
     );
   }
 

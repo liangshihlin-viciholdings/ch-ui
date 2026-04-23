@@ -121,7 +121,7 @@ function CellContent({
 			<HoverCardContent
 				className="w-80 p-3 font-mono text-xs"
 				side="bottom"
-				align="start"
+				align="center"
 			>
 				<CellDetailViewer value={value} typeAst={typeAst} mode="hover" />
 			</HoverCardContent>
