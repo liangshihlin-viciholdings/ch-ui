@@ -183,19 +183,13 @@ This dashboard uses time range variables that adapt to your selected time range:
       w: 6,
       h: 5,
       config: rawSqlConfig(
-        `WITH toUInt64((($__unixEpochTo - $__unixEpochFrom) / $__bucketSec) + 1) AS steps
-        SELECT g.bucket, COALESCE(d.query_count, 0) AS query_count
-        FROM (
-          SELECT toStartOfInterval(toDateTime($__unixEpochFrom + number * $__bucketSec), INTERVAL $__bucketSec SECOND) AS bucket
-          FROM numbers(steps)
-        ) AS g
-        LEFT JOIN (
-          SELECT $__timeBucket AS bucket, COUNT(*) AS query_count
-          FROM system.query_log
-          WHERE event_time BETWEEN $__timeFromTo
-          GROUP BY $__timeBucket
-        ) AS d USING bucket
-        ORDER BY g.bucket`,
+        `SELECT
+          $__timeBucket AS bucket,
+          COUNT(*) AS query_count
+        FROM system.query_log
+        WHERE event_time BETWEEN $__timeFromTo
+        GROUP BY bucket
+        ORDER BY bucket`,
         "line"
       ),
     },
@@ -226,7 +220,7 @@ This dashboard uses time range variables that adapt to your selected time range:
     // ═══════════════════════════════════════════════════════════════════════
     {
       id: "ch-cpu-chart",
-      title: "CPU Usage",
+      title: "Read Bytes Over Time",
       x: 0,
       y: 9,
       w: 6,
@@ -234,10 +228,11 @@ This dashboard uses time range variables that adapt to your selected time range:
       config: rawSqlConfig(
         `SELECT
           $__timeBucket AS bucket,
-          avg(ProfileEvent_OSCPUVirtualTimeMicroseconds) AS cpu_usage
-        FROM system.metric_log
+          sum(read_bytes) AS read_bytes
+        FROM system.query_log
         WHERE event_time BETWEEN $__timeFromTo
-        GROUP BY $__timeBucket
+          AND type = 'QueryFinish'
+        GROUP BY bucket
         ORDER BY bucket`,
         "line"
       ),
@@ -250,19 +245,14 @@ This dashboard uses time range variables that adapt to your selected time range:
       w: 6,
       h: 5,
       config: rawSqlConfig(
-        `WITH toUInt64((($__unixEpochTo - $__unixEpochFrom) / $__bucketSec) + 1) AS steps
-        SELECT g.bucket, COALESCE(d.memory_usage, 0) AS memory_usage
-        FROM (
-          SELECT toStartOfInterval(toDateTime($__unixEpochFrom + number * $__bucketSec), INTERVAL $__bucketSec SECOND) AS bucket
-          FROM numbers(steps)
-        ) AS g
-        LEFT JOIN (
-          SELECT $__timeBucket AS bucket, avg(ProfileEvent_MemoryWorkerRun) AS memory_usage
-          FROM system.metric_log
-          WHERE event_time BETWEEN $__timeFromTo
-          GROUP BY $__timeBucket
-        ) AS d USING bucket
-        ORDER BY g.bucket`,
+        `SELECT
+          $__timeBucket AS bucket,
+          max(memory_usage) AS peak_memory
+        FROM system.query_log
+        WHERE event_time BETWEEN $__timeFromTo
+          AND type = 'QueryFinish'
+        GROUP BY bucket
+        ORDER BY bucket`,
         "area"
       ),
     },
@@ -272,54 +262,39 @@ This dashboard uses time range variables that adapt to your selected time range:
     // ═══════════════════════════════════════════════════════════════════════
     {
       id: "ch-network-traffic",
-      title: "Network Traffic",
+      title: "Written Bytes Over Time",
       x: 0,
       y: 14,
       w: 6,
       h: 5,
       config: rawSqlConfig(
-        `WITH toUInt64((($__unixEpochTo - $__unixEpochFrom) / $__bucketSec) + 1) AS steps
-        SELECT g.bucket,
-          COALESCE(d.send_bytes, 0) AS send_bytes,
-          COALESCE(d.receive_bytes, 0) AS receive_bytes
-        FROM (
-          SELECT toStartOfInterval(toDateTime($__unixEpochFrom + number * $__bucketSec), INTERVAL $__bucketSec SECOND) AS bucket
-          FROM numbers(steps)
-        ) AS g
-        LEFT JOIN (
-          SELECT $__timeBucket AS bucket,
-            sum(ProfileEvent_NetworkSendBytes) AS send_bytes,
-            sum(ProfileEvent_NetworkReceiveBytes) AS receive_bytes
-          FROM system.metric_log
-          WHERE event_time BETWEEN $__timeFromTo
-          GROUP BY $__timeBucket
-        ) AS d USING bucket
-        ORDER BY g.bucket`,
+        `SELECT
+          $__timeBucket AS bucket,
+          sum(written_bytes) AS written_bytes
+        FROM system.query_log
+        WHERE event_time BETWEEN $__timeFromTo
+          AND type = 'QueryFinish'
+        GROUP BY bucket
+        ORDER BY bucket`,
         "area"
       ),
     },
     {
-      id: "ch-http-connections",
-      title: "HTTP Connections",
+      id: "ch-rows-read",
+      title: "Rows Read Over Time",
       x: 6,
       y: 14,
       w: 6,
       h: 5,
       config: rawSqlConfig(
-        `WITH toUInt64((($__unixEpochTo - $__unixEpochFrom) / $__bucketSec) + 1) AS steps
-        SELECT g.bucket, COALESCE(d.connections, 0) AS connections
-        FROM (
-          SELECT toStartOfInterval(toDateTime($__unixEpochFrom + number * $__bucketSec), INTERVAL $__bucketSec SECOND) AS bucket
-          FROM numbers(steps)
-        ) AS g
-        LEFT JOIN (
-          SELECT $__timeBucket AS bucket,
-            avg(CurrentMetric_HTTPConnection) AS connections
-          FROM system.metric_log
-          WHERE event_time BETWEEN $__timeFromTo
-          GROUP BY $__timeBucket
-        ) AS d USING bucket
-        ORDER BY g.bucket`,
+        `SELECT
+          $__timeBucket AS bucket,
+          sum(read_rows) AS rows_read
+        FROM system.query_log
+        WHERE event_time BETWEEN $__timeFromTo
+          AND type = 'QueryFinish'
+        GROUP BY bucket
+        ORDER BY bucket`,
         "line"
       ),
     },
@@ -359,25 +334,20 @@ This dashboard uses time range variables that adapt to your selected time range:
     },
     {
       id: "ch-qpm",
-      title: "Queries Per Minute",
+      title: "Finished Queries Over Time",
       x: 6,
       y: 19,
       w: 6,
       h: 5,
       config: rawSqlConfig(
-        `WITH toUInt64((($__unixEpochTo - $__unixEpochFrom) / $__bucketSec) + 1) AS steps
-        SELECT g.bucket, COALESCE(d.qps, 0) AS qps
-        FROM (
-          SELECT toStartOfInterval(toDateTime($__unixEpochFrom + number * $__bucketSec), INTERVAL $__bucketSec SECOND) AS bucket
-          FROM numbers(steps)
-        ) AS g
-        LEFT JOIN (
-          SELECT $__timeBucket AS bucket, COUNT(*) AS qps
-          FROM system.query_log
-          WHERE type = 'QueryFinish' AND event_time BETWEEN $__timeFromTo
-          GROUP BY $__timeBucket
-        ) AS d USING bucket
-        ORDER BY g.bucket`,
+        `SELECT
+          $__timeBucket AS bucket,
+          COUNT(*) AS queries
+        FROM system.query_log
+        WHERE type = 'QueryFinish'
+          AND event_time BETWEEN $__timeFromTo
+        GROUP BY bucket
+        ORDER BY bucket`,
         "area"
       ),
     },
