@@ -17,6 +17,25 @@ export function formatDuration(seconds: number): string {
 }
 
 /**
+ * Format a duration expressed in milliseconds. Uses Intl for locale-aware
+ * formatting where beneficial.
+ */
+export function formatDurationMs(ms: number): string {
+  if (!Number.isFinite(ms) || ms < 0) return "0ms";
+  if (ms < 1) return `${(ms * 1000).toFixed(0)}μs`;
+  if (ms < 1000) return `${ms.toFixed(1)}ms`;
+  if (ms < 60_000) return `${(ms / 1000).toFixed(2)}s`;
+  if (ms < 3_600_000) {
+    const mins = Math.floor(ms / 60_000);
+    const secs = ((ms % 60_000) / 1000).toFixed(0);
+    return `${mins}m ${secs}s`;
+  }
+  const hrs = Math.floor(ms / 3_600_000);
+  const mins = Math.floor((ms % 3_600_000) / 60_000);
+  return `${hrs}h ${mins}m`;
+}
+
+/**
  * Format a byte count with binary units (KB/MB/GB).
  */
 export function formatBytes(bytes: number): string {

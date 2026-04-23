@@ -18,7 +18,7 @@ import {
   Bar,
   Area,
 } from "recharts";
-import { formatNumber } from "@/lib/formatters";
+import { formatNumber, formatBytes, formatDurationMs } from "@/lib/formatters";
 import { colorAt, TIME_BUCKET_KEY, type ChartProps } from "./types";
 
 function parseTimestamp(raw: unknown): number {
@@ -41,6 +41,17 @@ function formatTick(ts: number): string {
     hour: "numeric",
     minute: "2-digit",
   });
+}
+
+function smartFormat(value: number, dataKey: string): string {
+  const key = dataKey.toLowerCase();
+  if (key.includes("byte") || key.includes("memory") || key.includes("size")) {
+    return formatBytes(value);
+  }
+  if (key.includes("duration") || key.includes("_ms") || key === "p50" || key === "p90" || key === "p95" || key === "p99") {
+    return formatDurationMs(value);
+  }
+  return formatNumber(value);
 }
 
 export function TimeSeriesChart({ data, config, height }: ChartProps) {
@@ -143,6 +154,7 @@ export function TimeSeriesChart({ data, config, height }: ChartProps) {
       />
       <Tooltip
         labelFormatter={(v) => formatTick(Number(v))}
+        formatter={(value, name) => smartFormat(Number(value), String(name))}
         contentStyle={{
           background: "var(--popover)",
           border: "1px solid var(--border)",
