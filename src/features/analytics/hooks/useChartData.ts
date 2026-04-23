@@ -6,6 +6,7 @@
 import { useQuery, type UseQueryResult } from "@tanstack/react-query";
 import { runQuery } from "@/lib/queryRunner";
 import { generateChartSql } from "@/lib/chartUtils";
+import { useAutoRefresh } from "@/features/analytics/contexts/AutoRefreshContext";
 import type {
   ChartConfig,
   DashboardFilter,
@@ -33,6 +34,7 @@ export function useChartData({
   filters = [],
   enabled = true,
 }: UseChartDataOptions): UseQueryResult<ChartDataResult, Error> {
+  const { refetchInterval } = useAutoRefresh();
   const sql = generateChartSql(
     config,
     dateRange,
@@ -57,5 +59,6 @@ export function useChartData({
     },
     enabled: enabled && canExecute,
     staleTime: 30_000,
+    refetchInterval,
   });
 }

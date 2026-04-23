@@ -52,6 +52,7 @@ import {
   getDashboardTemplate,
 } from "@/features/analytics/dashboardTemplates";
 import { SetupGuideCard } from "./SetupGuideCard";
+import { AutoRefreshControl } from "./AutoRefreshControl";
 
 export interface DashboardPageProps {
   dashboardId: string;
@@ -257,6 +258,7 @@ export function DashboardPage({
             </h1>
           </div>
           <div className="flex items-center gap-2">
+            <AutoRefreshControl />
             <TimePicker
               range={range}
               onPresetChange={setPreset}
