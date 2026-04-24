@@ -164,29 +164,19 @@ export function registerVimExCommands(options: {
     }
   }
 
-  // gc{motion} - toggle comment on motion range
-  // NOTE: Define gc operator BEFORE gcc so gcc mapping takes priority (unshift ordering)
-  Vim.defineOperator(
-    "vimToggleCommentOperator",
-    (
-      cm: { cm6: EditorView },
-      _args: unknown,
-      ranges: Array<{ anchor: { line: number; ch: number }; head: { line: number; ch: number } }>,
-    ) => {
-      if (!ranges?.length) return;
-      const view = cm.cm6;
-      const fromLine = Math.min(ranges[0].anchor.line, ranges[0].head.line) + 1; // CM5 is 0-indexed
-      const toLine = Math.max(ranges[0].anchor.line, ranges[0].head.line) + 1;
-      toggleCommentLines(view, fromLine, toLine);
-    },
-  );
-  Vim.mapCommand("gc", "operator", "vimToggleCommentOperator", {}, {});
-
-  // gcc - toggle comment on current line (must be mapped AFTER gc for priority)
+  // gcc - toggle comment on current line
+  // NOTE: Removed gc operator to avoid conflict with gcc (both would fire).
+  // Use visual mode + gc for multi-line comments instead of gc{motion}.
   Vim.defineAction("vimToggleLineComment", (cm: { cm6: EditorView }) => {
     const view = cm.cm6;
-    const lineNum = view.state.doc.lineAt(view.state.selection.main.head).number;
-    toggleCommentLines(view, lineNum, lineNum);
+    const cursor = view.state.selection.main.head;
+    const line = view.state.doc.lineAt(cursor);
+    const col = cursor - line.from;
+    toggleCommentLines(view, line.number, line.number);
+    // Restore cursor to same column on same line (line position may shift due to comment prefix)
+    const newLine = view.state.doc.line(line.number);
+    const newCol = Math.min(col, newLine.length);
+    view.dispatch({ selection: { anchor: newLine.from + newCol } });
   });
   Vim.mapCommand("gcc", "action", "vimToggleLineComment", {}, { isEdit: true });
 
