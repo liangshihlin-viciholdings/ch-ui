@@ -241,12 +241,20 @@ const MemoizedTableRow = memo(TableRowComponent, (prev, next) => {
  * Cells read CSS variables via Tailwind classes so it inherits the app
  * theme automatically.
  */
+// DEBUG: render counter
+let tableRenderCount = 0;
+
 export function DataTable({
 	data,
 	height = "350px",
 	enablePagination = true,
 	pageSize: initialPageSize = 100,
 }: DataTableProps) {
+	tableRenderCount++;
+	console.log("[DataTable] render #", tableRenderCount, {
+		rowCount: data?.data?.length ?? 0,
+	});
+
 	const containerRef = useRef<HTMLDivElement>(null);
 	const contextMenuCellRef = useRef<{
 		value: unknown;
@@ -338,8 +346,16 @@ export function DataTable({
 		);
 	}, [meta]);
 
+	// Extract column keys from meta (stable) - only recompute when meta changes
+	const columnKeys = useMemo(() => {
+		return meta
+			.map((m) => m.name)
+			.filter((n): n is string => typeof n === "string");
+	}, [meta]);
+
 	const columns = useMemo<ColumnDef<RowData>[]>(() => {
-		if (!rows.length) return [];
+		// No columns if no meta info
+		if (!columnKeys.length) return [];
 
 		const selectCol: ColumnDef<RowData> = {
 			id: SELECT_COLUMN_ID,
@@ -380,17 +396,11 @@ export function DataTable({
 			},
 		};
 
-		const keys = meta.length
-			? meta
-					.map((m) => m.name)
-					.filter((n): n is string => typeof n === "string")
-			: Object.keys(rows[0] ?? {});
-
 		const typeMap = Object.fromEntries(
 			meta.flatMap((m) => (m.name && m.type ? [[m.name, m.type]] : [])),
 		);
 
-		const dataCols: ColumnDef<RowData>[] = keys.map((key) => ({
+		const dataCols: ColumnDef<RowData>[] = columnKeys.map((key) => ({
 			id: key,
 			accessorKey: key,
 			header: () => (
@@ -417,7 +427,7 @@ export function DataTable({
 		}));
 
 		return [selectCol, rowNumCol, ...dataCols];
-	}, [rows, meta, typeAstMap, isLargeDataset]);
+	}, [columnKeys, meta, typeAstMap, isLargeDataset]);
 
 	const table = useReactTable({
 		data: rows,

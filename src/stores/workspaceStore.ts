@@ -174,6 +174,20 @@ export const workspaceStore = new Store<WorkspaceStateData>({
   userPrivileges: null,
 });
 
+// DEBUG: Log state size on changes
+workspaceStore.subscribe(() => {
+  const s = workspaceStore.state;
+  const tabsWithResults = s.tabs.filter((t) => t.result?.data?.length);
+  console.log("[Store] state change", {
+    tabCount: s.tabs.length,
+    tabsWithResults: tabsWithResults.length,
+    totalRows: tabsWithResults.reduce(
+      (sum, t) => sum + (t.result?.data?.length ?? 0),
+      0
+    ),
+  });
+});
+
 // Persist a subset of state (mirrors the old Zustand `partialize`).
 workspaceStore.subscribe(() => {
   try {
@@ -709,6 +723,10 @@ export async function updateTab(
 }
 
 export async function removeTab(tabId: string): Promise<void> {
+  // Clean up any running query for this tab
+  queryAbortControllers.get(tabId)?.abort();
+  queryAbortControllers.delete(tabId);
+
   const { tabs, activeTab } = workspaceStore.state;
   const updatedTabs = tabs.filter((tab) => tab.id !== tabId);
   const nextActiveTab =
@@ -724,10 +742,15 @@ export async function duplicateTab(tabId: string): Promise<void> {
   if (!tabToDuplicate) {
     throw new Error("Tab not found");
   }
+  // Don't copy query results - they can be huge and would double memory usage
   const newTab = {
     ...tabToDuplicate,
     id: `tab-${Date.now()}`,
     title: `${tabToDuplicate.title} (Copy)`,
+    result: undefined,
+    results: undefined,
+    isLoading: false,
+    error: null,
   };
   workspaceStore.setState((state) => ({
     ...state,
@@ -1160,18 +1183,48 @@ export type WorkspaceStoreValue = WorkspaceStateData & typeof actions;
 const identity = (v: WorkspaceStoreValue) => v;
 
 /**
+ * Shallow equality check for selector results.
+ * Compares object/array entries by reference, primitives by value.
+ */
+function shallow<T>(a: T, b: T): boolean {
+  if (Object.is(a, b)) return true;
+  if (typeof a !== "object" || a === null || typeof b !== "object" || b === null) {
+    return false;
+  }
+  if (Array.isArray(a) !== Array.isArray(b)) return false;
+  const keysA = Object.keys(a);
+  const keysB = Object.keys(b);
+  if (keysA.length !== keysB.length) return false;
+  for (const key of keysA) {
+    if (!Object.prototype.hasOwnProperty.call(b, key)) return false;
+    if (!Object.is((a as Record<string, unknown>)[key], (b as Record<string, unknown>)[key])) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/**
  * Hook returning the combined workspace state + actions. Mirrors the old
  * Zustand `useAppStore` API so consumers can keep destructuring as before.
  *
  * Supports both `useAppStore()` (returns everything) and
  * `useAppStore((s) => s.field)` (selector).
+ *
+ * Uses shallow equality by default when a selector is provided to prevent
+ * unnecessary re-renders when selected slice hasn't actually changed.
  */
 export function useAppStore<T = WorkspaceStoreValue>(
   selector?: (state: WorkspaceStoreValue) => T,
+  equalityFn?: (a: T, b: T) => boolean,
 ): T {
   const sel = (selector ?? identity) as (s: WorkspaceStoreValue) => T;
-  return useStore(workspaceStore, (rawState) =>
-    sel({ ...rawState, ...actions } as WorkspaceStoreValue),
+  // Default to shallow equality when selector is provided, Object.is otherwise
+  const eq = equalityFn ?? (selector ? shallow : Object.is);
+  return useStore(
+    workspaceStore,
+    (rawState) => sel({ ...rawState, ...actions } as WorkspaceStoreValue),
+    eq,
   );
 }
 

@@ -579,10 +579,7 @@ const SQLEditor: React.FC<SQLEditorProps> = ({
       }
       if (update.selectionSet || update.docChanged) {
         const doc = update.state.doc.toString();
-        const queries = update.docChanged
-          ? parseQueries(doc)
-          : parsedQueries;
-        updateHighlightForCursor(update.view, doc, queries);
+        updateHighlightForCursor(update.view, doc, parsedQueries);
       }
     },
     [onFocusChange, parsedQueries, updateHighlightForCursor],

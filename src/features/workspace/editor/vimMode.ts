@@ -164,15 +164,8 @@ export function registerVimExCommands(options: {
     }
   }
 
-  // gcc - toggle comment on current line
-  Vim.defineAction("vimToggleLineComment", (cm: { cm6: EditorView }) => {
-    const view = cm.cm6;
-    const lineNum = view.state.doc.lineAt(view.state.selection.main.head).number;
-    toggleCommentLines(view, lineNum, lineNum);
-  });
-  Vim.mapCommand("gcc", "action", "vimToggleLineComment", {}, { isEdit: true });
-
   // gc{motion} - toggle comment on motion range
+  // NOTE: Define gc operator BEFORE gcc so gcc mapping takes priority (unshift ordering)
   Vim.defineOperator(
     "vimToggleCommentOperator",
     (
@@ -188,6 +181,14 @@ export function registerVimExCommands(options: {
     },
   );
   Vim.mapCommand("gc", "operator", "vimToggleCommentOperator", {}, {});
+
+  // gcc - toggle comment on current line (must be mapped AFTER gc for priority)
+  Vim.defineAction("vimToggleLineComment", (cm: { cm6: EditorView }) => {
+    const view = cm.cm6;
+    const lineNum = view.state.doc.lineAt(view.state.selection.main.head).number;
+    toggleCommentLines(view, lineNum, lineNum);
+  });
+  Vim.mapCommand("gcc", "action", "vimToggleLineComment", {}, { isEdit: true });
 
   // gc in visual mode - toggle comment on selection
   Vim.defineAction("vimToggleCommentVisual", (cm: CodeMirrorV) => {

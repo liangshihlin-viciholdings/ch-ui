@@ -1,9 +1,7 @@
 // src/pages/NotFound.tsx
 import React from "react";
-import { withBasePath } from "@/lib/basePath";
 import { Separator } from "@/components/ui/separator";
-
-const Logo = withBasePath("logo.png");
+import { Logo } from "@/components/common/Logo";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "@tanstack/react-router";
 import { SignpostBig } from "lucide-react";
@@ -14,7 +12,7 @@ const NotFound: React.FC = () => {
   return (
     <div className="flex w-full h-screen">
       <div className="flex items-center m-auto">
-        <img src={Logo} alt="logo" className="w-28 h-28" />
+        <Logo size={112} />
         <Separator orientation="vertical" className="p-0.5 h-32 mr-6 ml-4" />
         <div>
           <h1 className="font-semibold text-2xl">404 - Page Not Found</h1>

@@ -39,11 +39,17 @@ interface SqlTabProps {
 	tabId: string;
 }
 
+// DEBUG: render counter
+const sqlTabRenders: Record<string, number> = {};
+
 /**
  * SqlTab: SQL editor on top, query results on the bottom (resizable).
  * Results are rendered via TanStack Table (`DataTable`).
  */
 const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
+	sqlTabRenders[tabId] = (sqlTabRenders[tabId] ?? 0) + 1;
+	console.log("[SqlTab] render #", sqlTabRenders[tabId], { tabId });
+
 	const {
 		getTabById,
 		runQuery,
@@ -57,7 +63,6 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
 
 	// Last query for refresh
 	const [lastQuery, setLastQuery] = useState<string>("");
-	const [, setIsEditorFocused] = useState(false);
 	const [orientation, setOrientation] = useState<"horizontal" | "vertical">(
 		() => {
 			try {
@@ -360,7 +365,6 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
 						tabId={tabId}
 						onRunQuery={handleRunQuery}
 						onRunAllQueries={handleRunAllQueries}
-						onFocusChange={setIsEditorFocused}
 					/>
 				</ResizablePanel>
 				<ResizableHandle

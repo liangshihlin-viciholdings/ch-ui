@@ -53,8 +53,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { withBasePath } from "@/lib/basePath";
 import useAppStore from "@/stores/workspaceStore";
-
-const Logo = withBasePath("logo.png");
+import { Logo } from "@/components/common/Logo";
 import { Badge } from "@/components/ui/badge";
 
 const commandsSheet = [
@@ -148,7 +147,7 @@ const Sidebar = () => {
     >
       <div className="p-2 ml-2 mt-2 flex items-center justify-between w-full">
         <Link to="/" className="flex items-center space-x-2">
-          <img src={Logo} alt="Logo" className="h-8 w-8" />
+          <Logo size={32} />
           {isExpanded && (
             <span className="font-bold text-lg truncate">CH-UI</span>
           )}
