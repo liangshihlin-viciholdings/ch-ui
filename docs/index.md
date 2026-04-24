@@ -5,7 +5,7 @@ hero:
   name: "Data is better when we see it!"
   tagline: "CH-UI makes working with data easy. This UI connects you directly to your ClickHouse instance, allowing you to view, filter, and export your data with ease."
   image:
-    src: /logo.png
+    src: /favicon.svg
     alt: CH-UI
   actions:
     - theme: brand
