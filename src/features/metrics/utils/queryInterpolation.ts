@@ -47,6 +47,10 @@ const getBuiltInVariables = (timeRange: TimeRange): QueryVariable[] => {
       value: calculateAutoInterval(timeRange),
     },
     {
+      name: '$__timeGroupExpr',
+      value: `${getTimeGroupingFunction(timeRange)}(event_time)`,
+    },
+    {
       name: '$__timeGroup',
       value: getTimeGroupingFunction(timeRange),
     },
@@ -57,10 +61,6 @@ const getBuiltInVariables = (timeRange: TimeRange): QueryVariable[] => {
     {
       name: '$__bucketSec',
       value: getBucketStepSeconds(timeRange),
-    },
-    {
-      name: '$__timeBucket',
-      value: getAdaptiveTimeGroupExpr(timeRange),
     },
     {
       name: '$__timeBucket',

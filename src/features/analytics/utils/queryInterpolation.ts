@@ -81,6 +81,10 @@ const getBuiltInVariables = (dateRange: [Date, Date]): QueryVariable[] => {
       value: `event_time BETWEEN ${formatTimeFromTo(start, end)}`,
     },
     { name: "$__interval", value: calculateAutoInterval(start, end) },
+    {
+      name: "$__timeGroupExpr",
+      value: `${getTimeGroupingFunction(start, end)}(event_time)`,
+    },
     { name: "$__timeGroup", value: getTimeGroupingFunction(start, end) },
     {
       name: "$__seconds",
@@ -88,10 +92,6 @@ const getBuiltInVariables = (dateRange: [Date, Date]): QueryVariable[] => {
     },
     { name: "$__bucketSec", value: bucketSec },
     { name: "$__timeBucket", value: getAdaptiveTimeGroupExpr(start, end) },
-    {
-      name: "$__timeGroupExpr",
-      value: `${getTimeGroupingFunction(start, end)}(event_time)`,
-    },
     { name: "$__unixEpochFrom", value: Math.floor(start.getTime() / 1000) },
     { name: "$__unixEpochTo", value: Math.floor(end.getTime() / 1000) },
   ];
