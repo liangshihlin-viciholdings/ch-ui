@@ -326,7 +326,7 @@ export default function PermissionsConfig() {
                 toast.error("Failed to load Permissions Matrix. Please try again.");
               }}
             >
-              <PermissionsMatrix />
+              <PermissionsMatrix onAddChange={addPendingChange} />
             </ErrorBoundary>
           </TabsContent>
         </Tabs>

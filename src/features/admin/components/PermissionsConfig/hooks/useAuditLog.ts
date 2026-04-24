@@ -1,4 +1,5 @@
 import { useCallback } from "react";
+import type { ResponseJSON } from "@clickhouse/client-web";
 import useAppStore from "@/stores/workspaceStore";
 import { PendingChange, ChangeExecutionResult } from "../types";
 
@@ -82,7 +83,7 @@ export interface AuditLogFilters {
  * Hook for managing audit logs
  */
 export function useAuditLog() {
-  const { runQuery, credential } = useAppStore();
+  const { runQuery, clickHouseClient } = useAppStore();
 
   /**
    * Initialize the audit log table in ClickHouse
@@ -122,7 +123,7 @@ export function useAuditLog() {
   }, [runQuery]);
 
   /**
-   * Log a permission change to the audit table
+   * Log a permission change to the audit table using parameterized queries
    */
   const logChange = useCallback(
     async (
@@ -130,6 +131,11 @@ export function useAuditLog() {
       result: ChangeExecutionResult,
       username: string
     ): Promise<void> => {
+      if (!clickHouseClient) {
+        console.error("ClickHouse client not available for audit logging");
+        return;
+      }
+
       try {
         const entry: AuditLogEntry = {
           id: `audit-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -144,16 +150,9 @@ export function useAuditLog() {
           afterState: change.newState,
           success: result.success,
           errorMessage: result.error,
-          clientIp: "", // Would need to be obtained from request headers
-          sessionId: "", // Would need to be obtained from session management
+          clientIp: "",
+          sessionId: "",
         };
-
-        // Helper to escape SQL strings
-        const escapeString = (str: string) => str.replace(/'/g, "''").replace(/\\/g, "\\\\");
-
-        // Helper to format array for ClickHouse
-        const formatArray = (arr: string[]) =>
-          `[${arr.map(s => `'${escapeString(s)}'`).join(',')}]`;
 
         const insertSQL = `
           INSERT INTO ch_ui_audit_log (
@@ -172,62 +171,92 @@ export function useAuditLog() {
             client_ip,
             session_id
           ) VALUES (
-            '${escapeString(entry.id)}',
-            '${entry.timestamp.toISOString()}',
-            '${escapeString(entry.username)}',
-            '${escapeString(entry.operation)}',
-            '${escapeString(entry.entityType)}',
-            '${escapeString(entry.entityName)}',
-            '${escapeString(entry.description)}',
-            ${formatArray(entry.sqlStatements)},
-            '${escapeString(JSON.stringify(entry.beforeState || {}))}',
-            '${escapeString(JSON.stringify(entry.afterState || {}))}',
-            ${entry.success ? 1 : 0},
-            '${escapeString(entry.errorMessage || "")}',
-            '${escapeString(entry.clientIp || "")}',
-            '${escapeString(entry.sessionId || "")}'
+            {id:String},
+            {timestamp:String},
+            {username:String},
+            {operation:String},
+            {entityType:String},
+            {entityName:String},
+            {description:String},
+            {sqlStatements:Array(String)},
+            {beforeState:String},
+            {afterState:String},
+            {success:UInt8},
+            {errorMessage:String},
+            {clientIp:String},
+            {sessionId:String}
           )
         `;
 
-        await runQuery(insertSQL);
+        await clickHouseClient.query({
+          query: insertSQL,
+          query_params: {
+            id: entry.id,
+            timestamp: entry.timestamp.toISOString(),
+            username: entry.username,
+            operation: entry.operation,
+            entityType: entry.entityType,
+            entityName: entry.entityName,
+            description: entry.description,
+            sqlStatements: entry.sqlStatements,
+            beforeState: JSON.stringify(entry.beforeState || {}),
+            afterState: JSON.stringify(entry.afterState || {}),
+            success: entry.success ? 1 : 0,
+            errorMessage: entry.errorMessage || "",
+            clientIp: entry.clientIp || "",
+            sessionId: entry.sessionId || "",
+          },
+        });
       } catch (error) {
         // Don't throw - logging failure shouldn't break the main operation
         console.error("Failed to log audit entry:", error);
       }
     },
-    [runQuery]
+    [clickHouseClient]
   );
 
   /**
-   * Query audit logs with filters
+   * Query audit logs with filters using parameterized queries
    */
   const queryAuditLogs = useCallback(
     async (filters: AuditLogFilters = {}): Promise<AuditLogEntry[]> => {
+      if (!clickHouseClient) {
+        console.error("ClickHouse client not available");
+        return [];
+      }
+
       try {
-        let whereClause = "WHERE 1=1";
+        const whereClauses: string[] = ["1=1"];
+        const queryParams: Record<string, string | number> = {};
 
         if (filters.username) {
-          whereClause += ` AND username = '${filters.username.replace(/'/g, "''")}'`;
+          whereClauses.push("username = {username:String}");
+          queryParams.username = filters.username;
         }
 
         if (filters.operation) {
-          whereClause += ` AND operation = '${filters.operation.replace(/'/g, "''")}'`;
+          whereClauses.push("operation = {operation:String}");
+          queryParams.operation = filters.operation;
         }
 
         if (filters.entityType) {
-          whereClause += ` AND entity_type = '${filters.entityType.replace(/'/g, "''")}'`;
+          whereClauses.push("entity_type = {entityType:String}");
+          queryParams.entityType = filters.entityType;
         }
 
         if (filters.success !== undefined) {
-          whereClause += ` AND success = ${filters.success ? 1 : 0}`;
+          whereClauses.push("success = {success:UInt8}");
+          queryParams.success = filters.success ? 1 : 0;
         }
 
         if (filters.startDate) {
-          whereClause += ` AND timestamp >= '${filters.startDate.toISOString()}'`;
+          whereClauses.push("timestamp >= {startDate:String}");
+          queryParams.startDate = filters.startDate.toISOString();
         }
 
         if (filters.endDate) {
-          whereClause += ` AND timestamp <= '${filters.endDate.toISOString()}'`;
+          whereClauses.push("timestamp <= {endDate:String}");
+          queryParams.endDate = filters.endDate.toISOString();
         }
 
         const limit = filters.limit || 100;
@@ -250,16 +279,39 @@ export function useAuditLog() {
             client_ip,
             session_id
           FROM ch_ui_audit_log
-          ${whereClause}
+          WHERE ${whereClauses.join(" AND ")}
           ORDER BY timestamp DESC
-          LIMIT ${limit}
-          OFFSET ${offset}
+          LIMIT {limit:UInt32}
+          OFFSET {offset:UInt32}
         `;
 
-        const result = await runQuery(querySQL);
+        queryParams.limit = limit;
+        queryParams.offset = offset;
 
-        // Parse the result into AuditLogEntry objects
-        const entries: AuditLogEntry[] = (result.data || []).map((row: any) => ({
+        const result = await clickHouseClient.query({
+          query: querySQL,
+          query_params: queryParams,
+        });
+
+        interface AuditLogRow {
+          id: string;
+          timestamp: string;
+          username: string;
+          operation: string;
+          entity_type: string;
+          entity_name: string;
+          description: string;
+          sql_statements: string[];
+          before_state: string;
+          after_state: string;
+          success: number;
+          error_message: string;
+          client_ip: string;
+          session_id: string;
+        }
+
+        const response = (await result.json()) as ResponseJSON<AuditLogRow>;
+        const entries: AuditLogEntry[] = (response.data || []).map((row) => ({
           id: row.id,
           timestamp: new Date(row.timestamp),
           username: row.username,
@@ -282,7 +334,7 @@ export function useAuditLog() {
         return [];
       }
     },
-    [runQuery]
+    [clickHouseClient]
   );
 
   /**
