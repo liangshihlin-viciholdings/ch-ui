@@ -1,4 +1,4 @@
-import { useMemo, useCallback } from "react";
+import { useMemo } from "react";
 import {
   ResponsiveContainer,
   LineChart,
@@ -12,11 +12,11 @@ import {
   Line,
   Bar,
   Area,
-  ReferenceLine,
 } from "recharts";
 import { formatNumber, formatBytes, formatDurationMs } from "@/lib/formatters";
 import { colorAt, TIME_BUCKET_KEY, type ChartProps } from "./types";
-import { useDashboardSync } from "@/features/analytics/contexts/DashboardSyncContext";
+
+const SYNC_ID = "dashboard-time-sync";
 
 function parseTimestamp(raw: unknown): number {
   if (raw instanceof Date) return raw.getTime();
@@ -51,50 +51,8 @@ function smartFormat(value: number, dataKey: string): string {
   return formatNumber(value);
 }
 
-function findNearestIndex(chartData: { ts: number }[], target: number): number {
-  if (!chartData.length) return -1;
-  let lo = 0;
-  let hi = chartData.length - 1;
-  while (lo < hi) {
-    const mid = (lo + hi) >>> 1;
-    if (chartData[mid].ts < target) lo = mid + 1;
-    else hi = mid;
-  }
-  if (lo > 0) {
-    const prev = chartData[lo - 1].ts;
-    const curr = chartData[lo].ts;
-    if (Math.abs(target - prev) <= Math.abs(target - curr)) lo--;
-  }
-  return lo;
-}
-
-interface SyncedCrosshairProps {
-  chartData: { ts: number }[];
-  seriesKeys: string[];
-}
-
-function SyncedCrosshair({ chartData, seriesKeys }: SyncedCrosshairProps) {
-  const { hoveredTs } = useDashboardSync();
-
-  if (hoveredTs === null || !chartData.length) return null;
-
-  const idx = findNearestIndex(chartData, hoveredTs);
-  if (idx < 0) return null;
-  const point = chartData[idx];
-
-  return (
-    <ReferenceLine
-      x={point.ts}
-      stroke="hsl(var(--muted-foreground))"
-      strokeDasharray="3 3"
-      strokeWidth={1}
-    />
-  );
-}
-
 export function TimeSeriesChart({ data, config, height }: ChartProps) {
   const chartHeight = height ?? 200;
-  const { hoveredTs, setHoveredTs } = useDashboardSync();
 
   const { chartData, seriesKeys, hasTimeBucket, categoryKey, valueKey } = useMemo(() => {
     if (!data.length) return { chartData: [] as { ts: number; [k: string]: unknown }[], seriesKeys: [] as string[], hasTimeBucket: false, categoryKey: "", valueKey: "" };
@@ -124,24 +82,6 @@ export function TimeSeriesChart({ data, config, height }: ChartProps) {
     }));
     return { chartData, seriesKeys: [] as string[], hasTimeBucket: false, categoryKey, valueKey };
   }, [data]);
-
-  const handleMouseMove = useCallback(
-    (nextState: { activeLabel?: string | number }) => {
-      const label = nextState.activeLabel;
-      if (label != null) setHoveredTs(Number(label));
-    },
-    [setHoveredTs],
-  );
-
-  const handleMouseLeave = useCallback(() => {
-    setHoveredTs(null);
-  }, [setHoveredTs]);
-
-  const nearestPoint = useMemo(() => {
-    if (hoveredTs === null || !chartData.length) return null;
-    const idx = findNearestIndex(chartData as { ts: number }[], hoveredTs);
-    return idx >= 0 ? chartData[idx] : null;
-  }, [hoveredTs, chartData]);
 
   if (!chartData.length) {
     return (
@@ -177,8 +117,8 @@ export function TimeSeriesChart({ data, config, height }: ChartProps) {
           />
           <Tooltip
             contentStyle={{
-              background: "hsl(var(--popover))",
-              border: "1px solid hsl(var(--border))",
+              background: "rgba(0, 0, 0, 0.85)",
+              border: "1px solid rgba(255, 255, 255, 0.1)",
               borderRadius: 6,
               fontSize: 12,
             }}
@@ -189,6 +129,8 @@ export function TimeSeriesChart({ data, config, height }: ChartProps) {
       </ResponsiveContainer>
     );
   }
+
+  const syncProps = hasTimeBucket ? { syncId: SYNC_ID } : {};
 
   const commonAxes = (
     <>
@@ -214,8 +156,8 @@ export function TimeSeriesChart({ data, config, height }: ChartProps) {
         labelFormatter={(v) => formatTick(Number(v))}
         formatter={(value, name) => smartFormat(Number(value), String(name))}
         contentStyle={{
-          background: "var(--popover)",
-          border: "1px solid var(--border)",
+          background: "rgba(0, 0, 0, 0.85)",
+          border: "1px solid rgba(255, 255, 255, 0.1)",
           borderRadius: 6,
           fontSize: 12,
         }}
@@ -225,20 +167,13 @@ export function TimeSeriesChart({ data, config, height }: ChartProps) {
   );
 
   const chartMargin = { top: 10, right: 10, left: 0, bottom: 20 };
-  const crosshairEl = hasTimeBucket ? (
-    <SyncedCrosshair chartData={chartData as { ts: number }[]} seriesKeys={seriesKeys} />
-  ) : null;
-  const syncHandlers = hasTimeBucket
-    ? { onMouseMove: handleMouseMove, onMouseLeave: handleMouseLeave }
-    : {};
 
   if (displayType === "bar" || displayType === "stacked_bar") {
     const stackId = displayType === "stacked_bar" ? "a" : undefined;
     return (
       <ResponsiveContainer width="100%" height={chartHeight}>
-        <ReBarChart data={chartData} margin={chartMargin} {...syncHandlers}>
+        <ReBarChart data={chartData} margin={chartMargin} {...syncProps}>
           {commonAxes}
-          {crosshairEl}
           {seriesKeys.map((key, idx) => (
             <Bar
               key={key}
@@ -255,9 +190,8 @@ export function TimeSeriesChart({ data, config, height }: ChartProps) {
   if (displayType === "area") {
     return (
       <ResponsiveContainer width="100%" height={chartHeight}>
-        <AreaChart data={chartData} margin={chartMargin} {...syncHandlers}>
+        <AreaChart data={chartData} margin={chartMargin} {...syncProps}>
           {commonAxes}
-          {crosshairEl}
           {seriesKeys.map((key, idx) => (
             <Area
               key={key}
@@ -276,9 +210,8 @@ export function TimeSeriesChart({ data, config, height }: ChartProps) {
   // default: line
   return (
     <ResponsiveContainer width="100%" height={chartHeight}>
-      <LineChart data={chartData} margin={chartMargin} {...syncHandlers}>
+      <LineChart data={chartData} margin={chartMargin} {...syncProps}>
         {commonAxes}
-        {crosshairEl}
         {seriesKeys.map((key, idx) => (
           <Line
             key={key}

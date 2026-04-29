@@ -12,7 +12,6 @@ import type {
   DashboardTile,
   DashboardFilter,
 } from "@/features/analytics/types";
-import { DashboardSyncProvider } from "@/features/analytics/contexts/DashboardSyncContext";
 import { ChartContainer } from "./ChartContainer";
 
 import "react-grid-layout/css/styles.css";
@@ -83,7 +82,6 @@ export function DashboardGrid({
   }
 
   return (
-    <DashboardSyncProvider>
     <ResponsiveGrid
       className="layout"
       layouts={{ lg: layout, md: layout, sm: layout, xs: layout, xxs: layout }}
@@ -122,7 +120,6 @@ export function DashboardGrid({
         );
       })}
     </ResponsiveGrid>
-    </DashboardSyncProvider>
   );
 }
 
