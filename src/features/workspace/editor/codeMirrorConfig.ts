@@ -114,6 +114,7 @@ export function createSqlExtensions(options: SqlExtensionOptions): Extension[] {
 		autocompletion({
 			override: [clickhouseCompletionSource],
 			activateOnTyping: true,
+			interactionDelay: 75,
 			maxRenderedOptions: 30,
 		}),
 		keymap.of([

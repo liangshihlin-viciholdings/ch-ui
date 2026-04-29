@@ -37,10 +37,7 @@ export const appQueries: Record<string, AppQuery> = {
     ORDER BY database_name, table_name;
     `,
   },
-  getClickHouseFunctions: {
-    query: `SELECT name from system.functions`,
-  },
-  getKeywords: {
-    query: `SELECT keyword FROM system.keywords`,
+  getCompletions: {
+    query: `SELECT word, context, belongs FROM system.completions`,
   },
 };

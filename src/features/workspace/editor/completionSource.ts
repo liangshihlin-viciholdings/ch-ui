@@ -1,8 +1,8 @@
 // completionSource.ts
-// ClickHouse-aware CodeMirror CompletionSource ported from monacoConfig.ts.
-// Produces database/table/column/function/keyword suggestions based on the
-// SQL context at the cursor, pulling live schema metadata from the app's
-// configured ClickHouse client (via workspaceStore) and caching per session.
+// ClickHouse-aware CodeMirror CompletionSource backed by system.completions.
+// A single query returns all databases/tables/columns/functions/keywords; rows
+// are filtered at suggestion time based on the parsed SQL context so suggestions
+// always reflect what the user has already typed (database prefix, FROM tables, etc.).
 
 import type {
   Completion,
@@ -24,51 +24,29 @@ import {
   type SuggestionCategory,
 } from "./usageTracker";
 
-// ─── Schema types (mirror monacoConfig internal shape) ─────────────────────
+// ─── Types ──────────────────────────────────────────────────────────────────
 
-interface ColumnMeta {
-  name: string;
-  type: string;
+interface CompletionRow {
+  word: string;
+  context: string;
+  belongs: string | null;
 }
 
-interface TableMeta {
-  name: string;
-  children: ColumnMeta[];
-}
+// ─── Cache ──────────────────────────────────────────────────────────────────
 
-interface DatabaseMeta {
-  name: string;
-  children: TableMeta[];
-}
-
-// ─── Caches ────────────────────────────────────────────────────────────────
-
-let dbStructureCache: DatabaseMeta[] | null = null;
-let functionsCache: string[] | null = null;
-let keywordsCache: string[] | null = null;
+let completionsCache: CompletionRow[] | null = null;
 let usageTracker: AutocompleteUsageTracker | null = null;
 
-/**
- * Reset cached metadata. Call when the active ClickHouse connection changes
- * so the next completion request refreshes the schema/function lists.
- */
 export function resetCompletionCaches(): void {
-  dbStructureCache = null;
-  functionsCache = null;
-  keywordsCache = null;
+  completionsCache = null;
 }
 
-/**
- * Pre-warm all completion caches eagerly (e.g. on editor mount) so the first
- * keypress does not incur a cold-start round-trip to ClickHouse.
- */
 export async function prewarmCompletionCaches(): Promise<void> {
-  await Promise.all([getDatabaseStructure(), getFunctions(), getKeywords()]);
+  await getAllCompletions();
 }
 
 function getTracker(): AutocompleteUsageTracker {
-  const connectionId =
-    useAppStore.getState().credential?.url || "default";
+  const connectionId = useAppStore.getState().credential?.url || "default";
   if (!usageTracker) {
     usageTracker = new AutocompleteUsageTracker(connectionId);
   } else {
@@ -81,10 +59,7 @@ async function runIntrospection(query: string): Promise<unknown[]> {
   const client = useAppStore.getState().clickHouseClient;
   if (!client) return [];
   try {
-    const result = await client.query({
-      query,
-      format: "JSONEachRow",
-    });
+    const result = await client.query({ query, format: "JSONEachRow" });
     return (await result.json()) as unknown[];
   } catch (err) {
     console.error("Autocomplete introspection failed:", err);
@@ -92,68 +67,44 @@ async function runIntrospection(query: string): Promise<unknown[]> {
   }
 }
 
-async function getDatabaseStructure(): Promise<DatabaseMeta[]> {
-  if (dbStructureCache) return dbStructureCache;
-
-  const rows = (await runIntrospection(appQueries.getIntellisense.query)) as Array<{
-    database: string;
-    table: string;
-    column_name: string;
-    column_type: string;
-  }>;
-
-  const map: Record<string, DatabaseMeta> = {};
-  for (const row of rows) {
-    if (!map[row.database]) {
-      map[row.database] = { name: row.database, children: [] };
-    }
-    let table = map[row.database].children.find((t) => t.name === row.table);
-    if (!table) {
-      table = { name: row.table, children: [] };
-      map[row.database].children.push(table);
-    }
-    table.children.push({ name: row.column_name, type: row.column_type });
-  }
-
-  dbStructureCache = Object.values(map);
-  return dbStructureCache;
-}
-
-async function getFunctions(): Promise<string[]> {
-  if (functionsCache) return functionsCache;
-  const rows = (await runIntrospection(
-    appQueries.getClickHouseFunctions.query,
-  )) as Array<{ name: string }>;
-  functionsCache = rows.map((r) => r.name);
-  return functionsCache;
-}
-
-async function getKeywords(): Promise<string[]> {
-  if (keywordsCache) return keywordsCache;
-  const rows = (await runIntrospection(appQueries.getKeywords.query)) as Array<{
-    keyword: string;
-  }>;
-  keywordsCache = rows.map((r) => r.keyword);
-  return keywordsCache;
+async function getAllCompletions(): Promise<CompletionRow[]> {
+  if (completionsCache) return completionsCache;
+  completionsCache = (await runIntrospection(
+    appQueries.getCompletions.query,
+  )) as CompletionRow[];
+  return completionsCache;
 }
 
 // ─── Completion helpers ────────────────────────────────────────────────────
 
-function findTable(
-  dbStructure: DatabaseMeta[],
-  databaseName: string | null | undefined,
-  tableName: string,
-): TableMeta | null {
-  if (!databaseName) return null;
-  const db = dbStructure.find(
-    (d) => d.name.toLowerCase() === databaseName.toLowerCase(),
-  );
-  if (!db) return null;
-  return (
-    db.children.find(
-      (t) => t.name.toLowerCase() === tableName.toLowerCase(),
-    ) ?? null
-  );
+type Kind = Completion["type"];
+
+function makeCompletion(
+  label: string,
+  kind: Kind,
+  category: SuggestionCategory,
+  usageKey: string,
+  extras: Partial<Completion> = {},
+): Completion {
+  const tracker = getTracker();
+  return {
+    label,
+    type: kind,
+    boost: usageBoost(tracker.getUsageCount(usageKey), category),
+    ...extras,
+  };
+}
+
+function usageBoost(count: number, category: SuggestionCategory): number {
+  const base: Record<SuggestionCategory, number> = {
+    column: 50,
+    table: 40,
+    database: 35,
+    function: 25,
+    operator: 15,
+    keyword: 10,
+  };
+  return base[category] + Math.min(40, Math.floor(Math.log2(count + 1)) * 5);
 }
 
 function findTableByAlias(
@@ -174,152 +125,97 @@ function findTableByName(
   );
 }
 
-type Kind = Completion["type"];
+// ─── Row-level filters ─────────────────────────────────────────────────────
 
-function makeCompletion(
-  label: string,
-  kind: Kind,
-  category: SuggestionCategory,
-  usageKey: string,
-  extras: Partial<Completion> = {},
-): Completion {
-  const tracker = getTracker();
-  return {
-    label,
-    type: kind,
-    boost: usageBoost(tracker.getUsageCount(usageKey), category),
-    ...extras,
-  };
-}
-
-/**
- * Convert the usage-tracker sort hint into a CodeMirror `boost` value.
- * Higher boost = shown earlier. Columns are preferred over tables, etc.
- */
-function usageBoost(count: number, category: SuggestionCategory): number {
-  const base: Record<SuggestionCategory, number> = {
-    column: 50,
-    table: 40,
-    database: 35,
-    function: 25,
-    operator: 15,
-    keyword: 10,
-  };
-  return base[category] + Math.min(40, Math.floor(Math.log2(count + 1)) * 5);
-}
-
-function getColumnSuggestions(
-  context: SQLContext,
-  dbStructure: DatabaseMeta[],
-): Completion[] {
-  const columns: Completion[] = [];
-
-  if (context.fromTables.length > 0) {
-    const hasMultipleTables = context.fromTables.length > 1;
-
-    if (hasMultipleTables) {
-      // Multi-table: show bare column names; table context visible in detail.
-      for (const tableRef of context.fromTables) {
-        const db = tableRef.database || context.selectedDatabase;
-        const table = findTable(dbStructure, db, tableRef.table);
-        if (!table || !db) continue;
-
-        for (const col of table.children) {
-          columns.push(
-            makeCompletion(
-              col.name,
-              "property",
-              "column",
-              `column:${db}.${tableRef.table}.${col.name}`,
-              { detail: `${col.type} • ${db}.${tableRef.table}` },
-            ),
-          );
-        }
-      }
-    } else {
-      for (const tableRef of context.fromTables) {
-        const db = tableRef.database || context.selectedDatabase;
-        const table = findTable(dbStructure, db, tableRef.table);
-        if (!table || !db) continue;
-
-        for (const col of table.children) {
-          columns.push(
-            makeCompletion(
-              col.name,
-              "property",
-              "column",
-              `column:${db}.${tableRef.table}.${col.name}`,
-              { detail: `${col.type} • ${db}.${tableRef.table}` },
-            ),
-          );
-        }
-      }
-    }
-  } else if (context.selectedDatabase) {
-    const db = dbStructure.find(
-      (d) =>
-        d.name.toLowerCase() === context.selectedDatabase?.toLowerCase(),
+function columnsFor(rows: CompletionRow[], tableNames: string[]): Completion[] {
+  const lower = new Set(tableNames.map((n) => n.toLowerCase()));
+  return rows
+    .filter(
+      (r) =>
+        r.context === "column" &&
+        r.belongs !== null &&
+        lower.has(r.belongs.toLowerCase()),
+    )
+    .map((r) =>
+      makeCompletion(r.word, "property", "column", `column:${r.belongs}.${r.word}`, {
+        detail: r.belongs ?? undefined,
+      }),
     );
-    if (db) {
-      for (const table of db.children) {
-        for (const col of table.children) {
-          columns.push(
-            makeCompletion(
-              col.name,
-              "property",
-              "column",
-              `column:${db.name}.${table.name}.${col.name}`,
-              { detail: `${col.type} • ${db.name}.${table.name}` },
-            ),
-          );
-        }
-      }
-    }
-  }
-
-  return columns;
 }
 
-function getTableSuggestions(
+function tablesFor(
+  rows: CompletionRow[],
   databaseName: string,
-  dbStructure: DatabaseMeta[],
   isAfterDot: boolean,
 ): Completion[] {
-  const db = dbStructure.find(
-    (d) => d.name.toLowerCase() === databaseName.toLowerCase(),
-  );
-  if (!db) return [];
-
-  return db.children.map((table) => {
-    const insertText = isAfterDot
-      ? table.name
-      : `${db.name}.${table.name}`;
-    return makeCompletion(
-      table.name,
-      "type",
-      "table",
-      `table:${db.name}.${table.name}`,
-      {
-        apply: insertText,
-        detail: `Table in ${db.name}`,
-      },
+  const lower = databaseName.toLowerCase();
+  return rows
+    .filter(
+      (r) =>
+        r.context === "table" && r.belongs?.toLowerCase() === lower,
+    )
+    .map((r) =>
+      makeCompletion(
+        r.word,
+        "type",
+        "table",
+        `table:${databaseName}.${r.word}`,
+        {
+          apply: isAfterDot ? r.word : `${databaseName}.${r.word}`,
+          detail: `Table in ${databaseName}`,
+        },
+      ),
     );
-  });
 }
 
-function getDatabaseSuggestions(dbStructure: DatabaseMeta[]): Completion[] {
-  return dbStructure.map((db) =>
-    makeCompletion(db.name, "namespace", "database", `database:${db.name}`, {
-      detail: "Database",
-    }),
-  );
+function allDatabases(rows: CompletionRow[]): Completion[] {
+  return rows
+    .filter((r) => r.context === "database")
+    .map((r) =>
+      makeCompletion(r.word, "namespace", "database", `database:${r.word}`, {
+        detail: "Database",
+      }),
+    );
 }
+
+function allTables(rows: CompletionRow[]): Completion[] {
+  return rows
+    .filter((r) => r.context === "table")
+    .map((r) =>
+      makeCompletion(
+        r.word,
+        "type",
+        "table",
+        `table:${r.belongs}.${r.word}`,
+        {
+          apply: r.belongs ? `${r.belongs}.${r.word}` : r.word,
+          detail: r.belongs ? `Table in ${r.belongs}` : "Table",
+        },
+      ),
+    );
+}
+
+function allFunctions(rows: CompletionRow[]): Completion[] {
+  return rows
+    .filter((r) => r.context === "function")
+    .map((r) =>
+      makeCompletion(r.word, "function", "function", `function:${r.word}`, {
+        apply: `${r.word}(`,
+      }),
+    );
+}
+
+function allKeywords(rows: CompletionRow[]): Completion[] {
+  return rows
+    .filter((r) => r.context === "keyword")
+    .map((r) => makeCompletion(r.word, "keyword", "keyword", `keyword:${r.word}`));
+}
+
+// ─── Context-driven suggestion builder ────────────────────────────────────
 
 function getSuggestionsForContext(
   context: SQLContext,
-  dbStructure: DatabaseMeta[],
-  keywords: string[],
-  functions: string[],
+  rows: CompletionRow[],
 ): Completion[] {
   const out: Completion[] = [];
 
@@ -331,59 +227,27 @@ function getSuggestionsForContext(
     case "ORDER_BY":
     case "HAVING": {
       if (context.isAfterDot && context.databasePrefix) {
-        const aliasRef = findTableByAlias(
-          context.databasePrefix,
-          context.fromTables,
-        );
-        if (aliasRef) {
-          const db = aliasRef.database || context.selectedDatabase;
-          const table = findTable(dbStructure, db, aliasRef.table);
-          if (table && db) {
-            for (const col of table.children) {
-              out.push(
-                makeCompletion(
-                  col.name,
-                  "property",
-                  "column",
-                  `column:${db}.${aliasRef.table}.${col.name}`,
-                  { detail: `${col.type} • ${db}.${aliasRef.table}` },
-                ),
-              );
-            }
-          }
+        // Resolve alias → table, table name → table, or fall back to db → tables
+        const ref =
+          findTableByAlias(context.databasePrefix, context.fromTables) ??
+          findTableByName(context.databasePrefix, context.fromTables);
+        if (ref) {
+          out.push(...columnsFor(rows, [ref.table]));
         } else {
-          const tableRef = findTableByName(
-            context.databasePrefix,
-            context.fromTables,
-          );
-          if (tableRef) {
-            const db = tableRef.database || context.selectedDatabase;
-            const table = findTable(dbStructure, db, tableRef.table);
-            if (table && db) {
-              for (const col of table.children) {
-                out.push(
-                  makeCompletion(
-                    col.name,
-                    "property",
-                    "column",
-                    `column:${db}.${tableRef.table}.${col.name}`,
-                    { detail: `${col.type} • ${db}.${tableRef.table}` },
-                  ),
-                );
-              }
-            }
-          } else {
-            out.push(
-              ...getTableSuggestions(
-                context.databasePrefix,
-                dbStructure,
-                true,
-              ),
-            );
-          }
+          out.push(...tablesFor(rows, context.databasePrefix, true));
         }
-      } else {
-        out.push(...getColumnSuggestions(context, dbStructure));
+      } else if (context.fromTables.length > 0) {
+        out.push(...columnsFor(rows, context.fromTables.map((t) => t.table)));
+      } else if (context.selectedDatabase) {
+        // No FROM clause yet — show columns from the selected database
+        const dbTables = rows
+          .filter(
+            (r) =>
+              r.context === "table" &&
+              r.belongs?.toLowerCase() === context.selectedDatabase!.toLowerCase(),
+          )
+          .map((r) => r.word);
+        out.push(...columnsFor(rows, dbTables));
       }
 
       if (context.clauseType === "SELECT") {
@@ -392,37 +256,20 @@ function getSuggestionsForContext(
             detail: "All columns",
           }),
         );
-        for (const fn of functions) {
-          out.push(
-            makeCompletion(fn, "function", "function", `function:${fn}`, {
-              apply: `${fn}(`,
-            }),
-          );
-        }
       }
+
+      out.push(...allFunctions(rows));
 
       if (
         context.clauseType === "WHERE" ||
         context.clauseType === "HAVING" ||
         context.clauseType === "PREWHERE"
       ) {
-        const operators = [
-          "AND",
-          "OR",
-          "NOT",
-          "IN",
-          "LIKE",
-          "BETWEEN",
-          "GLOBAL IN",
-          "GLOBAL NOT IN",
-          "ANY",
-          "ALL",
-          "ILIKE",
-        ];
-        for (const op of operators) {
-          out.push(
-            makeCompletion(op, "keyword", "operator", `operator:${op}`),
-          );
+        for (const op of [
+          "AND", "OR", "NOT", "IN", "LIKE", "BETWEEN",
+          "GLOBAL IN", "GLOBAL NOT IN", "ANY", "ALL", "ILIKE",
+        ]) {
+          out.push(makeCompletion(op, "keyword", "operator", `operator:${op}`));
         }
       }
 
@@ -432,66 +279,32 @@ function getSuggestionsForContext(
           makeCompletion("DESC", "keyword", "keyword", "keyword:DESC"),
         );
       }
-
       break;
     }
 
     case "FROM":
-    case "JOIN": {
-      if (context.isAfterDot && context.databasePrefix) {
-        out.push(
-          ...getTableSuggestions(context.databasePrefix, dbStructure, true),
-        );
-      } else {
-        out.push(...getDatabaseSuggestions(dbStructure));
-        // Show tables from ALL databases so partial names (e.g. "Prod") resolve
-        // across any database, not just the currently selected one.
-        for (const db of dbStructure) {
-          out.push(...getTableSuggestions(db.name, dbStructure, false));
-        }
-      }
-      break;
-    }
-
+    case "JOIN":
     case "INSERT":
     case "UPDATE":
-    case "DELETE": {
+    case "DELETE":
+    case "TO": {
       if (context.isAfterDot && context.databasePrefix) {
-        out.push(
-          ...getTableSuggestions(context.databasePrefix, dbStructure, true),
-        );
+        out.push(...tablesFor(rows, context.databasePrefix, true));
       } else {
-        out.push(...getDatabaseSuggestions(dbStructure));
-        for (const db of dbStructure) {
-          out.push(...getTableSuggestions(db.name, dbStructure, false));
-        }
+        out.push(...allDatabases(rows));
+        out.push(...allTables(rows));
       }
       break;
     }
 
     case "FORMAT": {
-      const formats = [
-        "TabSeparated",
-        "TabSeparatedWithNames",
-        "TabSeparatedWithNamesAndTypes",
-        "CSV",
-        "CSVWithNames",
-        "CSVWithNamesAndTypes",
-        "JSON",
-        "JSONEachRow",
-        "JSONCompact",
-        "JSONCompactEachRow",
-        "Pretty",
-        "PrettyCompact",
-        "PrettySpace",
-        "Vertical",
-        "Values",
-        "XML",
-        "Parquet",
-        "Arrow",
-        "ORC",
-      ];
-      for (const fmt of formats) {
+      for (const fmt of [
+        "TabSeparated", "TabSeparatedWithNames", "TabSeparatedWithNamesAndTypes",
+        "CSV", "CSVWithNames", "CSVWithNamesAndTypes",
+        "JSON", "JSONEachRow", "JSONCompact", "JSONCompactEachRow",
+        "Pretty", "PrettyCompact", "PrettySpace", "Vertical", "Values",
+        "XML", "Parquet", "Arrow", "ORC",
+      ]) {
         out.push(
           makeCompletion(fmt, "enum", "keyword", `keyword:${fmt}`, {
             detail: "Output format",
@@ -511,7 +324,7 @@ function getSuggestionsForContext(
           }),
         );
       }
-      out.push(...getDatabaseSuggestions(dbStructure));
+      out.push(...allDatabases(rows));
       break;
     }
 
@@ -526,41 +339,24 @@ function getSuggestionsForContext(
       break;
     }
 
-    case "TO": {
-      if (context.isAfterDot && context.databasePrefix) {
-        out.push(
-          ...getTableSuggestions(context.databasePrefix, dbStructure, true),
-        );
-      } else {
-        out.push(...getDatabaseSuggestions(dbStructure));
-        for (const db of dbStructure) {
-          out.push(...getTableSuggestions(db.name, dbStructure, false));
-        }
-      }
-      break;
-    }
-
     default: {
-      out.push(...getDatabaseSuggestions(dbStructure));
-      for (const db of dbStructure) {
-        out.push(...getTableSuggestions(db.name, dbStructure, false));
-      }
+      out.push(...allDatabases(rows));
+      out.push(...allTables(rows));
+      out.push(...allFunctions(rows));
       break;
     }
   }
 
-  // Always append base SQL keywords (deduped below).
-  for (const kw of keywords) {
-    out.push(makeCompletion(kw, "keyword", "keyword", `keyword:${kw}`));
-  }
+  out.push(...allKeywords(rows));
 
-  // De-duplicate: columns with the same name from different tables each get
-  // their own row (keyed by label + detail); keywords/functions dedup by label.
+  // Deduplicate: columns with same name from different tables keep separate entries
   const seen = new Set<string>();
   const deduped: Completion[] = [];
   for (const c of out) {
     const key =
-      c.type === "property" && c.detail ? `${c.label}\x00${c.detail}` : c.label;
+      c.type === "property" && c.detail
+        ? `${c.label}\x00${c.detail}`
+        : c.label;
     if (seen.has(key)) continue;
     seen.add(key);
     deduped.push(c);
@@ -573,18 +369,11 @@ function getSuggestionsForContext(
 const IDENTIFIER_BEFORE = /[\w.]+/;
 const IDENTIFIER_VALID = /^[\w.]*$/;
 
-/**
- * CodeMirror CompletionSource that returns ClickHouse-aware suggestions
- * (databases, tables, columns, functions, keywords) based on the SQL
- * context at the cursor.
- */
 export const clickhouseCompletionSource: CompletionSource = async (
   context: CompletionContext,
 ): Promise<CompletionResult | null> => {
   const prefix = context.matchBefore(IDENTIFIER_BEFORE);
 
-  // Also trigger inside function arguments: cursor right after "(" or ","
-  // lets us suggest columns without the user needing to type a prefix first.
   const charBefore =
     context.pos > 0
       ? context.state.doc.sliceString(context.pos - 1, context.pos)
@@ -600,36 +389,16 @@ export const clickhouseCompletionSource: CompletionSource = async (
     selectedDatabase,
   );
 
-  // When the cursor is right after a dot with nothing typed yet (e.g. "db.|"),
-  // from must start at the current position so CodeMirror filters table/column
-  // names against "" rather than "db." (which would match nothing).
-  // Same for right after "(" or "," — start at cursor so filter begins empty.
-  const from = sqlContext.isAfterDot || triggerAfterParen
-    ? (context.matchBefore(/\w*/)?.from ?? context.pos)
-    : (prefix?.from ?? context.pos);
+  const from =
+    sqlContext.isAfterDot || triggerAfterParen
+      ? (context.matchBefore(/\w*/)?.from ?? context.pos)
+      : (prefix?.from ?? context.pos);
   const to = context.pos;
 
-  // Fetch metadata in parallel. Each call is cached per connection so this
-  // is cheap after the first hit.
-  const [dbStructure, functions, keywords] = await Promise.all([
-    getDatabaseStructure(),
-    getFunctions(),
-    getKeywords(),
-  ]);
-
+  const rows = await getAllCompletions();
   if (context.aborted) return null;
 
-  const options = getSuggestionsForContext(
-    sqlContext,
-    dbStructure,
-    keywords,
-    functions,
-  );
+  const options = getSuggestionsForContext(sqlContext, rows);
 
-  return {
-    from,
-    to,
-    options,
-    validFor: IDENTIFIER_VALID,
-  };
+  return { from, to, options, validFor: IDENTIFIER_VALID };
 };
