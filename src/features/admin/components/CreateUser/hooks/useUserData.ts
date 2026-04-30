@@ -15,6 +15,7 @@ interface UserInfo {
   host_names_like: string[];
   default_roles_all: number;
   default_roles_list: string[];
+  default_roles_except: string[];
   default_database: string | null;
   grantees_any: number;
   settings?: UserSettings;
@@ -57,6 +58,7 @@ export function useUserData({ username }: UseUserDataOptions) {
             host_names_like,
             default_roles_all,
             default_roles_list,
+            default_roles_except,
             default_database,
             grantees_any
           FROM system.users
