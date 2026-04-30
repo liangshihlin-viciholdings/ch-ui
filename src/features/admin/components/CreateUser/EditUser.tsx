@@ -2,14 +2,17 @@ import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Form } from "@/components/ui/form";
+import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { useForm } from "react-hook-form";
 import useAppStore from "@/stores/workspaceStore";
 import AuthenticationSection from "./AuthenticationSection";
 import AccessControlSection from "./AccessControlSection";
-import DatabaseRolesSection from "./DatabaseRolesSection";
+import AssignedRolesSection from "./AssignedRolesSection";
+import DefaultRoleBehaviorSection from "./DefaultRoleBehaviorSection";
 import PrivilegesSection from "./PrivilegesSection";
 import SettingsSection from "./SettingsSection";
 import useMetadata from "./hooks/useMetadata";
@@ -49,7 +52,10 @@ const EditUser: React.FC<EditUserProps> = ({
       hostType: "ANY",
       hostValue: "",
       validUntil: undefined,
-      defaultRole: "",
+      assignedRolesList: [] as string[],
+      defaultRoleMode: "ALL" as "ALL" | "SPECIFIC" | "EXCEPT" | "NONE",
+      defaultRolesList: [] as string[],
+      defaultRolesExcept: [] as string[],
       defaultDatabase: "",
       grantees: "NONE",
       settings: {
@@ -76,7 +82,6 @@ const EditUser: React.FC<EditUserProps> = ({
   // Populate form when user data is loaded
   useEffect(() => {
     if (userInfo && directGrants) {
-      // Determine host type and value
       let hostType = "ANY";
       let hostValue = "";
 
@@ -94,16 +99,27 @@ const EditUser: React.FC<EditUserProps> = ({
         hostValue = userInfo.host_names_like.join(", ");
       }
 
-      // Determine grantees
       const grantees = userInfo.grantees_any === 1 ? "ANY" : "NONE";
+
+      let defaultRoleMode: "ALL" | "SPECIFIC" | "EXCEPT" | "NONE" = "NONE";
+      if (userInfo.default_roles_all === 1) {
+        defaultRoleMode = "ALL";
+      } else if ((userInfo.default_roles_list?.length ?? 0) > 0) {
+        defaultRoleMode = "SPECIFIC";
+      } else if ((userInfo.default_roles_except?.length ?? 0) > 0) {
+        defaultRoleMode = "EXCEPT";
+      }
 
       form.reset({
         username: userInfo.name,
-        password: "", // Don't populate password for security
+        password: "",
         hostType,
         hostValue,
         validUntil: undefined,
-        defaultRole: userInfo.default_roles_list?.[0] || "",
+        assignedRolesList: assignedRoles.map((r) => r.roleName),
+        defaultRoleMode,
+        defaultRolesList: userInfo.default_roles_list ?? [],
+        defaultRolesExcept: userInfo.default_roles_except ?? [],
         defaultDatabase: userInfo.default_database || "",
         grantees,
         settings: {
@@ -115,7 +131,7 @@ const EditUser: React.FC<EditUserProps> = ({
         },
       });
     }
-  }, [userInfo, directGrants]);
+  }, [userInfo, directGrants, assignedRoles]);
 
   const onSubmit = async (data: any) => {
     if (!username) return;
@@ -351,12 +367,50 @@ const EditUser: React.FC<EditUserProps> = ({
                   {/* Access Control Section */}
                   <AccessControlSection form={form} />
 
-                  {/* Database and Roles Section */}
-                  <DatabaseRolesSection
+                  {/* Assigned Roles */}
+                  <AssignedRolesSection
                     form={form}
-                    roles={metadata.roles}
-                    databases={metadata.databases}
+                    allRoles={metadata.roles}
                   />
+
+                  {/* Default Role Behaviour */}
+                  <DefaultRoleBehaviorSection
+                    form={form}
+                    assignedRoles={form.watch("assignedRolesList")}
+                  />
+
+                  {/* Default Database */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Default Database</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <FormField
+                        control={form.control}
+                        name="defaultDatabase"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Default Database</FormLabel>
+                            <Select value={field.value} onValueChange={field.onChange}>
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select default database" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {metadata.databases.map((db) => (
+                                  <SelectItem key={db} value={db}>
+                                    {db}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </CardContent>
+                  </Card>
 
                   {/* Settings Section */}
                   <SettingsSection form={form} profiles={metadata.profiles} />
