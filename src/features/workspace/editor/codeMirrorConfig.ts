@@ -9,7 +9,7 @@
 // The builder accepts callbacks so the SqlEditor component can wire its
 // own state without coupling this module to React.
 
-import { acceptCompletion, autocompletion, completionStatus } from "@codemirror/autocomplete";
+import { acceptCompletion, autocompletion, closeCompletion, completionStatus } from "@codemirror/autocomplete";
 import { type SQLConfig, SQLDialect, sql } from "@codemirror/lang-sql";
 import { Prec, type Extension } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
@@ -110,6 +110,23 @@ export function createSqlExtensions(options: SqlExtensionOptions): Extension[] {
 				},
 			}),
 		),
+		// In vim mode, Escape should close the completion popup AND enter
+		// normal mode in a single keypress. Without this, completionKeymap's
+		// Escape handler consumes the event and vim never sees it.
+		...(options.vimMode
+			? [
+					Prec.highest(
+						EditorView.domEventHandlers({
+							keydown(event, view) {
+								if (event.key !== "Escape") return false;
+								if (completionStatus(view.state) !== "active") return false;
+								closeCompletion(view);
+								return false;
+							},
+						}),
+					),
+				]
+			: []),
 		clickhouseSql(),
 		autocompletion({
 			override: [clickhouseCompletionSource],

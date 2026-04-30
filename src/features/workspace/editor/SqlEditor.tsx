@@ -57,7 +57,11 @@ import { toast } from "sonner";
 import { CirclePlay, Save, PlaySquare } from "lucide-react";
 
 import { useTheme } from "@/components/common/theme-provider";
-import useAppStore from "@/stores/workspaceStore";
+import useAppStore, {
+  updateTab,
+  saveQuery,
+  updateSavedQuery,
+} from "@/stores/workspaceStore";
 import { useConnectionStore } from "@/stores/connectionStore";
 import {
   useEditorFontSize,
@@ -213,19 +217,16 @@ const SQLEditor: React.FC<SQLEditorProps> = ({
   onRunAllQueries,
   onFocusChange,
 }) => {
-  const {
-    getTabById,
-    updateTab,
-    saveQuery,
-    updateSavedQuery,
-    dataBaseExplorer,
-    selectedDatabase,
-    activeTab,
-  } = useAppStore();
+  const { dataBaseExplorer, selectedDatabase, activeTab, tab } = useAppStore(
+    (s) => ({
+      dataBaseExplorer: s.dataBaseExplorer,
+      selectedDatabase: s.selectedDatabase,
+      activeTab: s.activeTab,
+      tab: s.tabs?.find((t: { id: string }) => t.id === tabId),
+    }),
+  );
   const { connections, activeConnectionId, getDatabasesForConnection } =
     useConnectionStore();
-
-  const tab = getTabById(tabId);
   const { theme } = useTheme();
   const fontSize = useEditorFontSize();
   const fontFamily = useEditorFontFamily();
@@ -569,7 +570,7 @@ const SQLEditor: React.FC<SQLEditorProps> = ({
     (next: string) => {
       updateTab(tabId, { content: next });
     },
-    [tabId, updateTab],
+    [tabId],
   );
 
   const handleUpdate = useCallback(
@@ -841,4 +842,4 @@ const SQLEditor: React.FC<SQLEditorProps> = ({
   );
 };
 
-export default SQLEditor;
+export default React.memo(SQLEditor);

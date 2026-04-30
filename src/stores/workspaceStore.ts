@@ -174,19 +174,6 @@ export const workspaceStore = new Store<WorkspaceStateData>({
   userPrivileges: null,
 });
 
-// DEBUG: Log state size on changes
-workspaceStore.subscribe(() => {
-  const s = workspaceStore.state;
-  const tabsWithResults = s.tabs.filter((t) => t.result?.data?.length);
-  console.log("[Store] state change", {
-    tabCount: s.tabs.length,
-    tabsWithResults: tabsWithResults.length,
-    totalRows: tabsWithResults.reduce(
-      (sum, t) => sum + (t.result?.data?.length ?? 0),
-      0
-    ),
-  });
-});
 
 // Persist a subset of state (mirrors the old Zustand `partialize`).
 workspaceStore.subscribe(() => {

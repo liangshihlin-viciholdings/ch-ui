@@ -11,15 +11,17 @@ import CreateDatabase from "@/features/explorer/components/CreateDatabase";
 import UploadFromFile from "@/features/explorer/components/UploadFile";
 import { useDefaultLayout } from "react-resizable-panels";
 
+const homeLayoutOptions = {
+  groupId: "unique-layout-id",
+  storage: localStorage,
+} as const;
+
 function HomePage() {
   useEffect(() => {
     document.title = "CH-UI | Home - Workspace";
   }, []);
 
-  const { defaultLayout, onLayoutChanged } = useDefaultLayout({
-    groupId: "unique-layout-id",
-    storage: localStorage,
-  });
+  const { defaultLayout, onLayoutChanged } = useDefaultLayout(homeLayoutOptions);
 
   return (
     <div className="h-screen w-full overflow-auto">

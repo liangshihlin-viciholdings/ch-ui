@@ -7,7 +7,7 @@ import {
 	Rows2,
 } from "lucide-react";
 import type React from "react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useDefaultLayout } from "react-resizable-panels";
 import { toast } from "sonner";
 import { DataTable } from "@/components/common/DataTable";
@@ -26,11 +26,15 @@ import {
 	TooltipProvider,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
-// Component imports
 import SQLEditor from "@/features/workspace/editor/SqlEditor";
 import { ExplainTab } from "@/features/workspace/explain/components/ExplainTab";
-// Store
-import useAppStore from "@/stores/workspaceStore";
+import useAppStore, {
+	runQuery,
+	runAllQueries,
+	cancelQuery,
+	fetchDatabaseInfo,
+	updateTab,
+} from "@/stores/workspaceStore";
 import type { QueryResult } from "@/types/common";
 import EmptyQueryResult from "./EmptyQueryResult";
 import MultiResultTabs from "./MultiResultTabs";
@@ -39,26 +43,15 @@ interface SqlTabProps {
 	tabId: string;
 }
 
-// DEBUG: render counter
-const sqlTabRenders: Record<string, number> = {};
+const layoutOptions = {
+	groupId: "sql-tab-layout",
+	storage: localStorage,
+} as const;
 
-/**
- * SqlTab: SQL editor on top, query results on the bottom (resizable).
- * Results are rendered via TanStack Table (`DataTable`).
- */
 const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
-	sqlTabRenders[tabId] = (sqlTabRenders[tabId] ?? 0) + 1;
-	console.log("[SqlTab] render #", sqlTabRenders[tabId], { tabId });
-
-	const {
-		getTabById,
-		runQuery,
-		runAllQueries,
-		cancelQuery,
-		fetchDatabaseInfo,
-		updateTab,
-	} = useAppStore();
-	const tab = getTabById(tabId);
+	const tab = useAppStore(
+		(s) => s.tabs?.find((t: { id: string }) => t.id === tabId),
+	);
 	const [activeTab, setActiveTab] = useState<string>("results");
 
 	// Last query for refresh
@@ -109,7 +102,7 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
 				);
 			}
 		},
-		[runQuery, tabId, fetchDatabaseInfo, updateTab],
+		[tabId],
 	);
 
 	const handleRunAllQueries = useCallback(
@@ -131,7 +124,7 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
 				);
 			}
 		},
-		[runAllQueries, tabId, fetchDatabaseInfo],
+		[tabId],
 	);
 
 	const handleRefresh = useCallback(async () => {
@@ -148,7 +141,7 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
 		(index: number) => {
 			updateTab(tabId, { activeResultIndex: index });
 		},
-		[tabId, updateTab],
+		[tabId],
 	);
 
 	// Save orientation preference to localStorage
@@ -345,10 +338,7 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
 		return renderResultTabs();
 	};
 
-	const { defaultLayout, onLayoutChanged } = useDefaultLayout({
-		groupId: "sql-tab-layout",
-		storage: localStorage,
-	});
+	const { defaultLayout, onLayoutChanged } = useDefaultLayout(layoutOptions);
 
 	if (!tab) return null;
 

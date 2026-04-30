@@ -84,4 +84,4 @@ const EmptyQueryResult: React.FC<EmptyQueryResultProps> = ({ statistics }) => {
   );
 };
 
-export default EmptyQueryResult;
+export default React.memo(EmptyQueryResult);

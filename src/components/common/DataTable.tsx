@@ -242,19 +242,12 @@ const MemoizedTableRow = memo(TableRowComponent, (prev, next) => {
  * theme automatically.
  */
 // DEBUG: render counter
-let tableRenderCount = 0;
-
-export function DataTable({
+function DataTableInner({
 	data,
 	height = "350px",
 	enablePagination = true,
 	pageSize: initialPageSize = 100,
 }: DataTableProps) {
-	tableRenderCount++;
-	console.log("[DataTable] render #", tableRenderCount, {
-		rowCount: data?.data?.length ?? 0,
-	});
-
 	const containerRef = useRef<HTMLDivElement>(null);
 	const contextMenuCellRef = useRef<{
 		value: unknown;
@@ -728,4 +721,5 @@ export function DataTable({
 	);
 }
 
+export const DataTable = memo(DataTableInner);
 export default DataTable;

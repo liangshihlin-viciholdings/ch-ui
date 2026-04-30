@@ -171,4 +171,4 @@ const MultiResultTabs: React.FC<MultiResultTabsProps> = ({
   );
 };
 
-export default MultiResultTabs;
+export default React.memo(MultiResultTabs);
