@@ -21,13 +21,6 @@ const DefaultRoleBehaviorSection: React.FC<DefaultRoleBehaviorSectionProps> = ({
 }) => {
   const mode: DefaultRoleMode = form.watch("defaultRoleMode");
 
-  const toggleRole = (fieldName: string, role: string, current: string[]) => {
-    const next = current.includes(role)
-      ? current.filter((r) => r !== role)
-      : [...current, role];
-    form.setValue(fieldName, next);
-  };
-
   return (
     <Card>
       <CardHeader>
@@ -46,7 +39,11 @@ const DefaultRoleBehaviorSection: React.FC<DefaultRoleBehaviorSectionProps> = ({
               <FormControl>
                 <RadioGroup
                   value={field.value}
-                  onValueChange={field.onChange}
+                  onValueChange={(val) => {
+                    field.onChange(val);
+                    if (val !== "SPECIFIC") form.setValue("defaultRolesList", []);
+                    if (val !== "EXCEPT") form.setValue("defaultRolesExcept", []);
+                  }}
                   className="space-y-2"
                 >
                   <label className="flex items-center gap-2 cursor-pointer">
@@ -74,9 +71,13 @@ const DefaultRoleBehaviorSection: React.FC<DefaultRoleBehaviorSectionProps> = ({
                             <label key={role} className="flex items-center gap-2 cursor-pointer">
                               <Checkbox
                                 checked={(listField.value ?? []).includes(role)}
-                                onCheckedChange={() =>
-                                  toggleRole("defaultRolesList", role, listField.value ?? [])
-                                }
+                                onCheckedChange={() => {
+                                  const current: string[] = listField.value ?? [];
+                                  const next = current.includes(role)
+                                    ? current.filter((r: string) => r !== role)
+                                    : [...current, role];
+                                  listField.onChange(next);
+                                }}
                               />
                               <span className="text-sm">{role}</span>
                             </label>
@@ -105,9 +106,13 @@ const DefaultRoleBehaviorSection: React.FC<DefaultRoleBehaviorSectionProps> = ({
                             <label key={role} className="flex items-center gap-2 cursor-pointer">
                               <Checkbox
                                 checked={(exceptField.value ?? []).includes(role)}
-                                onCheckedChange={() =>
-                                  toggleRole("defaultRolesExcept", role, exceptField.value ?? [])
-                                }
+                                onCheckedChange={() => {
+                                  const current: string[] = exceptField.value ?? [];
+                                  const next = current.includes(role)
+                                    ? current.filter((r: string) => r !== role)
+                                    : [...current, role];
+                                  exceptField.onChange(next);
+                                }}
                               />
                               <span className="text-sm">{role}</span>
                             </label>

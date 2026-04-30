@@ -1,6 +1,6 @@
 import React from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { FormField, FormItem, FormControl } from "@/components/ui/form";
+import { FormField, FormItem } from "@/components/ui/form";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 
@@ -36,15 +36,13 @@ const AssignedRolesSection: React.FC<AssignedRolesSectionProps> = ({ form, allRo
                     <p className="text-sm text-muted-foreground">No roles defined.</p>
                   )}
                   {allRoles.map((role) => (
-                    <FormControl key={role}>
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <Checkbox
-                          checked={selected.includes(role)}
-                          onCheckedChange={() => toggle(role)}
-                        />
-                        <span className="text-sm">{role}</span>
-                      </label>
-                    </FormControl>
+                    <label key={role} className="flex items-center gap-2 cursor-pointer">
+                      <Checkbox
+                        checked={selected.includes(role)}
+                        onCheckedChange={() => toggle(role)}
+                      />
+                      <span className="text-sm">{role}</span>
+                    </label>
                   ))}
                 </div>
                 {selected.length > 0 && (

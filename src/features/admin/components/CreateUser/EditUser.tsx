@@ -94,7 +94,7 @@ const EditUser: React.FC<EditUserProps> = ({
 
   // Populate form when user data is loaded
   useEffect(() => {
-    if (userInfo && directGrants) {
+    if (userInfo && directGrants && !grantsLoading) {
       let hostType = "ANY";
       let hostValue = "";
 
@@ -137,7 +137,7 @@ const EditUser: React.FC<EditUserProps> = ({
         },
       });
     }
-  }, [userInfo, directGrants]);
+  }, [userInfo, directGrants, assignedRoles, grantsLoading]);
 
   const onSubmit = async (data: any) => {
     if (!username) return;
@@ -222,16 +222,23 @@ const EditUser: React.FC<EditUserProps> = ({
       const rolesToGrant = newAssigned.filter((r) => !originalAssigned.includes(r));
       const rolesToRevoke = originalAssigned.filter((r) => !newAssigned.includes(r));
 
-      rolesToGrant.forEach((r) => statements.push(`GRANT ${q(r)} TO ${username}`));
-      rolesToRevoke.forEach((r) => statements.push(`REVOKE ${q(r)} FROM ${username}`));
+      rolesToGrant.forEach((r) => statements.push(`GRANT ${q(r)} TO ${q(username)}`));
+      rolesToRevoke.forEach((r) => statements.push(`REVOKE ${q(r)} FROM ${q(username)}`));
 
       // 7. Handle default-role-behaviour changes
+      const effectiveDefaultList = (data.defaultRolesList ?? []).filter((r: string) =>
+        newAssigned.includes(r)
+      );
+      const effectiveExceptList = (data.defaultRolesExcept ?? []).filter((r: string) =>
+        newAssigned.includes(r)
+      );
+
       const originalMode = userInfo ? deriveDefaultRoleMode(userInfo) : "NONE";
 
       const originalSpecific = [...(userInfo?.default_roles_list ?? [])].sort().join(",");
       const originalExcept = [...(userInfo?.default_roles_except ?? [])].sort().join(",");
-      const newSpecific = [...(data.defaultRolesList ?? [])].sort().join(",");
-      const newExcept = [...(data.defaultRolesExcept ?? [])].sort().join(",");
+      const newSpecific = [...effectiveDefaultList].sort().join(",");
+      const newExcept = [...effectiveExceptList].sort().join(",");
 
       const defaultRoleChanged =
         data.defaultRoleMode !== originalMode ||
@@ -241,28 +248,28 @@ const EditUser: React.FC<EditUserProps> = ({
       if (defaultRoleChanged) {
         switch (data.defaultRoleMode) {
           case "ALL":
-            statements.push(`ALTER USER ${username} DEFAULT ROLE ALL`);
+            statements.push(`ALTER USER ${q(username)} DEFAULT ROLE ALL`);
             break;
           case "SPECIFIC": {
-            const roles = (data.defaultRolesList ?? []).map(q).join(", ");
+            const roles = effectiveDefaultList.map(q).join(", ");
             if (roles) {
-              statements.push(`ALTER USER ${username} DEFAULT ROLE ${roles}`);
+              statements.push(`ALTER USER ${q(username)} DEFAULT ROLE ${roles}`);
             } else {
-              statements.push(`ALTER USER ${username} DEFAULT ROLE NONE`);
+              statements.push(`ALTER USER ${q(username)} DEFAULT ROLE NONE`);
             }
             break;
           }
           case "EXCEPT": {
-            const except = (data.defaultRolesExcept ?? []).map(q).join(", ");
+            const except = effectiveExceptList.map(q).join(", ");
             if (except) {
-              statements.push(`ALTER USER ${username} DEFAULT ROLE ALL EXCEPT ${except}`);
+              statements.push(`ALTER USER ${q(username)} DEFAULT ROLE ALL EXCEPT ${except}`);
             } else {
-              statements.push(`ALTER USER ${username} DEFAULT ROLE ALL`);
+              statements.push(`ALTER USER ${q(username)} DEFAULT ROLE ALL`);
             }
             break;
           }
           case "NONE":
-            statements.push(`ALTER USER ${username} DEFAULT ROLE NONE`);
+            statements.push(`ALTER USER ${q(username)} DEFAULT ROLE NONE`);
             break;
         }
       }
