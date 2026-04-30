@@ -11,7 +11,7 @@ export const Route = createRootRoute({
 
 function RootLayout() {
   return (
-    <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme">
+    <ThemeProvider defaultTheme="kanso" storageKey="vite-ui-theme">
       <AppearanceProvider>
         <AutoRefreshProvider>
           <AppInitializer>
