@@ -29,6 +29,19 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { PendingChange } from "../PermissionsConfig/types";
 
+type DefaultRoleMode = "ALL" | "SPECIFIC" | "EXCEPT" | "NONE";
+
+function deriveDefaultRoleMode(userInfo: {
+  default_roles_all: number;
+  default_roles_list?: string[];
+  default_roles_except?: string[];
+}): DefaultRoleMode {
+  if (userInfo.default_roles_all === 1) return "ALL";
+  if ((userInfo.default_roles_list?.length ?? 0) > 0) return "SPECIFIC";
+  if ((userInfo.default_roles_except?.length ?? 0) > 0) return "EXCEPT";
+  return "NONE";
+}
+
 interface EditUserProps {
   username: string;
   onBack: () => void;
@@ -101,14 +114,7 @@ const EditUser: React.FC<EditUserProps> = ({
 
       const grantees = userInfo.grantees_any === 1 ? "ANY" : "NONE";
 
-      let defaultRoleMode: "ALL" | "SPECIFIC" | "EXCEPT" | "NONE" = "NONE";
-      if (userInfo.default_roles_all === 1) {
-        defaultRoleMode = "ALL";
-      } else if ((userInfo.default_roles_list?.length ?? 0) > 0) {
-        defaultRoleMode = "SPECIFIC";
-      } else if ((userInfo.default_roles_except?.length ?? 0) > 0) {
-        defaultRoleMode = "EXCEPT";
-      }
+      const defaultRoleMode = deriveDefaultRoleMode(userInfo);
 
       form.reset({
         username: userInfo.name,
@@ -141,6 +147,7 @@ const EditUser: React.FC<EditUserProps> = ({
       setLoading(true);
 
       const statements: string[] = [];
+      const q = (id: string) => `\`${id.replace(/`/g, "``")}\``;
 
       // 1. Handle password change (only if provided)
       if (data.password) {
@@ -215,18 +222,11 @@ const EditUser: React.FC<EditUserProps> = ({
       const rolesToGrant = newAssigned.filter((r) => !originalAssigned.includes(r));
       const rolesToRevoke = originalAssigned.filter((r) => !newAssigned.includes(r));
 
-      rolesToGrant.forEach((r) => statements.push(`GRANT ${r} TO ${username}`));
-      rolesToRevoke.forEach((r) => statements.push(`REVOKE ${r} FROM ${username}`));
+      rolesToGrant.forEach((r) => statements.push(`GRANT ${q(r)} TO ${username}`));
+      rolesToRevoke.forEach((r) => statements.push(`REVOKE ${q(r)} FROM ${username}`));
 
       // 7. Handle default-role-behaviour changes
-      const originalMode: "ALL" | "SPECIFIC" | "EXCEPT" | "NONE" =
-        userInfo?.default_roles_all === 1
-          ? "ALL"
-          : (userInfo?.default_roles_list?.length ?? 0) > 0
-          ? "SPECIFIC"
-          : (userInfo?.default_roles_except?.length ?? 0) > 0
-          ? "EXCEPT"
-          : "NONE";
+      const originalMode = userInfo ? deriveDefaultRoleMode(userInfo) : "NONE";
 
       const originalSpecific = [...(userInfo?.default_roles_list ?? [])].sort().join(",");
       const originalExcept = [...(userInfo?.default_roles_except ?? [])].sort().join(",");
@@ -244,16 +244,20 @@ const EditUser: React.FC<EditUserProps> = ({
             statements.push(`ALTER USER ${username} DEFAULT ROLE ALL`);
             break;
           case "SPECIFIC": {
-            const roles = (data.defaultRolesList ?? []).join(", ");
+            const roles = (data.defaultRolesList ?? []).map(q).join(", ");
             if (roles) {
               statements.push(`ALTER USER ${username} DEFAULT ROLE ${roles}`);
+            } else {
+              statements.push(`ALTER USER ${username} DEFAULT ROLE NONE`);
             }
             break;
           }
           case "EXCEPT": {
-            const except = (data.defaultRolesExcept ?? []).join(", ");
+            const except = (data.defaultRolesExcept ?? []).map(q).join(", ");
             if (except) {
               statements.push(`ALTER USER ${username} DEFAULT ROLE ALL EXCEPT ${except}`);
+            } else {
+              statements.push(`ALTER USER ${username} DEFAULT ROLE ALL`);
             }
             break;
           }
