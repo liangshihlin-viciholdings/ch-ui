@@ -66,7 +66,7 @@ const RoleEditor: React.FC<RoleEditorProps> = ({ role, isCreating, onClose, onAd
           if (!permission) continue;
           const grantSql = generateGrant(permission, grant.scope, roleName);
           if (grantSql) {
-            sqlStatements.push(...grantSql);
+            sqlStatements.push(grantSql);
           }
         }
 
@@ -96,7 +96,7 @@ const RoleEditor: React.FC<RoleEditorProps> = ({ role, isCreating, onClose, onAd
             if (!permission) continue;
             const revokeSql = generateRevoke(permission, grant.scope, roleName);
             if (revokeSql) {
-              sqlStatements.push(...revokeSql);
+              sqlStatements.push(revokeSql);
             }
           }
         }
@@ -109,7 +109,7 @@ const RoleEditor: React.FC<RoleEditorProps> = ({ role, isCreating, onClose, onAd
             if (!permission) continue;
             const grantSql = generateGrant(permission, grant.scope, roleName);
             if (grantSql) {
-              sqlStatements.push(...grantSql);
+              sqlStatements.push(grantSql);
             }
           }
         }

@@ -66,7 +66,7 @@ export default function Admin() {
             {pendingChanges.length > 0 && (
               <Button
                 onClick={toggleReviewPanel}
-                variant="outline"
+                variant="destructive"
                 className="gap-2"
               >
                 <FileText className="w-4 h-4" />
