@@ -192,7 +192,22 @@ const EditUser: React.FC<EditUserProps> = ({
         statements.push(`ALTER USER ${username} GRANTEES ${data.grantees}`);
       }
 
-      // 6. Handle permission changes - diff original vs new grants
+      // 6. Handle default role change
+      const currentDefaultRole = data.defaultRole || "";
+      const originalDefaultRole = userInfo?.default_roles_list?.[0] || "";
+      if (currentDefaultRole !== originalDefaultRole) {
+        if (currentDefaultRole) {
+          const isAlreadyAssigned = assignedRoles.some((r) => r.roleName === currentDefaultRole);
+          if (!isAlreadyAssigned) {
+            statements.push(`GRANT ${currentDefaultRole} TO ${username}`);
+          }
+          statements.push(`ALTER USER ${username} DEFAULT ROLE ${currentDefaultRole}`);
+        } else {
+          statements.push(`ALTER USER ${username} DEFAULT ROLE NONE`);
+        }
+      }
+
+      // 7. Handle permission changes - diff original vs new grants
       const originalGrants: GrantedPermission[] = directGrants || [];
       const newGrants: GrantedPermission[] = data.privileges.grants || [];
 
