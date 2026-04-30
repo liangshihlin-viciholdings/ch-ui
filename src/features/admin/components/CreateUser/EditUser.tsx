@@ -131,7 +131,7 @@ const EditUser: React.FC<EditUserProps> = ({
         },
       });
     }
-  }, [userInfo, directGrants, assignedRoles]);
+  }, [userInfo, directGrants]);
 
   const onSubmit = async (data: any) => {
     if (!username) return;
@@ -208,22 +208,62 @@ const EditUser: React.FC<EditUserProps> = ({
         statements.push(`ALTER USER ${username} GRANTEES ${data.grantees}`);
       }
 
-      // 6. Handle default role change
-      const currentDefaultRole = data.defaultRole || "";
-      const originalDefaultRole = userInfo?.default_roles_list?.[0] || "";
-      if (currentDefaultRole !== originalDefaultRole) {
-        if (currentDefaultRole) {
-          const isAlreadyAssigned = assignedRoles.some((r) => r.roleName === currentDefaultRole);
-          if (!isAlreadyAssigned) {
-            statements.push(`GRANT ${currentDefaultRole} TO ${username}`);
+      // 6. Handle assigned-role changes (GRANT / REVOKE)
+      const originalAssigned = assignedRoles.map((r) => r.roleName);
+      const newAssigned: string[] = data.assignedRolesList ?? [];
+
+      const rolesToGrant = newAssigned.filter((r) => !originalAssigned.includes(r));
+      const rolesToRevoke = originalAssigned.filter((r) => !newAssigned.includes(r));
+
+      rolesToGrant.forEach((r) => statements.push(`GRANT ${r} TO ${username}`));
+      rolesToRevoke.forEach((r) => statements.push(`REVOKE ${r} FROM ${username}`));
+
+      // 7. Handle default-role-behaviour changes
+      const originalMode: "ALL" | "SPECIFIC" | "EXCEPT" | "NONE" =
+        userInfo?.default_roles_all === 1
+          ? "ALL"
+          : (userInfo?.default_roles_list?.length ?? 0) > 0
+          ? "SPECIFIC"
+          : (userInfo?.default_roles_except?.length ?? 0) > 0
+          ? "EXCEPT"
+          : "NONE";
+
+      const originalSpecific = [...(userInfo?.default_roles_list ?? [])].sort().join(",");
+      const originalExcept = [...(userInfo?.default_roles_except ?? [])].sort().join(",");
+      const newSpecific = [...(data.defaultRolesList ?? [])].sort().join(",");
+      const newExcept = [...(data.defaultRolesExcept ?? [])].sort().join(",");
+
+      const defaultRoleChanged =
+        data.defaultRoleMode !== originalMode ||
+        (data.defaultRoleMode === "SPECIFIC" && newSpecific !== originalSpecific) ||
+        (data.defaultRoleMode === "EXCEPT" && newExcept !== originalExcept);
+
+      if (defaultRoleChanged) {
+        switch (data.defaultRoleMode) {
+          case "ALL":
+            statements.push(`ALTER USER ${username} DEFAULT ROLE ALL`);
+            break;
+          case "SPECIFIC": {
+            const roles = (data.defaultRolesList ?? []).join(", ");
+            if (roles) {
+              statements.push(`ALTER USER ${username} DEFAULT ROLE ${roles}`);
+            }
+            break;
           }
-          statements.push(`ALTER USER ${username} DEFAULT ROLE ${currentDefaultRole}`);
-        } else {
-          statements.push(`ALTER USER ${username} DEFAULT ROLE NONE`);
+          case "EXCEPT": {
+            const except = (data.defaultRolesExcept ?? []).join(", ");
+            if (except) {
+              statements.push(`ALTER USER ${username} DEFAULT ROLE ALL EXCEPT ${except}`);
+            }
+            break;
+          }
+          case "NONE":
+            statements.push(`ALTER USER ${username} DEFAULT ROLE NONE`);
+            break;
         }
       }
 
-      // 7. Handle permission changes - diff original vs new grants
+      // 8. Handle permission changes — diff original vs new grants
       const originalGrants: GrantedPermission[] = directGrants || [];
       const newGrants: GrantedPermission[] = data.privileges.grants || [];
 
