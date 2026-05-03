@@ -354,15 +354,21 @@ function DataTableInner({
 			id: SELECT_COLUMN_ID,
 			header: ({ table }) => (
 				<Checkbox
-					checked={table.getIsAllPageRowsSelected()}
-					onCheckedChange={table.getToggleAllPageRowsSelectedHandler()}
+					checked={
+						table.getIsAllPageRowsSelected()
+							? true
+							: table.getIsSomePageRowsSelected()
+								? "indeterminate"
+								: false
+					}
+					onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
 					title="Select all on page"
 				/>
 			),
 			cell: ({ row }) => (
 				<Checkbox
 					checked={row.getIsSelected()}
-					onCheckedChange={row.getToggleSelectedHandler()}
+					onCheckedChange={(value) => row.toggleSelected(!!value)}
 					onClick={(e) => e.stopPropagation()}
 				/>
 			),
