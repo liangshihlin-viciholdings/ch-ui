@@ -12,7 +12,6 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SessionsRouteImport } from './routes/sessions'
 import { Route as ServicesRouteImport } from './routes/services'
-import { Route as MetricsRouteImport } from './routes/metrics'
 import { Route as LogsRouteImport } from './routes/logs'
 import { Route as AlertsRouteImport } from './routes/alerts'
 import { Route as AdminRouteImport } from './routes/admin'
@@ -37,11 +36,6 @@ const SessionsRoute = SessionsRouteImport.update({
 const ServicesRoute = ServicesRouteImport.update({
   id: '/services',
   path: '/services',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const MetricsRoute = MetricsRouteImport.update({
-  id: '/metrics',
-  path: '/metrics',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LogsRoute = LogsRouteImport.update({
@@ -100,7 +94,6 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRoute
   '/alerts': typeof AlertsRoute
   '/logs': typeof LogsRoute
-  '/metrics': typeof MetricsRoute
   '/services': typeof ServicesRoute
   '/sessions': typeof SessionsRoute
   '/settings': typeof SettingsRoute
@@ -116,7 +109,6 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminRoute
   '/alerts': typeof AlertsRoute
   '/logs': typeof LogsRoute
-  '/metrics': typeof MetricsRoute
   '/services': typeof ServicesRoute
   '/sessions': typeof SessionsRoute
   '/settings': typeof SettingsRoute
@@ -133,7 +125,6 @@ export interface FileRoutesById {
   '/admin': typeof AdminRoute
   '/alerts': typeof AlertsRoute
   '/logs': typeof LogsRoute
-  '/metrics': typeof MetricsRoute
   '/services': typeof ServicesRoute
   '/sessions': typeof SessionsRoute
   '/settings': typeof SettingsRoute
@@ -151,7 +142,6 @@ export interface FileRouteTypes {
     | '/admin'
     | '/alerts'
     | '/logs'
-    | '/metrics'
     | '/services'
     | '/sessions'
     | '/settings'
@@ -167,7 +157,6 @@ export interface FileRouteTypes {
     | '/admin'
     | '/alerts'
     | '/logs'
-    | '/metrics'
     | '/services'
     | '/sessions'
     | '/settings'
@@ -183,7 +172,6 @@ export interface FileRouteTypes {
     | '/admin'
     | '/alerts'
     | '/logs'
-    | '/metrics'
     | '/services'
     | '/sessions'
     | '/settings'
@@ -200,7 +188,6 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRoute
   AlertsRoute: typeof AlertsRoute
   LogsRoute: typeof LogsRoute
-  MetricsRoute: typeof MetricsRoute
   ServicesRoute: typeof ServicesRoute
   SessionsRoute: typeof SessionsRoute
   SettingsRoute: typeof SettingsRoute
@@ -233,13 +220,6 @@ declare module '@tanstack/react-router' {
       path: '/services'
       fullPath: '/services'
       preLoaderRoute: typeof ServicesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/metrics': {
-      id: '/metrics'
-      path: '/metrics'
-      fullPath: '/metrics'
-      preLoaderRoute: typeof MetricsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/logs': {
@@ -320,7 +300,6 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRoute: AdminRoute,
   AlertsRoute: AlertsRoute,
   LogsRoute: LogsRoute,
-  MetricsRoute: MetricsRoute,
   ServicesRoute: ServicesRoute,
   SessionsRoute: SessionsRoute,
   SettingsRoute: SettingsRoute,

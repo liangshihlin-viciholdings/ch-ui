@@ -1104,13 +1104,6 @@ export async function fetchSavedQueries(): Promise<SavedQuery[]> {
 
 export function clearLocalData() {
   try {
-    const keysToRemove: string[] = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const k = localStorage.key(i)!;
-      if (k.startsWith("metrics_layout_")) keysToRemove.push(k);
-    }
-    keysToRemove.forEach((k) => localStorage.removeItem(k));
-
     patch({
       tabs: [
         {

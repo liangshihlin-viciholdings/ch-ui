@@ -3,8 +3,6 @@ import ReactDOM from "react-dom/client";
 import HyperDX from "@hyperdx/browser";
 import App from "./App";
 import "./index.css";
-import "uplot/dist/uPlot.min.css";
-import "./features/metrics/components/uplot.css";
 import { Toaster } from "@/components/ui/sonner";
 
 const otelEndpoint = import.meta.env.VITE_OTEL_ENDPOINT;

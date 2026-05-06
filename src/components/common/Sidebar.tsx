@@ -7,7 +7,6 @@ import {
   Search,
   ChevronRight,
   ChevronLeft,
-  LineChart,
   BookText,
   ShieldCheck,
   CogIcon,
@@ -108,7 +107,6 @@ const Sidebar = () => {
 
   const navItems = [
     { to: "/", label: "Home", icon: SquareTerminal, isNewWindow: false },
-    { to: "/metrics", label: "Metrics", icon: LineChart, isNewWindow: false },
     { to: "/logs", label: "Logs", icon: ScrollText, isNewWindow: false },
     {
       to: "/dashboards",

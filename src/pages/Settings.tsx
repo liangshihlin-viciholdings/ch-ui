@@ -21,7 +21,7 @@ export default function SettingsPage() {
 
   const handleClearLocal = () => {
     const confirmed = window.confirm(
-      "This will clear tabs and metrics layouts saved locally. Credentials are kept. Continue?"
+      "This will clear tabs saved locally. Credentials are kept. Continue?"
     );
     if (!confirmed) return;
     clearLocalData();
