@@ -117,10 +117,11 @@ export function TimeSeriesChart({ data, config, height }: ChartProps) {
           />
           <Tooltip
             contentStyle={{
-              background: "rgba(0, 0, 0, 0.85)",
-              border: "1px solid rgba(255, 255, 255, 0.1)",
+              background: "hsl(var(--popover))",
+              border: "1px solid hsl(var(--border))",
               borderRadius: 6,
               fontSize: 12,
+              color: "hsl(var(--popover-foreground))",
             }}
             formatter={(v) => formatNumber(Number(v))}
           />
@@ -156,10 +157,11 @@ export function TimeSeriesChart({ data, config, height }: ChartProps) {
         labelFormatter={(v) => formatTick(Number(v))}
         formatter={(value, name) => smartFormat(Number(value), String(name))}
         contentStyle={{
-          background: "rgba(0, 0, 0, 0.85)",
-          border: "1px solid rgba(255, 255, 255, 0.1)",
+          background: "hsl(var(--popover))",
+          border: "1px solid hsl(var(--border))",
           borderRadius: 6,
           fontSize: 12,
+          color: "hsl(var(--popover-foreground))",
         }}
       />
       <Legend wrapperStyle={{ fontSize: 12 }} />
