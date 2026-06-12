@@ -44,6 +44,8 @@ interface Tab {
   results?: MultiQueryResult[];
   activeResultIndex?: number;
   isDirty?: boolean;
+  /** Connection this tab is bound to. null = uses the active/default connection. */
+  connectionId?: string | null;
 }
 
 export interface ExplainNode {
