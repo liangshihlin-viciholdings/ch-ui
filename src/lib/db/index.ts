@@ -42,6 +42,18 @@ export class ChUiDatabase extends Dexie {
       savedSearches: "id, name, createdAt, updatedAt",
       alerts: "id, name, enabled, createdAt, updatedAt",
     });
+
+    // v5: add engine field, default existing connections to clickhouse
+    this.version(5).stores({
+      connections: "id, name, engine, isDefault, createdAt",
+    }).upgrade((tx) => {
+      return tx
+        .table("connections")
+        .toCollection()
+        .modify((conn: any) => {
+          if (!conn.engine) conn.engine = "clickhouse";
+        });
+    });
   }
 }
 

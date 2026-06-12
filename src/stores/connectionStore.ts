@@ -11,6 +11,7 @@ import { useStore } from "@tanstack/react-store";
 import {
   SavedConnection,
   ConnectionDisplay,
+  Engine,
   ExportData,
   ExportedConnection,
   ExportedSavedQuery,
@@ -41,6 +42,7 @@ function toDisplay(conn: SavedConnection): ConnectionDisplay {
   return {
     id: conn.id,
     name: conn.name,
+    engine: conn.engine,
     url: conn.url,
     username: conn.username,
     password: conn.password,
@@ -50,6 +52,7 @@ function toDisplay(conn: SavedConnection): ConnectionDisplay {
     isDistributed: conn.isDistributed,
     clusterName: conn.clusterName,
     isDefault: conn.isDefault,
+    filePath: conn.filePath,
     createdAt: conn.createdAt,
     updatedAt: conn.updatedAt,
   };
@@ -169,6 +172,7 @@ export async function loadConnections(): Promise<void> {
 
 export async function saveConnection(connection: {
   name: string;
+  engine?: Engine;
   url: string;
   username: string;
   password: string;
@@ -178,6 +182,7 @@ export async function saveConnection(connection: {
   isDistributed?: boolean;
   clusterName?: string;
   isDefault?: boolean;
+  filePath?: string;
 }): Promise<SavedConnection | null> {
   connectionStore.setState((prev) => ({
     ...prev,
@@ -188,6 +193,7 @@ export async function saveConnection(connection: {
   try {
     const newConnection = await createConnection({
       name: connection.name,
+      engine: connection.engine ?? "clickhouse",
       url: connection.url,
       username: connection.username,
       password: connection.password,
@@ -197,6 +203,7 @@ export async function saveConnection(connection: {
       isDistributed: connection.isDistributed ?? false,
       clusterName: connection.clusterName ?? "",
       isDefault: connection.isDefault ?? false,
+      filePath: connection.filePath,
     });
 
     if (connection.isDefault) {
@@ -221,6 +228,7 @@ export async function updateConnectionById(
   id: string,
   updates: {
     name?: string;
+    engine?: Engine;
     url?: string;
     username?: string;
     password?: string;
@@ -230,6 +238,7 @@ export async function updateConnectionById(
     isDistributed?: boolean;
     clusterName?: string;
     isDefault?: boolean;
+    filePath?: string;
   },
 ): Promise<boolean> {
   connectionStore.setState((prev) => ({
@@ -251,6 +260,7 @@ export async function updateConnectionById(
 
     const updateData: Partial<SavedConnection> = {};
     if (updates.name !== undefined) updateData.name = updates.name;
+    if (updates.engine !== undefined) updateData.engine = updates.engine;
     if (updates.url !== undefined) updateData.url = updates.url;
     if (updates.username !== undefined) updateData.username = updates.username;
     if (updates.password !== undefined) updateData.password = updates.password;
@@ -264,6 +274,7 @@ export async function updateConnectionById(
       updateData.isDistributed = updates.isDistributed;
     if (updates.clusterName !== undefined)
       updateData.clusterName = updates.clusterName;
+    if (updates.filePath !== undefined) updateData.filePath = updates.filePath;
 
     await updateConnection(id, updateData);
 
@@ -380,6 +391,7 @@ export async function exportConnections(
 
       connections.push({
         name: conn.name,
+        engine: conn.engine,
         url: conn.url,
         username: conn.username,
         password: includePasswords ? conn.password : undefined,
@@ -388,6 +400,7 @@ export async function exportConnections(
         requestTimeout: conn.requestTimeout,
         isDistributed: conn.isDistributed,
         clusterName: conn.clusterName,
+        filePath: conn.filePath,
       });
 
       if (includeSavedQueries) {
@@ -444,6 +457,7 @@ export async function importConnections(
       try {
         const savedConn = await saveConnection({
           name: conn.name,
+          engine: conn.engine,
           url: conn.url,
           username: conn.username,
           password: conn.password || "",
@@ -452,6 +466,7 @@ export async function importConnections(
           requestTimeout: conn.requestTimeout,
           isDistributed: conn.isDistributed,
           clusterName: conn.clusterName,
+          filePath: conn.filePath,
         });
 
         if (savedConn) {

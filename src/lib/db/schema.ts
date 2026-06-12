@@ -1,9 +1,13 @@
 // src/lib/db/schema.ts
 // IndexedDB Schema Definitions for CH-UI
 
+export type Engine = "clickhouse" | "postgres" | "mysql" | "sqlite" | "duckdb";
+
 export interface SavedConnection {
   id: string;
   name: string;
+  /** Database engine — defaults to "clickhouse" for existing rows */
+  engine: Engine;
   url: string;
   username: string;
   password: string;
@@ -13,6 +17,8 @@ export interface SavedConnection {
   isDistributed: boolean;
   clusterName: string;
   isDefault: boolean;
+  /** File path for file-based engines (sqlite, duckdb) */
+  filePath?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -27,6 +33,7 @@ export type CreateConnection = Omit<
 export interface ConnectionDisplay {
   id: string;
   name: string;
+  engine: Engine;
   url: string;
   username: string;
   password: string;
@@ -36,6 +43,7 @@ export interface ConnectionDisplay {
   isDistributed: boolean;
   clusterName: string;
   isDefault: boolean;
+  filePath?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -43,6 +51,7 @@ export interface ConnectionDisplay {
 // Export format for connections
 export interface ExportedConnection {
   name: string;
+  engine?: Engine;
   url: string;
   username: string;
   password?: string;
@@ -51,6 +60,7 @@ export interface ExportedConnection {
   requestTimeout: number;
   isDistributed: boolean;
   clusterName: string;
+  filePath?: string;
 }
 
 export interface ExportData {
