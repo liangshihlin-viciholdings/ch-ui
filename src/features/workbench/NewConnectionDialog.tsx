@@ -1,4 +1,4 @@
-// PROTOTYPE — throwaway. Engine-aware connection form: server engines vs file engines.
+// New connection dialog — engine picker drives the form.
 import { useState } from "react";
 import { FolderOpen } from "lucide-react";
 import {
@@ -12,7 +12,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-import { ENGINES, type Engine } from "./mockData";
+import { ENGINES, type EngineMeta } from "./engineMeta";
+import type { Engine } from "@/lib/db/schema";
 
 export default function NewConnectionDialog({
   open,
@@ -31,7 +32,6 @@ export default function NewConnectionDialog({
           <DialogTitle>New connection</DialogTitle>
         </DialogHeader>
 
-        {/* engine picker — drives which fields render below */}
         <div className="grid grid-cols-5 gap-1.5">
           {Object.values(ENGINES).map((e) => {
             const Icon = e.icon;
@@ -75,16 +75,7 @@ export default function NewConnectionDialog({
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="port">Port</Label>
-                  <Input
-                    id="port"
-                    placeholder={
-                      engine === "clickhouse"
-                        ? "8443"
-                        : engine === "postgres"
-                          ? "5432"
-                          : "3306"
-                    }
-                  />
+                  <Input id="port" placeholder={String(meta.defaultPort ?? "")} />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-2">
@@ -117,8 +108,7 @@ export default function NewConnectionDialog({
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground">
-                File-based engine — opens via native file picker. No host or
-                credentials.
+                File-based engine — opens via native file picker.
                 {engine === "duckdb" && " Use :memory: for an ephemeral DB."}
               </p>
             </div>
@@ -132,10 +122,6 @@ export default function NewConnectionDialog({
             >
               Cancel
             </Button>
-            <Button type="button" variant="outline">
-              Test
-            </Button>
-            {/* Enter anywhere in the form submits this (it's type=submit) */}
             <Button type="submit">Connect</Button>
           </DialogFooter>
         </form>

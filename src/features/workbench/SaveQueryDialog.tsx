@@ -1,6 +1,4 @@
-// PROTOTYPE — throwaway. Fixes the save-query UX: the old modal didn't save on Enter
-// because the Save button wasn't focused. Here the input is a <form>: Enter submits,
-// the name field autofocuses, Esc cancels (Dialog default). Cmd/Ctrl+Enter also saves.
+// Save query dialog — form with autofocus, Enter saves, Esc cancels.
 import { Save } from "lucide-react";
 import {
   Dialog,
@@ -13,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-export default function SaveQueryFlow({
+export default function SaveQueryDialog({
   open,
   onOpenChange,
 }: {
@@ -37,7 +35,6 @@ export default function SaveQueryFlow({
         >
           <div className="space-y-1.5">
             <Label htmlFor="qname">Name</Label>
-            {/* autoFocus → typing then Enter saves immediately */}
             <Input id="qname" autoFocus placeholder="top pages last 7d" />
           </div>
           <DialogFooter>
