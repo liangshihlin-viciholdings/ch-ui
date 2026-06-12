@@ -8,6 +8,7 @@
   "version": "1.6.4",
   "license": "Apache-2.0",
   "type": "module",
+  "main": "out/main/main.js",
   "scripts": {
     "dev": "vite --host",
     "build": "vite build",
@@ -18,7 +19,10 @@
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:debug": "playwright test --debug",
     "test:e2e:report": "playwright show-report",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "dev:desktop": "electron-vite dev --config electron.vite.config.ts",
+    "build:desktop": "electron-vite build --config electron.vite.config.ts",
+    "dist:desktop": "pnpm build:desktop && electron-builder --linux AppImage"
   },
   "dependencies": {
     "@base-ui/react": "^1.1.0",
@@ -96,6 +100,8 @@
     "zod": "^4.1.13"
   },
   "devDependencies": {
+    "@electron-toolkit/preload": "^3.0.2",
+    "@electron-toolkit/utils": "^4.0.0",
     "@playwright/test": "^1.58.2",
     "@tanstack/react-query-devtools": "^5.99.0",
     "@tanstack/router-devtools": "^1.166.13",
@@ -111,6 +117,9 @@
     "@types/react-syntax-highlighter": "^15.5.13",
     "@vitejs/plugin-react": "^5.1.1",
     "@vitest/coverage-v8": "^3.2.4",
+    "electron": "^42.4.0",
+    "electron-builder": "^26.15.2",
+    "electron-vite": "^5.0.0",
     "eslint": "^9.39.1",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^5.2.0",
@@ -125,5 +134,20 @@
     "firefox >= 79",
     "safari >= 14"
   ],
-  "packageManager": "pnpm@10.33.0"
+  "packageManager": "pnpm@10.33.0",
+  "build": {
+    "appId": "com.ch-ui.desktop",
+    "productName": "ch-ui",
+    "directories": {
+      "output": "dist-electron-out"
+    },
+    "files": [
+      "dist/**/*",
+      "out/**/*"
+    ],
+    "linux": {
+      "target": "AppImage",
+      "category": "Development"
+    }
+  }
 }
