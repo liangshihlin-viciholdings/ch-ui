@@ -1,10 +1,37 @@
 // Electron main process — opens a single BrowserWindow loading the Vite renderer.
-import { app, BrowserWindow, shell } from "electron";
+import { app, BrowserWindow, shell, ipcMain } from "electron";
 import { join } from "path";
 import { is } from "@electron-toolkit/utils";
 import { registerAdapterIPC } from "./ipc-handlers";
+import {
+  initSecrets,
+  storePassword,
+  retrievePassword,
+  deletePassword,
+} from "./secrets";
 
 app.commandLine.appendSwitch("no-sandbox");
+
+function registerSecretsIPC(): void {
+  ipcMain.handle(
+    "secrets:store",
+    (_event, connectionId: string, password: string) => {
+      storePassword(connectionId, password);
+    },
+  );
+  ipcMain.handle(
+    "secrets:retrieve",
+    (_event, connectionId: string) => {
+      return retrievePassword(connectionId);
+    },
+  );
+  ipcMain.handle(
+    "secrets:delete",
+    (_event, connectionId: string) => {
+      deletePassword(connectionId);
+    },
+  );
+}
 
 function createWindow(): BrowserWindow {
   const mainWindow = new BrowserWindow({
@@ -39,6 +66,8 @@ function createWindow(): BrowserWindow {
 }
 
 app.whenReady().then(() => {
+  initSecrets();
+  registerSecretsIPC();
   registerAdapterIPC();
   createWindow();
   app.on("activate", () => {
