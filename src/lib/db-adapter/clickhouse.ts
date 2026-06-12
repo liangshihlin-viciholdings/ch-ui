@@ -42,7 +42,7 @@ const CLICKHOUSE_CAPABILITIES: AdapterCapabilities = {
 
 // ─── Dialect descriptor ───────────────────────────────────────────────────
 
-const clickhouseDialect: DialectDescriptor = {
+export const clickhouseDialect: DialectDescriptor = {
   languageSupport: () => sql(),
 
   extractParams: (query: string) => {

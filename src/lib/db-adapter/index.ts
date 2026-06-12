@@ -18,3 +18,4 @@ export type {
 } from "./types";
 
 export { ClickHouseAdapter } from "./clickhouse";
+export { getDialect, registerDialect } from "./dialects";
