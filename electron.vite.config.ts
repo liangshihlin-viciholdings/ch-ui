@@ -6,9 +6,14 @@ import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { TanStackRouterVite } from "@tanstack/router-plugin/vite";
 
+const srcAlias = { "@": resolve(__dirname, "./src") };
+
 export default defineConfig({
   main: {
     plugins: [externalizeDepsPlugin()],
+    resolve: {
+      alias: srcAlias,
+    },
     build: {
       rollupOptions: {
         input: resolve(__dirname, "electron/main.ts"),
@@ -17,6 +22,9 @@ export default defineConfig({
   },
   preload: {
     plugins: [externalizeDepsPlugin()],
+    resolve: {
+      alias: srcAlias,
+    },
     build: {
       rollupOptions: {
         input: resolve(__dirname, "electron/preload.ts"),
@@ -34,9 +42,7 @@ export default defineConfig({
       tailwindcss(),
     ],
     resolve: {
-      alias: {
-        "@": resolve(__dirname, "./src"),
-      },
+      alias: srcAlias,
     },
     build: {
       outDir: "dist",

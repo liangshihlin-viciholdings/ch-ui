@@ -2,6 +2,7 @@
 import { app, BrowserWindow, shell } from "electron";
 import { join } from "path";
 import { is } from "@electron-toolkit/utils";
+import { registerAdapterIPC } from "./ipc-handlers";
 
 app.commandLine.appendSwitch("no-sandbox");
 
@@ -38,6 +39,7 @@ function createWindow(): BrowserWindow {
 }
 
 app.whenReady().then(() => {
+  registerAdapterIPC();
   createWindow();
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {
