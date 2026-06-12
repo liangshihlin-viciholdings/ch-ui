@@ -7,8 +7,7 @@
 
 import { Store } from "@tanstack/store";
 import { useStore } from "@tanstack/react-store";
-import { createClient } from "@clickhouse/client-web";
-import type { ClickHouseClient, ResponseJSON } from "@clickhouse/client-web";
+import type { ClickHouseClient } from "@clickhouse/client-web";
 import type { OverflowMode } from "@clickhouse/client-common/dist/settings";
 import { toast } from "sonner";
 
@@ -21,14 +20,7 @@ import {
   SavedQuery,
   MultiQueryResult,
 } from "@/types/common";
-import {
-  isCreateOrInsert,
-  isExplainQuery,
-  isJsonExplain,
-  extractQueryParams,
-} from "@/helpers/sqlUtils";
-import { ExplainParser } from "@/features/workspace/explain/parser";
-import { appQueries } from "@/features/workspace/editor/appQueries";
+import { ClickHouseAdapter } from "@/lib/db-adapter";
 import { connectionStore } from "@/stores/connectionStore";
 import { ClickHouseError } from "@/lib/clickhouseError";
 import {
@@ -42,19 +34,12 @@ import {
 // with consumers that import `{ ClickHouseError }` from the store module.
 export { ClickHouseError } from "@/lib/clickhouseError";
 
-const MAPPED_TABLE_TYPE: Record<string, string> = {
-  view: "view",
-  dictionary: "dictionary",
-  materializedview: "materialized_view",
-};
-
 // AbortControllers for in-flight queries, keyed by tabId. Kept outside the
 // store to avoid serialization issues.
 const queryAbortControllers = new Map<string, AbortController>();
 
-interface AdminCheckResponse {
-  data: Array<{ is_admin: boolean }>;
-}
+// Singleton adapter instance — lives outside the store (non-serializable).
+const chAdapter = new ClickHouseAdapter();
 
 // ─── Initial State ──────────────────────────────────────────────────────────
 
@@ -216,19 +201,19 @@ export function setCredentialSource(source: "env" | "app" | null) {
 export async function setCredential(credential: Credential): Promise<void> {
   patch({ credential, isLoadingCredentials: true, error: "" });
   try {
-    const client = createClient({
-      url: credential.url.replace(/\/+$/, ""),
-      pathname: credential.useAdvanced ? credential.customPath : undefined,
+    await chAdapter.connect({
+      kind: "server",
+      host: credential.url.replace(/\/+$/, ""),
+      port: 0,
       username: credential.username,
       password: credential.password || "",
-      request_timeout: credential.requestTimeout || 30000,
       database: credential.database,
-      clickhouse_settings: {
-        ...workspaceStore.state.clickhouseSettings,
-        result_overflow_mode: "break",
+      requestTimeout: credential.requestTimeout || 30000,
+      extra: {
+        ...(credential.useAdvanced && { customPath: credential.customPath }),
       },
     });
-    patch({ clickHouseClient: client });
+    patch({ clickHouseClient: chAdapter.getClient() });
     await checkServerStatus();
     await checkIsAdmin();
     await checkUserPrivileges();
@@ -258,16 +243,8 @@ export async function updateConfiguration(
   clickhouseSettings: ClickHouseSettings,
 ): Promise<void> {
   try {
-    const credentials = workspaceStore.state.credential;
-    const client = createClient({
-      url: credentials.url.replace(/\/+$/, ""),
-      pathname: credentials.useAdvanced ? credentials.customPath : undefined,
-      username: credentials.username,
-      password: credentials.password || "",
-      request_timeout: credentials.requestTimeout || 30000,
-      clickhouse_settings: clickhouseSettings,
-    });
-    patch({ clickHouseClient: client, clickhouseSettings });
+    await chAdapter.updateSettings(clickhouseSettings);
+    patch({ clickHouseClient: chAdapter.getClient(), clickhouseSettings });
     await checkServerStatus();
   } catch (error) {
     const enhancedError = ClickHouseError.fromError(
@@ -284,6 +261,7 @@ export async function updateConfiguration(
 }
 
 export async function clearCredentials(): Promise<void> {
+  await chAdapter.disconnect();
   patch({
     credential: DEFAULT_CREDENTIAL,
     clickhouseSettings: DEFAULT_SETTINGS,
@@ -295,25 +273,10 @@ export async function clearCredentials(): Promise<void> {
 }
 
 export async function checkServerStatus(): Promise<void> {
-  const { clickHouseClient } = workspaceStore.state;
   patch({ isLoadingCredentials: true, error: "" });
   try {
-    if (!clickHouseClient) {
-      throw new ClickHouseError(
-        "ClickHouse client is not initialized",
-        null,
-        "connection",
-        ["Please enter your connection details and try again"],
-      );
-    }
-    await clickHouseClient.ping();
-    const versionResult = await clickHouseClient.query({
-      query: "SELECT version()",
-    });
-    const versionData = (await versionResult.json()) as {
-      data: { "version()": string }[];
-    };
-    const version = versionData.data[0]["version()"];
+    await chAdapter.ping();
+    const version = await chAdapter.getVersion();
     patch({ isServerAvailable: true, version });
   } catch (error: any) {
     const enhancedError = ClickHouseError.fromError(
@@ -354,11 +317,6 @@ export async function runQuery(
   query: string,
   tabId?: string,
 ): Promise<QueryResult> {
-  const { clickHouseClient } = workspaceStore.state;
-  if (!clickHouseClient) {
-    throw new Error("ClickHouse client is not initialized");
-  }
-
   const abortController = new AbortController();
   if (tabId) {
     queryAbortControllers.get(tabId)?.abort();
@@ -373,9 +331,8 @@ export async function runQuery(
 
   try {
     const trimmedQuery = query.trim();
-    const { cleanedQuery, queryParams } = extractQueryParams(trimmedQuery);
+    const { cleanedQuery, params } = chAdapter.dialect.extractParams(trimmedQuery);
     const queryToRun = cleanedQuery || trimmedQuery;
-    const hasQueryParams = Object.keys(queryParams).length > 0;
 
     if (!queryToRun) {
       const result: QueryResult = {
@@ -391,76 +348,22 @@ export async function runQuery(
       return result;
     }
 
-    if (isCreateOrInsert(queryToRun)) {
-      await clickHouseClient.command({
-        query: queryToRun,
-        abort_signal: abortController.signal,
-      });
-      const result: QueryResult = {
-        meta: [],
-        data: [],
-        statistics: { elapsed: 0, rows_read: 0, bytes_read: 0 },
-        rows: 0,
-        error: null,
-      };
-      if (tabId) {
-        await updateTab(tabId, { result, isLoading: false, error: null });
-      }
-      return result;
-    }
+    const adapterResult = await chAdapter.query(
+      queryToRun,
+      params,
+      abortController.signal,
+    );
 
-    const result = await clickHouseClient.query({
-      query: queryToRun,
-      ...(hasQueryParams && { query_params: queryParams }),
-      abort_signal: abortController.signal,
-    });
-
-    let processedResult: QueryResult;
-
-    if (isExplainQuery(trimmedQuery) && !isJsonExplain(trimmedQuery)) {
-      const textResult = await result.text();
-      const rows = textResult
-        .split("\n")
-        .filter((line) => line.length > 0)
-        .map((line) => ({ explain: line }));
-      const syntheticJson = {
-        meta: [{ name: "explain", type: "String" }],
-        data: rows,
-        rows: rows.length,
-        statistics: { elapsed: 0, rows_read: 0, bytes_read: 0 },
-      };
-      processedResult = {
-        meta: syntheticJson.meta,
-        data: syntheticJson.data,
-        statistics: syntheticJson.statistics,
-        rows: syntheticJson.rows,
-        error: null,
-      };
-      processedResult.explainResult = ExplainParser.parse(
-        trimmedQuery,
-        syntheticJson,
-      );
-    } else {
-      const jsonResult = (await result.json()) as any;
-      processedResult = {
-        meta: jsonResult.meta || [],
-        data: jsonResult.data || [],
-        statistics: jsonResult.statistics || {
-          elapsed: 0,
-          rows_read: 0,
-          bytes_read: 0,
-        },
-        rows: jsonResult.rows || 0,
-        error: null,
-      };
-
-      if (isExplainQuery(trimmedQuery)) {
-        processedResult.explainResult = ExplainParser.parse(
-          trimmedQuery,
-          jsonResult,
-        );
-      }
-    }
+    const processedResult: QueryResult = {
+      meta: adapterResult.meta,
+      data: adapterResult.data,
+      statistics: adapterResult.statistics,
+      rows: adapterResult.rows,
+      error: adapterResult.error,
+      ...(adapterResult as any).explainResult && {
+        explainResult: (adapterResult as any).explainResult,
+      },
+    };
 
     if (tabId) {
       await updateTab(tabId, {
@@ -502,11 +405,6 @@ export async function runAllQueries(
   queries: string[],
   tabId: string,
 ): Promise<MultiQueryResult[]> {
-  const { clickHouseClient } = workspaceStore.state;
-  if (!clickHouseClient) {
-    throw new Error("ClickHouse client is not initialized");
-  }
-
   const abortController = new AbortController();
   queryAbortControllers.get(tabId)?.abort();
   queryAbortControllers.set(tabId, abortController);
@@ -531,85 +429,27 @@ export async function runAllQueries(
       const trimmedQuery = query.trim();
       if (!trimmedQuery) continue;
 
-      const { cleanedQuery, queryParams } = extractQueryParams(trimmedQuery);
-      Object.assign(accumulatedParams, queryParams);
+      const { cleanedQuery, params } = chAdapter.dialect.extractParams(trimmedQuery);
+      Object.assign(accumulatedParams, params);
       const queryToRun = cleanedQuery || trimmedQuery;
-      const hasQueryParams = Object.keys(accumulatedParams).length > 0;
 
       if (!queryToRun) continue;
 
-      let queryResult: QueryResult;
-
-      if (isCreateOrInsert(queryToRun)) {
-        await clickHouseClient.command({
-          query: queryToRun,
-          abort_signal: abortController.signal,
-        });
-        queryResult = {
-          meta: [],
-          data: [],
-          statistics: { elapsed: 0, rows_read: 0, bytes_read: 0 },
-          rows: 0,
-          error: null,
-        };
-      } else if (isExplainQuery(queryToRun) && !isJsonExplain(queryToRun)) {
-        const result = await clickHouseClient.query({
-          query: queryToRun,
-          ...(hasQueryParams && {
-            query_params: { ...accumulatedParams },
-          }),
-          abort_signal: abortController.signal,
-        });
-        const textResult = await result.text();
-        const rows = textResult
-          .split("\n")
-          .filter((line) => line.length > 0)
-          .map((line) => ({ explain: line }));
-        const syntheticJson = {
-          meta: [{ name: "explain", type: "String" }],
-          data: rows,
-          rows: rows.length,
-          statistics: { elapsed: 0, rows_read: 0, bytes_read: 0 },
-        };
-        queryResult = {
-          meta: syntheticJson.meta,
-          data: syntheticJson.data,
-          statistics: syntheticJson.statistics,
-          rows: syntheticJson.rows,
-          error: null,
-        };
-        queryResult.explainResult = ExplainParser.parse(
-          queryToRun,
-          syntheticJson,
-        );
-      } else {
-        const result = await clickHouseClient.query({
-          query: queryToRun,
-          ...(hasQueryParams && {
-            query_params: { ...accumulatedParams },
-          }),
-          abort_signal: abortController.signal,
-        });
-        const jsonResult = (await result.json()) as any;
-        queryResult = {
-          meta: jsonResult.meta || [],
-          data: jsonResult.data || [],
-          statistics: jsonResult.statistics || {
-            elapsed: 0,
-            rows_read: 0,
-            bytes_read: 0,
-          },
-          rows: jsonResult.rows || 0,
-          error: null,
-        };
-
-        if (isExplainQuery(queryToRun)) {
-          queryResult.explainResult = ExplainParser.parse(
-            queryToRun,
-            jsonResult,
-          );
-        }
-      }
+      const adapterResult = await chAdapter.query(
+        queryToRun,
+        { ...accumulatedParams },
+        abortController.signal,
+      );
+      const queryResult: QueryResult = {
+        meta: adapterResult.meta,
+        data: adapterResult.data,
+        statistics: adapterResult.statistics,
+        rows: adapterResult.rows,
+        error: adapterResult.error,
+        ...(adapterResult as any).explainResult && {
+          explainResult: (adapterResult as any).explainResult,
+        },
+      };
 
       results.push({
         queryIndex: i,
@@ -787,53 +627,21 @@ export function moveTab(oldIndex: number, newIndex: number) {
 // ─── Actions: Explorer ─────────────────────────────────────────────────────
 
 export async function fetchDatabaseInfo(): Promise<void> {
-  const { clickHouseClient } = workspaceStore.state;
-  if (!clickHouseClient) {
-    console.warn("fetchDatabaseInfo: ClickHouse client is not initialized");
+  if (!chAdapter.getClient()) {
     patch({ isLoadingDatabase: false });
     return;
   }
   patch({ isLoadingDatabase: true });
   try {
-    const query = appQueries.getDatabasesTables.query;
-    if (!query) {
-      throw new Error("getDatabasesTables query not found");
-    }
-    const result = await clickHouseClient.query({ query });
-    const resultJSON = (await result.json()) as {
-      data: Array<{
-        database_name: string;
-        table_name?: string;
-        table_type?: string;
-        total_bytes?: number;
-      }>;
-    };
-    const databases: Record<string, DatabaseInfo> = {};
-
-    resultJSON.data.forEach((row) => {
-      const { database_name, table_name, table_type, total_bytes } = row;
-      if (!databases[database_name]) {
-        databases[database_name] = {
-          name: database_name,
-          type: "database",
-          children: [],
-        };
-      }
-      if (table_name) {
-        const table_type_mapped =
-          (table_type && MAPPED_TABLE_TYPE[table_type.toLowerCase()]) ||
-          "table";
-        databases[database_name].children.push({
-          name: table_name,
-          type: table_type_mapped,
-          total_bytes: total_bytes ?? 0,
-        });
-      }
-    });
-
-    const databasesArray = Object.values(databases).map((database) => ({
-      ...database,
-      children: database.children.length > 0 ? database.children : [],
+    const adapterDbs = await chAdapter.listDatabases();
+    const databasesArray: DatabaseInfo[] = adapterDbs.map((db) => ({
+      name: db.name,
+      type: "database",
+      children: db.tables.map((t) => ({
+        name: t.name,
+        type: t.type,
+        total_bytes: t.totalBytes ?? 0,
+      })),
     }));
     patch({ dataBaseExplorer: databasesArray, isLoadingDatabase: false });
   } catch (error) {
@@ -881,143 +689,55 @@ export function setSelectedDatabase(database: string | null) {
 // ─── Actions: Admin & Saved Queries ────────────────────────────────────────
 
 export async function checkIsAdmin(): Promise<boolean> {
-  const { clickHouseClient } = workspaceStore.state;
-  if (!clickHouseClient) {
-    console.warn("checkIsAdmin: ClickHouse client is not initialized");
+  if (!chAdapter.getClient()) {
     patch({ isAdmin: false });
     return false;
   }
   try {
-    const result = await clickHouseClient.query({
-      query: `
-        SELECT if(grant_option = 1, true, false) AS is_admin
-        FROM system.grants
-        WHERE user_name = currentUser()
-        LIMIT 1
-      `,
-    });
-    const response = (await result.json()) as AdminCheckResponse;
-    if (!Array.isArray(response.data) || response.data.length === 0) {
-      throw new ClickHouseError("No admin status data returned");
-    }
-    patch({ isAdmin: response.data[0].is_admin });
-    return response.data[0].is_admin;
-  } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : "Unknown error occurred";
-    console.error("Failed to check admin status:", errorMessage);
+    const isAdmin = await chAdapter.checkIsAdmin!();
+    patch({ isAdmin });
+    return isAdmin;
+  } catch {
     patch({ isAdmin: false });
     return false;
   }
 }
 
 export async function checkUserPrivileges(): Promise<void> {
-  const { clickHouseClient } = workspaceStore.state;
-  if (!clickHouseClient) {
-    console.warn("checkUserPrivileges: ClickHouse client is not initialized");
+  if (!chAdapter.getClient()) {
     patch({ userPrivileges: null });
     return;
   }
 
   try {
-    const query = `
-      SELECT DISTINCT access_type, grant_option
-      FROM system.grants
-      WHERE user_name = currentUser()
-         OR role_name IN (
-           SELECT granted_role_name
-           FROM system.role_grants
-           WHERE user_name = currentUser()
-         )
-    `;
-
-    const result = await clickHouseClient.query({ query });
-    const response = (await result.json()) as ResponseJSON<{
-      access_type: string;
-      grant_option: number;
-    }>;
-
-    const grantedPrivileges = new Set(
-      response.data.map(
-        (row: { access_type: string; grant_option: number }) =>
-          row.access_type.toUpperCase(),
-      ),
-    );
-    const hasGrantOption = response.data.some(
-      (row: { access_type: string; grant_option: number }) =>
-        row.grant_option === 1,
-    );
-
-    const hasPrivilege = (privilege: string): boolean =>
-      grantedPrivileges.has(privilege.toUpperCase()) ||
-      grantedPrivileges.has("ALL");
-
+    const privileges = await chAdapter.checkPrivileges!();
+    const p = privileges;
     patch({
       userPrivileges: {
-        canShowUsers:
-          hasPrivilege("SHOW USERS") || hasPrivilege("SHOW ACCESS"),
-        canShowRoles:
-          hasPrivilege("SHOW ROLES") || hasPrivilege("SHOW ACCESS"),
-        canShowQuotas:
-          hasPrivilege("SHOW QUOTAS") || hasPrivilege("SHOW ACCESS"),
-        canShowRowPolicies:
-          hasPrivilege("SHOW ROW POLICIES") || hasPrivilege("SHOW ACCESS"),
-        canShowSettingsProfiles:
-          hasPrivilege("SHOW SETTINGS PROFILES") ||
-          hasPrivilege("SHOW ACCESS"),
-
-        canAlterUser:
-          hasPrivilege("ALTER USER") || hasPrivilege("ACCESS MANAGEMENT"),
-        canCreateUser:
-          hasPrivilege("CREATE USER") || hasPrivilege("ACCESS MANAGEMENT"),
-        canDropUser:
-          hasPrivilege("DROP USER") || hasPrivilege("ACCESS MANAGEMENT"),
-
-        canAlterRole:
-          hasPrivilege("ALTER ROLE") ||
-          hasPrivilege("ROLE ADMIN") ||
-          hasPrivilege("ACCESS MANAGEMENT"),
-        canCreateRole:
-          hasPrivilege("CREATE ROLE") ||
-          hasPrivilege("ROLE ADMIN") ||
-          hasPrivilege("ACCESS MANAGEMENT"),
-        canDropRole:
-          hasPrivilege("DROP ROLE") ||
-          hasPrivilege("ROLE ADMIN") ||
-          hasPrivilege("ACCESS MANAGEMENT"),
-
-        canAlterQuota:
-          hasPrivilege("ALTER QUOTA") || hasPrivilege("ACCESS MANAGEMENT"),
-        canCreateQuota:
-          hasPrivilege("CREATE QUOTA") || hasPrivilege("ACCESS MANAGEMENT"),
-        canDropQuota:
-          hasPrivilege("DROP QUOTA") || hasPrivilege("ACCESS MANAGEMENT"),
-
-        canAlterRowPolicy:
-          hasPrivilege("ALTER ROW POLICY") ||
-          hasPrivilege("ACCESS MANAGEMENT"),
-        canCreateRowPolicy:
-          hasPrivilege("CREATE ROW POLICY") ||
-          hasPrivilege("ACCESS MANAGEMENT"),
-        canDropRowPolicy:
-          hasPrivilege("DROP ROW POLICY") ||
-          hasPrivilege("ACCESS MANAGEMENT"),
-
-        canAlterSettingsProfile:
-          hasPrivilege("ALTER SETTINGS PROFILE") ||
-          hasPrivilege("ACCESS MANAGEMENT"),
-        canCreateSettingsProfile:
-          hasPrivilege("CREATE SETTINGS PROFILE") ||
-          hasPrivilege("ACCESS MANAGEMENT"),
-        canDropSettingsProfile:
-          hasPrivilege("DROP SETTINGS PROFILE") ||
-          hasPrivilege("ACCESS MANAGEMENT"),
-
-        hasGrantOption,
+        canShowUsers: p["canShowUsers"] ?? false,
+        canShowRoles: p["canShowRoles"] ?? false,
+        canShowQuotas: p["canShowQuotas"] ?? false,
+        canShowRowPolicies: p["canShowRowPolicies"] ?? false,
+        canShowSettingsProfiles: p["canShowSettingsProfiles"] ?? false,
+        canAlterUser: p["canAlterUser"] ?? false,
+        canCreateUser: p["canCreateUser"] ?? false,
+        canDropUser: p["canDropUser"] ?? false,
+        canAlterRole: p["canAlterRole"] ?? false,
+        canCreateRole: p["canCreateRole"] ?? false,
+        canDropRole: p["canDropRole"] ?? false,
+        canAlterQuota: p["canAlterQuota"] ?? false,
+        canCreateQuota: p["canCreateQuota"] ?? false,
+        canDropQuota: p["canDropQuota"] ?? false,
+        canAlterRowPolicy: p["canAlterRowPolicy"] ?? false,
+        canCreateRowPolicy: p["canCreateRowPolicy"] ?? false,
+        canDropRowPolicy: p["canDropRowPolicy"] ?? false,
+        canAlterSettingsProfile: p["canAlterSettingsProfile"] ?? false,
+        canCreateSettingsProfile: p["canCreateSettingsProfile"] ?? false,
+        canDropSettingsProfile: p["canDropSettingsProfile"] ?? false,
+        hasGrantOption: p["hasGrantOption"] ?? false,
       },
     });
-  } catch (error) {
-    console.error("Failed to check user privileges:", error);
+  } catch {
     patch({ userPrivileges: null });
   }
 }

@@ -72,8 +72,11 @@ export class ClickHouseAdapter implements DbAdapter {
       );
     }
     this.config = config;
+    const url = config.port
+      ? `${config.host}:${config.port}`.replace(/\/+$/, "")
+      : config.host.replace(/\/+$/, "");
     this.client = createClient({
-      url: `${config.host}:${config.port}`.replace(/\/+$/, ""),
+      url,
       pathname: (config.extra?.customPath as string) || undefined,
       username: config.username,
       password: config.password || "",
@@ -112,7 +115,7 @@ export class ClickHouseAdapter implements DbAdapter {
 
   /** Re-create the client with updated settings (e.g. clickhouse_settings). */
   async updateSettings(
-    settings: Record<string, string | number | boolean>,
+    settings: Record<string, unknown>,
   ): Promise<void> {
     if (!this.config) {
       throw new ClickHouseError("No active connection to reconfigure");
@@ -125,7 +128,7 @@ export class ClickHouseAdapter implements DbAdapter {
       password: this.config.password || "",
       request_timeout: this.config.requestTimeout || 30000,
       database: this.config.database,
-      clickhouse_settings: settings,
+      clickhouse_settings: settings as any,
     });
     await this.ping();
   }
