@@ -20,7 +20,6 @@ import { Route as SearchIndexRouteImport } from './routes/search/index'
 import { Route as DashboardsIndexRouteImport } from './routes/dashboards/index'
 import { Route as TracesTraceIdRouteImport } from './routes/traces/$traceId'
 import { Route as SearchSavedSearchIdRouteImport } from './routes/search/$savedSearchId'
-import { Route as PrototypeWorkbenchRouteImport } from './routes/prototype.workbench'
 import { Route as DashboardsTemplatesRouteImport } from './routes/dashboards/templates'
 import { Route as DashboardsDashboardIdRouteImport } from './routes/dashboards/$dashboardId'
 
@@ -79,11 +78,6 @@ const SearchSavedSearchIdRoute = SearchSavedSearchIdRouteImport.update({
   path: '/search/$savedSearchId',
   getParentRoute: () => rootRouteImport,
 } as any)
-const PrototypeWorkbenchRoute = PrototypeWorkbenchRouteImport.update({
-  id: '/prototype/workbench',
-  path: '/prototype/workbench',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const DashboardsTemplatesRoute = DashboardsTemplatesRouteImport.update({
   id: '/dashboards/templates',
   path: '/dashboards/templates',
@@ -105,7 +99,6 @@ export interface FileRoutesByFullPath {
   '/settings': typeof SettingsRoute
   '/dashboards/$dashboardId': typeof DashboardsDashboardIdRoute
   '/dashboards/templates': typeof DashboardsTemplatesRoute
-  '/prototype/workbench': typeof PrototypeWorkbenchRoute
   '/search/$savedSearchId': typeof SearchSavedSearchIdRoute
   '/traces/$traceId': typeof TracesTraceIdRoute
   '/dashboards/': typeof DashboardsIndexRoute
@@ -121,7 +114,6 @@ export interface FileRoutesByTo {
   '/settings': typeof SettingsRoute
   '/dashboards/$dashboardId': typeof DashboardsDashboardIdRoute
   '/dashboards/templates': typeof DashboardsTemplatesRoute
-  '/prototype/workbench': typeof PrototypeWorkbenchRoute
   '/search/$savedSearchId': typeof SearchSavedSearchIdRoute
   '/traces/$traceId': typeof TracesTraceIdRoute
   '/dashboards': typeof DashboardsIndexRoute
@@ -138,7 +130,6 @@ export interface FileRoutesById {
   '/settings': typeof SettingsRoute
   '/dashboards/$dashboardId': typeof DashboardsDashboardIdRoute
   '/dashboards/templates': typeof DashboardsTemplatesRoute
-  '/prototype/workbench': typeof PrototypeWorkbenchRoute
   '/search/$savedSearchId': typeof SearchSavedSearchIdRoute
   '/traces/$traceId': typeof TracesTraceIdRoute
   '/dashboards/': typeof DashboardsIndexRoute
@@ -156,7 +147,6 @@ export interface FileRouteTypes {
     | '/settings'
     | '/dashboards/$dashboardId'
     | '/dashboards/templates'
-    | '/prototype/workbench'
     | '/search/$savedSearchId'
     | '/traces/$traceId'
     | '/dashboards/'
@@ -172,7 +162,6 @@ export interface FileRouteTypes {
     | '/settings'
     | '/dashboards/$dashboardId'
     | '/dashboards/templates'
-    | '/prototype/workbench'
     | '/search/$savedSearchId'
     | '/traces/$traceId'
     | '/dashboards'
@@ -188,7 +177,6 @@ export interface FileRouteTypes {
     | '/settings'
     | '/dashboards/$dashboardId'
     | '/dashboards/templates'
-    | '/prototype/workbench'
     | '/search/$savedSearchId'
     | '/traces/$traceId'
     | '/dashboards/'
@@ -205,7 +193,6 @@ export interface RootRouteChildren {
   SettingsRoute: typeof SettingsRoute
   DashboardsDashboardIdRoute: typeof DashboardsDashboardIdRoute
   DashboardsTemplatesRoute: typeof DashboardsTemplatesRoute
-  PrototypeWorkbenchRoute: typeof PrototypeWorkbenchRoute
   SearchSavedSearchIdRoute: typeof SearchSavedSearchIdRoute
   TracesTraceIdRoute: typeof TracesTraceIdRoute
   DashboardsIndexRoute: typeof DashboardsIndexRoute
@@ -291,13 +278,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SearchSavedSearchIdRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/prototype/workbench': {
-      id: '/prototype/workbench'
-      path: '/prototype/workbench'
-      fullPath: '/prototype/workbench'
-      preLoaderRoute: typeof PrototypeWorkbenchRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/dashboards/templates': {
       id: '/dashboards/templates'
       path: '/dashboards/templates'
@@ -325,7 +305,6 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsRoute: SettingsRoute,
   DashboardsDashboardIdRoute: DashboardsDashboardIdRoute,
   DashboardsTemplatesRoute: DashboardsTemplatesRoute,
-  PrototypeWorkbenchRoute: PrototypeWorkbenchRoute,
   SearchSavedSearchIdRoute: SearchSavedSearchIdRoute,
   TracesTraceIdRoute: TracesTraceIdRoute,
   DashboardsIndexRoute: DashboardsIndexRoute,
