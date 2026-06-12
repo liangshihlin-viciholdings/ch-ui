@@ -1,4 +1,5 @@
-// Transport barrel — auto-detects Electron vs web and returns the right transport.
+// Transport barrel — creates per-connection transports.
+// Web: single in-process adapter. Electron: per-connection IPC transport.
 import { ClickHouseAdapter } from "@/lib/db-adapter";
 import type { AdapterTransport } from "./types";
 import { InProcessTransport } from "./in-process";
@@ -9,22 +10,33 @@ export type { AdapterTransport, TransportError } from "./types";
 const isElectron =
   typeof window !== "undefined" && !!(window as any).electronAPI;
 
-let _transport: AdapterTransport | null = null;
+// Web build: single shared in-process transport.
+let _webTransport: AdapterTransport | null = null;
 
-export function getTransport(): AdapterTransport {
-  if (_transport) return _transport;
+// Electron: per-connection transports.
+const _ipcTransports = new Map<string, IPCTransport>();
 
+export function getTransport(
+  connectionId?: string,
+): AdapterTransport {
   if (isElectron) {
-    _transport = new IPCTransport();
-  } else {
-    const adapter = new ClickHouseAdapter();
-    _transport = new InProcessTransport(adapter);
+    const id = connectionId ?? "default";
+    let transport = _ipcTransports.get(id);
+    if (!transport) {
+      transport = new IPCTransport(id);
+      _ipcTransports.set(id, transport);
+    }
+    return transport;
   }
 
-  return _transport;
+  if (!_webTransport) {
+    const adapter = new ClickHouseAdapter();
+    _webTransport = new InProcessTransport(adapter);
+  }
+  return _webTransport;
 }
 
-/** Replace the active transport (useful for testing or connection switching). */
+/** Replace the web transport (testing). */
 export function setTransport(transport: AdapterTransport): void {
-  _transport = transport;
+  _webTransport = transport;
 }
