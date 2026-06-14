@@ -9,6 +9,11 @@ import type {
   SchemaInfo,
   TableInfo,
   ConnectionConfig,
+  AdapterCapabilities,
+  AdminUser,
+  AdminRole,
+  AdminGrant,
+  AdminRowPolicy,
 } from "@/lib/db-adapter/types";
 
 // ─── Serializable result envelope ─────────────────────────────────────────
@@ -52,4 +57,11 @@ export interface AdapterTransport {
   // Admin (optional — only for engines that support it)
   checkIsAdmin?(): Promise<boolean>;
   checkPrivileges?(): Promise<Record<string, boolean>>;
+  getCapabilities?(): Promise<AdapterCapabilities>;
+
+  // Admin entity introspection (gated by capabilities.admin)
+  listUsers?(): Promise<AdminUser[]>;
+  listRoles?(): Promise<AdminRole[]>;
+  listGrants?(grantee?: string): Promise<AdminGrant[]>;
+  listRowPolicies?(): Promise<AdminRowPolicy[]>;
 }

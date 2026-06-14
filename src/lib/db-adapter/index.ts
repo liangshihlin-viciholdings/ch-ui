@@ -14,6 +14,11 @@ export type {
   TableInfo,
   DatabaseInfo,
   AdapterCapabilities,
+  AdminCapabilities,
+  AdminUser,
+  AdminRole,
+  AdminGrant,
+  AdminRowPolicy,
   DialectDescriptor,
 } from "./types";
 

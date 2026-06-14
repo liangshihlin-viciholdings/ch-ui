@@ -8,6 +8,7 @@ import {
   Circle,
   Search,
   KeyRound,
+  Shield,
 } from "lucide-react";
 import {
   ResizableHandle,
@@ -20,12 +21,14 @@ import { cn } from "@/lib/utils";
 import { ENGINES, type EngineMeta } from "./engineMeta";
 import NewConnectionDialog from "./NewConnectionDialog";
 import EditorPane from "./EditorPane";
+import AdminPanel from "./AdminPanel";
 import {
   useWorkbenchStore,
   loadConnections,
   connectConnection,
   selectConnection,
   expandTable,
+  setAdminView,
   type ConnectionStatus,
 } from "@/stores/workbenchStore";
 
@@ -43,6 +46,9 @@ function ConnectionList({
   const connections = useWorkbenchStore((s) => s.connections);
   const activeId = useWorkbenchStore((s) => s.activeConnectionId);
   const statuses = useWorkbenchStore((s) => s.statuses);
+  const adminCaps = useWorkbenchStore((s) =>
+    activeId ? s.capabilities[activeId]?.admin : null,
+  );
 
   return (
     <div className="flex h-full flex-col bg-card">
@@ -50,9 +56,22 @@ function ConnectionList({
         <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           Connections
         </span>
-        <Button size="icon" variant="ghost" className="size-6" onClick={onAdd}>
-          <Plus className="size-4" />
-        </Button>
+        <div className="flex items-center gap-1">
+          {activeId && adminCaps && (
+            <Button
+              size="icon"
+              variant="ghost"
+              className="size-6"
+              title="Admin"
+              onClick={() => setAdminView(true)}
+            >
+              <Shield className="size-4" />
+            </Button>
+          )}
+          <Button size="icon" variant="ghost" className="size-6" onClick={onAdd}>
+            <Plus className="size-4" />
+          </Button>
+        </div>
       </div>
       <div className="flex-1 overflow-auto py-1">
         {connections.map((c) => {
@@ -196,6 +215,7 @@ function SchemaTree() {
 export default function WorkbenchShell() {
   const [newConn, setNewConn] = useState(false);
   const activeId = useWorkbenchStore((s) => s.activeConnectionId);
+  const adminView = useWorkbenchStore((s) => s.adminView);
 
   useEffect(() => {
     void loadConnections();
@@ -217,7 +237,7 @@ export default function WorkbenchShell() {
       </ResizablePanel>
       <ResizableHandle withHandle />
       <ResizablePanel minSize="50%">
-        <EditorPane />
+        {adminView ? <AdminPanel /> : <EditorPane />}
       </ResizablePanel>
     </ResizablePanelGroup>
     <NewConnectionDialog open={newConn} onOpenChange={setNewConn} />

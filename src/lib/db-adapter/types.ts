@@ -78,6 +78,15 @@ export interface DatabaseInfo {
 
 // ─── Capabilities ─────────────────────────────────────────────────────────
 
+export interface AdminCapabilities {
+  users: boolean;
+  roles: boolean;
+  grants: boolean;
+  rowPolicies: boolean;
+  quotas: boolean;
+  settingsProfiles: boolean;
+}
+
 export interface AdapterCapabilities {
   /** supports admin/privilege introspection */
   hasAdminIntrospection: boolean;
@@ -89,6 +98,8 @@ export interface AdapterCapabilities {
   isServer: boolean;
   /** supports streaming results */
   hasStreaming: boolean;
+  /** admin features available per engine (undefined = no admin) */
+  admin?: AdminCapabilities;
 }
 
 // ─── Dialect descriptor ───────────────────────────────────────────────────
@@ -107,6 +118,38 @@ export interface DialectDescriptor {
   isCommand(query: string): boolean;
   /** Detect EXPLAIN queries */
   isExplain(query: string): boolean;
+}
+
+// ─── Admin entities ────────────────────────────────────────────────────────
+
+export interface AdminUser {
+  name: string;
+  login?: boolean;
+  superuser?: boolean;
+  defaultRoles?: string[];
+  settingsProfile?: string;
+  host?: string;
+  readonly?: boolean;
+}
+
+export interface AdminRole {
+  name: string;
+  members?: string[];
+  readonly?: boolean;
+}
+
+export interface AdminGrant {
+  grantee: string;
+  privilege: string;
+  object?: string;
+  grantOption?: boolean;
+}
+
+export interface AdminRowPolicy {
+  name: string;
+  table: string;
+  filter: string;
+  roles?: string[];
 }
 
 // ─── DbAdapter ────────────────────────────────────────────────────────────
@@ -141,4 +184,10 @@ export interface DbAdapter {
   // Admin introspection (only when capabilities.hasAdminIntrospection)
   checkIsAdmin?(): Promise<boolean>;
   checkPrivileges?(): Promise<Record<string, boolean>>;
+
+  // Admin entity introspection (gated by capabilities.admin)
+  listUsers?(): Promise<AdminUser[]>;
+  listRoles?(): Promise<AdminRole[]>;
+  listGrants?(grantee?: string): Promise<AdminGrant[]>;
+  listRowPolicies?(): Promise<AdminRowPolicy[]>;
 }

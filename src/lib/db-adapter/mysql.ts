@@ -13,6 +13,9 @@ import type {
   SchemaInfo,
   TableInfo,
   AdapterCapabilities,
+  AdminUser,
+  AdminRole,
+  AdminGrant,
 } from "./types";
 import { mysqlDialect } from "./dialects/mysql";
 
@@ -24,6 +27,14 @@ const MYSQL_CAPABILITIES: AdapterCapabilities = {
   hasParameterizedQueries: true,
   isServer: true,
   hasStreaming: false,
+  admin: {
+    users: true,
+    roles: true,
+    grants: true,
+    rowPolicies: false,
+    quotas: false,
+    settingsProfiles: false,
+  },
 };
 
 // ─── Adapter ──────────────────────────────────────────────────────────────
@@ -178,5 +189,52 @@ export class MySQLAdapter implements DbAdapter {
       name: r.COLUMN_NAME as string,
       type: (r.DATA_TYPE as string) ?? "unknown",
     }));
+  }
+
+  // ─── Admin introspection ─────────────────────────────────────────────────
+
+  async listUsers(): Promise<AdminUser[]> {
+    try {
+      const [rows] = await this.pool!.query<RowDataPacket[]>(
+        "SELECT User, Host FROM mysql.user ORDER BY User",
+      );
+      return rows.map((r) => ({
+        name: r.User as string,
+        host: r.Host as string,
+      }));
+    } catch (err) {
+      console.error("MySQL listUsers failed:", err);
+      return [];
+    }
+  }
+
+  async listRoles(): Promise<AdminRole[]> {
+    try {
+      const [rows] = await this.pool!.query<RowDataPacket[]>(
+        "SELECT FROM_USER AS role_name FROM mysql.role_edges GROUP BY FROM_USER ORDER BY FROM_USER",
+      );
+      return rows.map((r) => ({
+        name: r.role_name as string,
+      }));
+    } catch (err) {
+      console.error("MySQL listRoles failed:", err);
+      return [];
+    }
+  }
+
+  async listGrants(): Promise<AdminGrant[]> {
+    try {
+      const [rows] = await this.pool!.query<RowDataPacket[]>(
+        "SELECT GRANTEE, PRIVILEGE_TYPE, IS_GRANTABLE FROM information_schema.USER_PRIVILEGES ORDER BY GRANTEE",
+      );
+      return rows.map((r) => ({
+        grantee: (r.GRANTEE as string).replace(/['"`]/g, ""),
+        privilege: r.PRIVILEGE_TYPE as string,
+        grantOption: (r.IS_GRANTABLE as string) === "YES",
+      }));
+    } catch (err) {
+      console.error("MySQL listGrants failed:", err);
+      return [];
+    }
   }
 }

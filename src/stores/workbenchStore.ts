@@ -12,9 +12,14 @@ import type {
   ServerConnectionConfig,
   FileConnectionConfig,
   AdapterQueryResult,
+  AdapterCapabilities,
   SchemaInfo,
   TableInfo,
   ColumnMeta,
+  AdminUser,
+  AdminRole,
+  AdminGrant,
+  AdminRowPolicy,
 } from "@/lib/db-adapter/types";
 import { getTransport } from "@/lib/transport";
 import { getDialect } from "@/lib/db-adapter/dialects";
@@ -37,10 +42,20 @@ interface SchemaCache {
   columns: Record<string, ColumnMeta[]>;
 }
 
+interface AdminCache {
+  users: AdminUser[];
+  roles: AdminRole[];
+  grants: AdminGrant[];
+  rowPolicies: AdminRowPolicy[];
+}
+
 interface WorkbenchState {
   connections: SavedConnection[];
   activeConnectionId: string | null;
   statuses: Record<string, ConnectionStatus>;
+  capabilities: Record<string, AdapterCapabilities>;
+  admin: Record<string, AdminCache>;
+  adminView: boolean;
   tabs: WorkbenchTab[];
   activeTabId: string | null;
   schemas: Record<string, SchemaCache>;
@@ -53,6 +68,9 @@ const initialState: WorkbenchState = {
   connections: [],
   activeConnectionId: null,
   statuses: {},
+  capabilities: {},
+  admin: {},
+  adminView: false,
   tabs: [],
   activeTabId: null,
   schemas: {},
@@ -167,6 +185,7 @@ export async function connectConnection(connectionId: string): Promise<void> {
       statuses: { ...store.state.statuses, [connectionId]: "connected" },
     });
     await loadSchema(connectionId);
+    await loadCapabilities(connectionId);
   } catch (error) {
     toast.error(`Connection failed: ${String(error)}`);
     patch({
@@ -240,6 +259,45 @@ export async function expandTable(
   } catch (error) {
     toast.error(`Failed to describe ${table}: ${String(error)}`);
   }
+}
+
+export async function loadCapabilities(connectionId: string): Promise<void> {
+  const transport = getTransport(connectionId);
+  if (!transport.getCapabilities) return;
+  try {
+    const caps = await transport.getCapabilities();
+    patch({
+      capabilities: { ...store.state.capabilities, [connectionId]: caps },
+    });
+  } catch {
+    // capabilities optional
+  }
+}
+
+export async function loadAdmin(connectionId: string): Promise<void> {
+  const transport = getTransport(connectionId);
+  const caps = store.state.capabilities[connectionId]?.admin;
+  if (!caps) return;
+
+  const [users, roles, grants, rowPolicies] = await Promise.all([
+    caps.users && transport.listUsers ? transport.listUsers() : Promise.resolve([]),
+    caps.roles && transport.listRoles ? transport.listRoles() : Promise.resolve([]),
+    caps.grants && transport.listGrants ? transport.listGrants() : Promise.resolve([]),
+    caps.rowPolicies && transport.listRowPolicies
+      ? transport.listRowPolicies()
+      : Promise.resolve([]),
+  ]);
+
+  patch({
+    admin: {
+      ...store.state.admin,
+      [connectionId]: { users, roles, grants, rowPolicies },
+    },
+  });
+}
+
+export function setAdminView(enabled: boolean): void {
+  patch({ adminView: enabled });
 }
 
 export function openTab(connectionId: string): string {

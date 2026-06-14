@@ -13,6 +13,10 @@ import type {
   SchemaInfo,
   TableInfo,
   AdapterCapabilities,
+  AdminUser,
+  AdminRole,
+  AdminGrant,
+  AdminRowPolicy,
 } from "./types";
 import { postgresDialect } from "./dialects/postgres";
 
@@ -24,6 +28,14 @@ const POSTGRES_CAPABILITIES: AdapterCapabilities = {
   hasParameterizedQueries: true,
   isServer: true,
   hasStreaming: false,
+  admin: {
+    users: true,
+    roles: true,
+    grants: true,
+    rowPolicies: true,
+    quotas: false,
+    settingsProfiles: false,
+  },
 };
 
 // ─── Adapter ──────────────────────────────────────────────────────────────
@@ -195,6 +207,84 @@ export class PostgresAdapter implements DbAdapter {
       name: row["column_name"] as string,
       type: row["data_type"] as string,
     }));
+  }
+
+  // ─── Admin introspection ────────────────────────────────────────────────
+
+  async listUsers(): Promise<AdminUser[]> {
+    try {
+      const result = await this.pool!.query(
+        "SELECT rolname, rolcanlogin, rolsuper FROM pg_roles WHERE rolcanlogin = true ORDER BY rolname",
+      );
+      return result.rows.map(
+        (row): AdminUser => ({
+          name: row["rolname"] as string,
+          login: row["rolcanlogin"] as boolean,
+          superuser: row["rolsuper"] as boolean,
+        }),
+      );
+    } catch (err) {
+      console.error("listUsers failed:", err);
+      return [];
+    }
+  }
+
+  async listRoles(): Promise<AdminRole[]> {
+    try {
+      const result = await this.pool!.query(
+        "SELECT rolname FROM pg_roles ORDER BY rolname",
+      );
+      return result.rows.map(
+        (row): AdminRole => ({
+          name: row["rolname"] as string,
+        }),
+      );
+    } catch (err) {
+      console.error("listRoles failed:", err);
+      return [];
+    }
+  }
+
+  async listGrants(): Promise<AdminGrant[]> {
+    try {
+      const result = await this.pool!.query(
+        "SELECT grantee, privilege_type, table_schema || '.' || table_name AS object, is_grantable FROM information_schema.role_table_grants ORDER BY grantee",
+      );
+      return result.rows.map(
+        (row): AdminGrant => ({
+          grantee: row["grantee"] as string,
+          privilege: row["privilege_type"] as string,
+          object: row["object"] as string,
+          grantOption: row["is_grantable"] === "YES",
+        }),
+      );
+    } catch (err) {
+      console.error("listGrants failed:", err);
+      return [];
+    }
+  }
+
+  async listRowPolicies(): Promise<AdminRowPolicy[]> {
+    try {
+      const result = await this.pool!.query(
+        "SELECT policyname, tablename, qual, roles FROM pg_policies ORDER BY schemaname, tablename",
+      );
+      return result.rows.map(
+        (row): AdminRowPolicy => ({
+          name: row["policyname"] as string,
+          table: row["tablename"] as string,
+          filter: (row["qual"] as string) ?? "",
+          roles: Array.isArray(row["roles"])
+            ? (row["roles"] as string[])
+            : row["roles"] != null
+              ? [row["roles"] as string]
+              : undefined,
+        }),
+      );
+    } catch (err) {
+      console.error("listRowPolicies failed:", err);
+      return [];
+    }
   }
 
   // ─── Helpers ────────────────────────────────────────────────────────────

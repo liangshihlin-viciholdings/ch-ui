@@ -140,6 +140,51 @@ export function registerAdapterIPC(): void {
       return adapter.checkPrivileges();
     },
   );
+
+  ipcMain.handle(
+    "adapter:getCapabilities",
+    async (_event, connectionId: string) => {
+      const adapter = getAdapter(connectionId);
+      if (!adapter) throw new Error(`No connection: ${connectionId}`);
+      return adapter.capabilities;
+    },
+  );
+
+  ipcMain.handle(
+    "adapter:listUsers",
+    async (_event, connectionId: string) => {
+      const adapter = getAdapter(connectionId);
+      if (!adapter?.listUsers) return [];
+      return adapter.listUsers();
+    },
+  );
+
+  ipcMain.handle(
+    "adapter:listRoles",
+    async (_event, connectionId: string) => {
+      const adapter = getAdapter(connectionId);
+      if (!adapter?.listRoles) return [];
+      return adapter.listRoles();
+    },
+  );
+
+  ipcMain.handle(
+    "adapter:listGrants",
+    async (_event, connectionId: string) => {
+      const adapter = getAdapter(connectionId);
+      if (!adapter?.listGrants) return [];
+      return adapter.listGrants();
+    },
+  );
+
+  ipcMain.handle(
+    "adapter:listRowPolicies",
+    async (_event, connectionId: string) => {
+      const adapter = getAdapter(connectionId);
+      if (!adapter?.listRowPolicies) return [];
+      return adapter.listRowPolicies();
+    },
+  );
 }
 
 // Clean up all connections on quit.

@@ -1,7 +1,7 @@
 // In-process transport — direct calls to a DbAdapter in the same JS context.
 // Used by the web build and as the fallback when not running in Electron.
 
-import type { DbAdapter } from "@/lib/db-adapter/types";
+import type { DbAdapter, AdapterCapabilities, AdminUser, AdminRole, AdminGrant, AdminRowPolicy } from "@/lib/db-adapter/types";
 import type { AdapterTransport } from "./types";
 
 // Cancellation registry — maps cancelTokens to AbortControllers.
@@ -90,5 +90,29 @@ export class InProcessTransport implements AdapterTransport {
       return this.adapter.checkPrivileges();
     }
     return {};
+  }
+
+  async getCapabilities(): Promise<AdapterCapabilities> {
+    return this.adapter.capabilities;
+  }
+
+  async listUsers(): Promise<AdminUser[]> {
+    if (this.adapter.listUsers) return this.adapter.listUsers();
+    return [];
+  }
+
+  async listRoles(): Promise<AdminRole[]> {
+    if (this.adapter.listRoles) return this.adapter.listRoles();
+    return [];
+  }
+
+  async listGrants(): Promise<AdminGrant[]> {
+    if (this.adapter.listGrants) return this.adapter.listGrants();
+    return [];
+  }
+
+  async listRowPolicies(): Promise<AdminRowPolicy[]> {
+    if (this.adapter.listRowPolicies) return this.adapter.listRowPolicies();
+    return [];
   }
 }

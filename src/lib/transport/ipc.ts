@@ -8,6 +8,11 @@ import type {
   DatabaseInfo,
   SchemaInfo,
   TableInfo,
+  AdapterCapabilities,
+  AdminUser,
+  AdminRole,
+  AdminGrant,
+  AdminRowPolicy,
 } from "@/lib/db-adapter/types";
 import type { AdapterTransport } from "./types";
 
@@ -128,5 +133,40 @@ export class IPCTransport implements AdapterTransport {
       "adapter:checkPrivileges",
       this.connectionId,
     )) as Promise<Record<string, boolean>>;
+  }
+
+  async getCapabilities(): Promise<AdapterCapabilities> {
+    return (await getAPI().invoke(
+      "adapter:getCapabilities",
+      this.connectionId,
+    )) as Promise<AdapterCapabilities>;
+  }
+
+  async listUsers(): Promise<AdminUser[]> {
+    return (await getAPI().invoke(
+      "adapter:listUsers",
+      this.connectionId,
+    )) as Promise<AdminUser[]>;
+  }
+
+  async listRoles(): Promise<AdminRole[]> {
+    return (await getAPI().invoke(
+      "adapter:listRoles",
+      this.connectionId,
+    )) as Promise<AdminRole[]>;
+  }
+
+  async listGrants(): Promise<AdminGrant[]> {
+    return (await getAPI().invoke(
+      "adapter:listGrants",
+      this.connectionId,
+    )) as Promise<AdminGrant[]>;
+  }
+
+  async listRowPolicies(): Promise<AdminRowPolicy[]> {
+    return (await getAPI().invoke(
+      "adapter:listRowPolicies",
+      this.connectionId,
+    )) as Promise<AdminRowPolicy[]>;
   }
 }

@@ -38,6 +38,14 @@ const CLICKHOUSE_CAPABILITIES: AdapterCapabilities = {
   hasParameterizedQueries: true,
   isServer: true,
   hasStreaming: false,
+  admin: {
+    users: true,
+    roles: true,
+    grants: true,
+    rowPolicies: true,
+    quotas: true,
+    settingsProfiles: true,
+  },
 };
 
 // ─── Dialect descriptor ───────────────────────────────────────────────────
