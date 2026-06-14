@@ -2,9 +2,32 @@
 // Electron main process. Lazy-open on first query/expand, idle-timeout close
 // (~5 min), explicit disconnect IPC, status events to renderer.
 
-import type { DbAdapter, ConnectionConfig } from "../src/lib/db-adapter/types";
-import { ClickHouseAdapter } from "../src/lib/db-adapter";
+import type { DbAdapter, ConnectionConfig, Engine } from "../src/lib/db-adapter/types";
+import { ClickHouseAdapter } from "../src/lib/db-adapter/clickhouse";
+import { PostgresAdapter } from "../src/lib/db-adapter/postgres";
+import { MySQLAdapter } from "../src/lib/db-adapter/mysql";
+import { SQLiteAdapter } from "../src/lib/db-adapter/sqlite";
+import { DuckDBAdapter } from "../src/lib/db-adapter/duckdb";
 import { BrowserWindow } from "electron";
+
+function createAdapterForEngine(engine: Engine): DbAdapter {
+  switch (engine) {
+    case "clickhouse":
+      return new ClickHouseAdapter();
+    case "postgres":
+      return new PostgresAdapter();
+    case "mysql":
+      return new MySQLAdapter();
+    case "sqlite":
+      return new SQLiteAdapter();
+    case "duckdb":
+      return new DuckDBAdapter();
+    default: {
+      const _exhaustive: never = engine;
+      throw new Error(`Unknown engine: ${String(_exhaustive)}`);
+    }
+  }
+}
 
 type PoolStatus = "connected" | "idle" | "disconnected";
 
@@ -58,8 +81,7 @@ export async function getOrCreateAdapter(
     throw new Error(`No connection config for ${connectionId}`);
   }
 
-  // TODO: select adapter based on engine when other adapters exist.
-  const adapter = new ClickHouseAdapter();
+  const adapter = createAdapterForEngine(config.engine);
   await adapter.connect(config);
 
   const entry: PoolEntry = {

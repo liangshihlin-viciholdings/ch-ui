@@ -203,6 +203,7 @@ export async function setCredential(credential: Credential): Promise<void> {
   try {
     await chAdapter.connect({
       kind: "server",
+      engine: "clickhouse",
       host: credential.url.replace(/\/+$/, ""),
       port: 0,
       username: credential.username,

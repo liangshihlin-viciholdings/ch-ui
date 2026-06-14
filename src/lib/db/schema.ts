@@ -1,7 +1,9 @@
 // src/lib/db/schema.ts
-// IndexedDB Schema Definitions for CH-UI
+// IndexedDB Schema Declarations for CH-UI
 
-export type Engine = "clickhouse" | "postgres" | "mysql" | "sqlite" | "duckdb";
+import type { Engine } from "../db-adapter/types";
+
+export type { Engine };
 
 export interface SavedConnection {
   id: string;

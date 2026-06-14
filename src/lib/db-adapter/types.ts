@@ -8,10 +8,13 @@
 // Instead we infer the type from @codemirror/lang-sql's sql() return type.
 import type { sql } from "@codemirror/lang-sql";
 
+export type Engine = "clickhouse" | "postgres" | "mysql" | "sqlite" | "duckdb";
+
 // ─── Connection config ────────────────────────────────────────────────────
 
 export interface ServerConnectionConfig {
   kind: "server";
+  engine: Engine;
   host: string;
   port: number;
   username: string;
@@ -25,6 +28,7 @@ export interface ServerConnectionConfig {
 
 export interface FileConnectionConfig {
   kind: "file";
+  engine: Engine;
   filePath: string;
   /** DuckDB supports ":memory:" */
   memory?: boolean;
