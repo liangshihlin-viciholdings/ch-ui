@@ -12,7 +12,7 @@
   "scripts": {
     "dev": "vite --host",
     "build": "vite build",
-    "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
+    "lint": "eslint . --max-warnings 0",
     "test": "vitest",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
@@ -20,6 +20,7 @@
     "test:e2e:debug": "playwright test --debug",
     "test:e2e:report": "playwright show-report",
     "preview": "vite preview",
+    "postinstall": "electron --version || true",
     "dev:desktop": "electron-vite dev --config electron.vite.config.ts",
     "build:desktop": "electron-vite build --config electron.vite.config.ts",
     "dist:desktop": "pnpm build:desktop && electron-builder --linux AppImage"
