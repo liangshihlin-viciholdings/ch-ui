@@ -1,5 +1,21 @@
-import { useState } from "react";
-import CodeMirror from "@uiw/react-codemirror";
+import { useState, useMemo, useEffect, useRef, useCallback } from "react";
+import CodeMirror, { EditorView, type ReactCodeMirrorRef } from "@uiw/react-codemirror";
+import { keymap } from "@codemirror/view";
+import {
+  lineNumbers,
+  highlightActiveLine,
+  highlightActiveLineGutter,
+  highlightSpecialChars,
+  drawSelection,
+  dropCursor,
+  rectangularSelection,
+  crosshairCursor,
+} from "@codemirror/view";
+import { history } from "@codemirror/commands";
+import { foldGutter, indentOnInput, bracketMatching } from "@codemirror/language";
+import { closeBrackets, closeBracketsKeymap, completionKeymap } from "@codemirror/autocomplete";
+import { defaultKeymap, historyKeymap, indentWithTab } from "@codemirror/commands";
+import { searchKeymap, highlightSelectionMatches } from "@codemirror/search";
 import { ChevronDown, Play, Save, X, Plus } from "lucide-react";
 import {
   ResizableHandle,
@@ -8,6 +24,15 @@ import {
 } from "@/components/ui/resizable";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useTheme } from "@/components/common/theme-provider";
+import {
+  useEditorFontSize,
+  useEditorFontFamily,
+  useEditorVimMode,
+} from "@/stores/editorStore";
+import { getCodeMirrorTheme, isLightTheme } from "@/features/workspace/editor/codeMirrorThemes";
+import { vimExtension, registerVimExCommands } from "@/features/workspace/editor/vimMode";
+import { vimSurroundExtension } from "@/features/workspace/editor/vimSurround";
 import { ENGINES } from "./engineMeta";
 import SaveQueryDialog from "./SaveQueryDialog";
 import {
@@ -168,6 +193,166 @@ function TabBar() {
   );
 }
 
+const FONT_FAMILY_MAP: Record<string, string> = {
+  system: "ui-monospace, SFMono-Regular, Menlo, monospace",
+  "jetbrains-mono": "'JetBrains Mono', monospace",
+  "fira-code": "'Fira Code', monospace",
+  "cascadia-code": "'Cascadia Code', monospace",
+  "source-code-pro": "'Source Code Pro', monospace",
+  monaco: "'Monaco', monospace",
+  consolas: "'Consolas', monospace",
+  "ibm-plex-mono": "'IBM Plex Mono', monospace",
+};
+
+function WorkbenchEditor({
+  tabId,
+  dialect,
+  onSave,
+}: {
+  tabId: string;
+  dialect: ReturnType<typeof useDialectForTab>;
+  onSave: () => void;
+}) {
+  const { theme } = useTheme();
+  const fontSize = useEditorFontSize();
+  const fontFamily = useEditorFontFamily();
+  const vimMode = useEditorVimMode();
+  const cmRef = useRef<ReactCodeMirrorRef>(null);
+
+  const isDark = !isLightTheme(theme);
+
+  const saveRef = useRef<() => void>(() => {});
+  const runRef = useRef<() => void>(() => {});
+
+  const tab = useWorkbenchStore((s) => s.tabs.find((t) => t.id === tabId));
+
+  useEffect(() => {
+    saveRef.current = onSave;
+    runRef.current = () => { void runQuery(tabId); };
+  }, [tabId, onSave]);
+
+  useEffect(() => {
+    if (!vimMode) return;
+    registerVimExCommands({
+      onSave: () => saveRef.current?.(),
+      onRun: () => runRef.current?.(),
+      onRunAll: () => runRef.current?.(),
+    });
+  }, [vimMode]);
+
+  const themeExtensions = useMemo(() => getCodeMirrorTheme(theme), [theme]);
+  const fontFamilyValue = FONT_FAMILY_MAP[fontFamily] ?? FONT_FAMILY_MAP.system;
+
+  const fontExtension = useMemo(
+    () =>
+      EditorView.theme(
+        {
+          "&": { fontSize: `${fontSize}px` },
+          ".cm-content, .cm-gutters": { fontFamily: fontFamilyValue },
+        },
+        { dark: isDark },
+      ),
+    [fontSize, fontFamilyValue, isDark],
+  );
+
+  const vimCursorFix = useMemo(
+    () =>
+      vimMode
+        ? EditorView.theme({ ".cm-content": { caretColor: "transparent" } }, { dark: isDark })
+        : [],
+    [vimMode, isDark],
+  );
+
+  const vimBasicSetup = useMemo(
+    () =>
+      vimMode
+        ? [
+            lineNumbers(),
+            highlightActiveLine(),
+            highlightActiveLineGutter(),
+            highlightSpecialChars(),
+            history(),
+            foldGutter(),
+            drawSelection(),
+            dropCursor(),
+            indentOnInput(),
+            bracketMatching(),
+            closeBrackets(),
+            rectangularSelection(),
+            crosshairCursor(),
+            highlightSelectionMatches(),
+            keymap.of([
+              ...closeBracketsKeymap,
+              ...defaultKeymap.filter(
+                (k) => k.key !== "PageUp" && k.key !== "PageDown",
+              ),
+              ...searchKeymap,
+              ...historyKeymap,
+              ...completionKeymap,
+              indentWithTab,
+            ]),
+            vimSurroundExtension(),
+          ]
+        : [],
+    [vimMode],
+  );
+
+  const extensions = useMemo(
+    () => [
+      ...(vimMode ? [vimExtension()] : []),
+      dialect.languageSupport(),
+      keymap.of([
+        {
+          key: "Mod-Enter",
+          run: () => { void runQuery(tabId); return true; },
+        },
+        {
+          key: "Mod-s",
+          run: () => { saveRef.current?.(); return true; },
+        },
+      ]),
+      ...vimBasicSetup,
+      ...themeExtensions,
+      fontExtension,
+      vimCursorFix,
+      EditorView.lineWrapping,
+    ],
+    [themeExtensions, fontExtension, vimCursorFix, vimBasicSetup, vimMode, dialect, tabId],
+  );
+
+  const handleChange = useCallback(
+    (val: string) => updateTabSql(tabId, val),
+    [tabId],
+  );
+
+  return (
+    <CodeMirror
+      ref={cmRef}
+      value={tab?.sql ?? ""}
+      height="100%"
+      basicSetup={
+        vimMode
+          ? false
+          : {
+              lineNumbers: true,
+              highlightActiveLine: true,
+              highlightActiveLineGutter: true,
+              foldGutter: true,
+              bracketMatching: true,
+              closeBrackets: true,
+              autocompletion: false,
+              indentOnInput: true,
+            }
+      }
+      theme="none"
+      extensions={extensions}
+      onChange={handleChange}
+      className="h-full"
+      style={{ height: "100%" }}
+    />
+  );
+}
+
 export default function EditorPane() {
   const tabs = useWorkbenchStore((s) => s.tabs);
   const activeTabId = useWorkbenchStore((s) => s.activeTabId);
@@ -223,13 +408,8 @@ export default function EditorPane() {
       )}
       <ResizablePanelGroup orientation="vertical" className="flex-1">
         <ResizablePanel defaultSize="55%">
-          <div className="h-full overflow-auto">
-            <CodeMirror
-              value={tab.sql}
-              height="100%"
-              extensions={[dialect.languageSupport()]}
-              onChange={(val) => updateTabSql(tab.id, val)}
-            />
+          <div className="h-full overflow-hidden">
+            <WorkbenchEditor tabId={tab.id} dialect={dialect} onSave={() => setSaving(true)} />
           </div>
         </ResizablePanel>
         <ResizableHandle withHandle />

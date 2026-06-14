@@ -133,10 +133,12 @@ export function AppearanceTab() {
 		editorFontSize,
 		editorFontFamily,
 		editorVimMode,
+		autoHideMenuBar,
 		setUIFontSize,
 		setEditorFontSize,
 		setEditorFontFamily,
 		setEditorVimMode,
+		setAutoHideMenuBar,
 	} = useAppearance();
 
 	return (
@@ -203,42 +205,74 @@ export function AppearanceTab() {
 								</div>
 							</CardContent>
 						</Card>
-
-						{/* Editor Settings */}
-						<Card className="shadow-lg border-muted">
-							<CardHeader>
-								<CardTitle className="text-2xl font-bold flex items-center gap-2">
-									<Terminal className="h-6 w-6 text-primary" />
-									Editor Settings
-								</CardTitle>
-								<CardDescription>
-									Configure advanced editor behavior and keybindings
-								</CardDescription>
-							</CardHeader>
-							<CardContent className="space-y-6">
-								{/* Vim Mode Toggle */}
-								<div className="flex items-center justify-between">
-									<div className="space-y-0.5">
-										<Label htmlFor="vim-mode" className="text-sm font-medium">
-											Vim Mode
-										</Label>
-										<p className="text-xs text-muted-foreground">
-											Enable vim keybindings in the SQL editor. Includes
-											motions, modes, surround operations (gsa/gsr/gsd), and
-											relative line numbers.
-										</p>
-									</div>
-									<Switch
-										id="vim-mode"
-										checked={editorVimMode}
-										onCheckedChange={setEditorVimMode}
-									/>
-								</div>
-							</CardContent>
-						</Card>
 					</div>
 				</CardContent>
 			</Card>
+
+			{/* Editor Settings */}
+			<Card className="shadow-lg border-muted">
+				<CardHeader>
+					<CardTitle className="text-2xl font-bold flex items-center gap-2">
+						<Terminal className="h-6 w-6 text-primary" />
+						Editor Settings
+					</CardTitle>
+					<CardDescription>
+						Configure advanced editor behavior and keybindings
+					</CardDescription>
+				</CardHeader>
+				<CardContent className="space-y-6">
+					{/* Vim Mode Toggle */}
+					<div className="flex items-center justify-between">
+						<div className="space-y-0.5">
+							<Label htmlFor="vim-mode" className="text-sm font-medium">
+								Vim Mode
+							</Label>
+							<p className="text-xs text-muted-foreground">
+								Enable vim keybindings in the SQL editor. Includes
+								motions, modes, surround operations (gsa/gsr/gsd), and
+								relative line numbers.
+							</p>
+						</div>
+						<Switch
+							id="vim-mode"
+							checked={editorVimMode}
+							onCheckedChange={setEditorVimMode}
+						/>
+					</div>
+				</CardContent>
+			</Card>
+
+			{/* Desktop / Window settings (only shown in Electron desktop build) */}
+			{(window as any).electronAPI?.isDesktop && (
+				<Card className="shadow-lg border-muted">
+					<CardHeader>
+						<CardTitle className="text-2xl font-bold flex items-center gap-2">
+							<Monitor className="h-6 w-6 text-primary" />
+							Desktop
+						</CardTitle>
+						<CardDescription>
+							Options that affect the native desktop window
+						</CardDescription>
+					</CardHeader>
+					<CardContent className="space-y-6">
+						<div className="flex items-center justify-between">
+							<div className="space-y-0.5">
+								<Label htmlFor="auto-hide-menu-bar" className="text-sm font-medium">
+									Auto-hide menu bar
+								</Label>
+								<p className="text-xs text-muted-foreground">
+									Hide the native application menu bar. Press the Alt key to temporarily reveal it. (Windows / Linux)
+								</p>
+							</div>
+							<Switch
+								id="auto-hide-menu-bar"
+								checked={autoHideMenuBar}
+								onCheckedChange={setAutoHideMenuBar}
+							/>
+						</div>
+					</CardContent>
+				</Card>
+			)}
 
 			{/* Font Settings */}
 			<Card className="shadow-lg border-muted">

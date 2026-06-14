@@ -15,7 +15,7 @@ import {
   useEditorFontFamily,
 } from "@/stores/editorStore";
 import { createSqlExtensions } from "@/features/workspace/editor/codeMirrorConfig";
-import { getCodeMirrorTheme } from "@/features/workspace/editor/codeMirrorThemes";
+import { getCodeMirrorTheme, isLightTheme } from "@/features/workspace/editor/codeMirrorThemes";
 
 const FONT_FAMILY_MAP: Record<string, string> = {
   system: "ui-monospace, SFMono-Regular, Menlo, monospace",
@@ -52,17 +52,22 @@ export function SqlCodeMirror({
 
   const fontFamilyValue = FONT_FAMILY_MAP[fontFamily] ?? FONT_FAMILY_MAP.system;
 
+  const dark = !isLightTheme(theme);
+
   const fontExtension = useMemo(
     () =>
-      EditorView.theme({
-        "&": {
-          fontSize: `${fontSize}px`,
+      EditorView.theme(
+        {
+          "&": {
+            fontSize: `${fontSize}px`,
+          },
+          ".cm-content, .cm-gutters": {
+            fontFamily: fontFamilyValue,
+          },
         },
-        ".cm-content, .cm-gutters": {
-          fontFamily: fontFamilyValue,
-        },
-      }),
-    [fontSize, fontFamilyValue],
+        { dark },
+      ),
+    [fontSize, fontFamilyValue, dark],
   );
 
   const extensions = useMemo(

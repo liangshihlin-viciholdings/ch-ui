@@ -475,20 +475,25 @@ const SQLEditor: React.FC<SQLEditorProps> = ({
   const fontFamilyValue =
     FONT_FAMILY_MAP[fontFamily] ?? FONT_FAMILY_MAP.system;
 
+  const isDark = !isLightTheme(theme);
+
   const fontExtension = useMemo(
     () =>
-      EditorView.theme({
-        "&": {
-          fontSize: `${fontSize}px`,
+      EditorView.theme(
+        {
+          "&": {
+            fontSize: `${fontSize}px`,
+          },
+          ".cm-content, .cm-gutters": {
+            fontFamily: fontFamilyValue,
+          },
+          ".cm-current-query-highlight": {
+            backgroundColor: highlightBackground,
+          },
         },
-        ".cm-content, .cm-gutters": {
-          fontFamily: fontFamilyValue,
-        },
-        ".cm-current-query-highlight": {
-          backgroundColor: highlightBackground,
-        },
-      }),
-    [fontSize, fontFamilyValue, highlightBackground],
+        { dark: isDark },
+      ),
+    [fontSize, fontFamilyValue, highlightBackground, isDark],
   );
 
   // When vim is active, override the theme's caretColor so vim can render
@@ -497,13 +502,16 @@ const SQLEditor: React.FC<SQLEditorProps> = ({
   const vimCursorFix = useMemo(
     () =>
       vimMode
-        ? EditorView.theme({
-            ".cm-content": {
-              caretColor: "transparent",
+        ? EditorView.theme(
+            {
+              ".cm-content": {
+                caretColor: "transparent",
+              },
             },
-          })
+            { dark: isDark },
+          )
         : [],
-    [vimMode],
+    [vimMode, isDark],
   );
 
   // When vim mode is on we disable react-codemirror's basicSetup (which adds
