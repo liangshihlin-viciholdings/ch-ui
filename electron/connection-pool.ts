@@ -6,11 +6,9 @@ import type { DbAdapter, ConnectionConfig, Engine } from "../src/lib/db-adapter/
 import { ClickHouseAdapter } from "../src/lib/db-adapter/clickhouse";
 import { PostgresAdapter } from "../src/lib/db-adapter/postgres";
 import { MySQLAdapter } from "../src/lib/db-adapter/mysql";
-import { SQLiteAdapter } from "../src/lib/db-adapter/sqlite";
-import { DuckDBAdapter } from "../src/lib/db-adapter/duckdb";
 import { BrowserWindow } from "electron";
 
-function createAdapterForEngine(engine: Engine): DbAdapter {
+async function createAdapterForEngine(engine: Engine): Promise<DbAdapter> {
   switch (engine) {
     case "clickhouse":
       return new ClickHouseAdapter();
@@ -18,10 +16,26 @@ function createAdapterForEngine(engine: Engine): DbAdapter {
       return new PostgresAdapter();
     case "mysql":
       return new MySQLAdapter();
-    case "sqlite":
+    case "sqlite": {
+      const { SQLiteAdapter } = await import("../src/lib/db-adapter/sqlite.js");
       return new SQLiteAdapter();
-    case "duckdb":
-      return new DuckDBAdapter();
+    }
+    case "duckdb": {
+      try {
+        const { DuckDBAdapter } = await import("../src/lib/db-adapter/duckdb.js");
+        return new DuckDBAdapter();
+      } catch (err: any) {
+        const isMissingBinding =
+          err?.code === "ERR_MODULE_NOT_FOUND" ||
+          (typeof err?.message === "string" && err.message.includes("Cannot find package"));
+        throw new Error(
+          isMissingBinding
+            ? "DuckDB support requires optional native bindings (@duckdb/node-api and the matching platform binding such as @duckdb/node-bindings-linux-x64-musl or linux-x64). These are installed as optionalDependencies. Run `pnpm install` (the desktop postinstall will attempt to prepare binaries). If the binding for your libc/arch is not available, DuckDB file connections will not work in the desktop app."
+            : "Failed to load the DuckDB adapter.",
+          { cause: err }
+        );
+      }
+    }
     default: {
       const _exhaustive: never = engine;
       throw new Error(`Unknown engine: ${String(_exhaustive)}`);
@@ -81,7 +95,7 @@ export async function getOrCreateAdapter(
     throw new Error(`No connection config for ${connectionId}`);
   }
 
-  const adapter = createAdapterForEngine(config.engine);
+  const adapter = await createAdapterForEngine(config.engine);
   await adapter.connect(config);
 
   const entry: PoolEntry = {
