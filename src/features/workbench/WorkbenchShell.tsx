@@ -1,8 +1,5 @@
-// A2 Workbench shell — the desktop main surface.
-// Split navigator (connection list top, schema tree bottom) + editor+results right.
-// Tab → navigator sync, save-query dialog as form.
-
-import { useState, useMemo } from "react";
+import { useEffect, useState } from "react";
+import { useMemo } from "react";
 import {
   ChevronRight,
   ChevronDown,
@@ -23,10 +20,14 @@ import { cn } from "@/lib/utils";
 import { ENGINES, type EngineMeta } from "./engineMeta";
 import NewConnectionDialog from "./NewConnectionDialog";
 import EditorPane from "./EditorPane";
-
-// ─── Connection status types ──────────────────────────────────────────────
-
-type ConnectionStatus = "connected" | "idle" | "disconnected";
+import {
+  useWorkbenchStore,
+  loadConnections,
+  connectConnection,
+  selectConnection,
+  expandTable,
+  type ConnectionStatus,
+} from "@/stores/workbenchStore";
 
 const STATUS_COLOR: Record<ConnectionStatus, string> = {
   connected: "text-emerald-500 fill-emerald-500",
@@ -34,28 +35,15 @@ const STATUS_COLOR: Record<ConnectionStatus, string> = {
   disconnected: "text-zinc-400 fill-zinc-400",
 };
 
-// ─── Connection list (top panel) ──────────────────────────────────────────
-
-interface ConnectionEntry {
-  id: string;
-  name: string;
-  engine: keyof typeof ENGINES;
-  host?: string;
-  filePath?: string;
-  status: ConnectionStatus;
-}
-
 function ConnectionList({
-  connections,
-  activeId,
-  onPick,
   onAdd,
 }: {
-  connections: ConnectionEntry[];
-  activeId: string;
-  onPick: (id: string) => void;
   onAdd: () => void;
 }) {
+  const connections = useWorkbenchStore((s) => s.connections);
+  const activeId = useWorkbenchStore((s) => s.activeConnectionId);
+  const statuses = useWorkbenchStore((s) => s.statuses);
+
   return (
     <div className="flex h-full flex-col bg-card">
       <div className="flex items-center justify-between border-b border-border px-3 py-2">
@@ -70,10 +58,16 @@ function ConnectionList({
         {connections.map((c) => {
           const meta = ENGINES[c.engine];
           const Icon = meta.icon;
+          const status = statuses[c.id] ?? "disconnected";
           return (
             <button
               key={c.id}
-              onClick={() => onPick(c.id)}
+              onClick={() => {
+                selectConnection(c.id);
+                if (status === "disconnected") {
+                  void connectConnection(c.id);
+                }
+              }}
               className={cn(
                 "flex w-full items-center gap-2 px-3 py-2 text-sm",
                 c.id === activeId ? "bg-accent" : "hover:bg-accent/50",
@@ -85,40 +79,47 @@ function ConnectionList({
                 <div className="truncate font-medium">{c.name}</div>
                 <div className="truncate text-[11px] text-muted-foreground">
                   {meta.label}
-                  {c.host ? ` · ${c.host}` : c.filePath ? ` · ${c.filePath}` : ""}
+                  {c.filePath ? ` · ${c.filePath}` : c.url ? ` · ${c.url}` : ""}
                 </div>
               </div>
               <Circle
-                className={cn("size-2 shrink-0", STATUS_COLOR[c.status])}
+                className={cn("size-2 shrink-0", STATUS_COLOR[status])}
               />
             </button>
           );
         })}
+        {!connections.length && (
+          <div className="px-3 py-4 text-center text-xs text-muted-foreground">
+            No connections yet.
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-// ─── Schema tree (bottom panel) ───────────────────────────────────────────
-
-interface SchemaEntry {
-  name: string;
-  tables: { name: string; type: string; cols?: { name: string; type: string; pk?: boolean }[] }[];
-}
-
-function SchemaTree({ schema }: { schema: SchemaEntry | null }) {
+function SchemaTree() {
+  const activeId = useWorkbenchStore((s) => s.activeConnectionId);
+  const schemaCache = useWorkbenchStore((s) =>
+    activeId ? s.schemas[activeId] : null,
+  );
   const [q, setQ] = useState("");
-  const [open, setOpen] = useState<Record<string, boolean>>({});
   const [openTable, setOpenTable] = useState<Record<string, boolean>>({});
 
-  const filtered = useMemo(() => {
-    if (!schema) return [];
-    if (!q) return schema.tables;
-    const needle = q.toLowerCase();
-    return schema.tables.filter((t) => t.name.toLowerCase().includes(needle));
-  }, [schema, q]);
+  const allTables = useMemo(() => {
+    if (!schemaCache) return [];
+    return Object.entries(schemaCache.tables).flatMap(([schema, tables]) =>
+      tables.map((t) => ({ schema, ...t })),
+    );
+  }, [schemaCache]);
 
-  if (!schema) {
+  const filtered = useMemo(() => {
+    if (!q) return allTables;
+    const needle = q.toLowerCase();
+    return allTables.filter((t) => t.name.toLowerCase().includes(needle));
+  }, [allTables, q]);
+
+  if (!activeId || !schemaCache) {
     return (
       <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
         Select a connection
@@ -141,14 +142,18 @@ function SchemaTree({ schema }: { schema: SchemaEntry | null }) {
       </div>
       <div className="flex-1 overflow-auto py-1 text-sm">
         {filtered.map((t) => {
-          const tk = t.name;
+          const tk = `${t.schema}.${t.name}`;
           const to = openTable[tk];
+          const cols = schemaCache.columns[tk];
           return (
             <div key={tk}>
               <button
-                onClick={() =>
-                  setOpenTable((o) => ({ ...o, [tk]: !o[tk] }))
-                }
+                onClick={() => {
+                  setOpenTable((o) => ({ ...o, [tk]: !o[tk] }));
+                  if (!cols) {
+                    void expandTable(activeId, t.schema, t.name);
+                  }
+                }}
                 className="flex w-full items-center gap-1.5 py-1 pl-4 pr-2 hover:bg-accent"
               >
                 {to ? (
@@ -163,16 +168,12 @@ function SchemaTree({ schema }: { schema: SchemaEntry | null }) {
                 </span>
               </button>
               {to &&
-                (t.cols ?? []).map((col) => (
+                (cols ?? []).map((col) => (
                   <div
                     key={col.name}
                     className="flex items-center gap-1.5 py-0.5 pl-10 pr-2 text-xs hover:bg-accent"
                   >
-                    {col.pk ? (
-                      <KeyRound className="size-3 shrink-0 text-amber-500" />
-                    ) : (
-                      <span className="size-3 shrink-0" />
-                    )}
+                    <span className="size-3 shrink-0" />
                     <span className="truncate">{col.name}</span>
                     <span className="ml-auto font-mono text-[10px] text-muted-foreground">
                       {col.type}
@@ -192,61 +193,34 @@ function SchemaTree({ schema }: { schema: SchemaEntry | null }) {
   );
 }
 
-// ─── Main shell ───────────────────────────────────────────────────────────
-
-// TODO: wire to real connection/adapter data. For now uses mock.
-const MOCK_CONNECTIONS: ConnectionEntry[] = [
-  { id: "c1", name: "analytics-prod", engine: "clickhouse", host: "ch.internal:8443", status: "connected" },
-  { id: "c2", name: "billing-pg", engine: "postgres", host: "db.aws:5432", status: "idle" },
-  { id: "c3", name: "local-cache.db", engine: "sqlite", filePath: "~/data/cache.db", status: "disconnected" },
-];
-
-const MOCK_SCHEMAS: Record<string, SchemaEntry> = {
-  c1: { name: "analytics", tables: [
-    { name: "page_views", type: "table", cols: [
-      { name: "path", type: "String", pk: false },
-      { name: "timestamp", type: "DateTime", pk: false },
-      { name: "user_id", type: "UInt64", pk: true },
-    ]},
-    { name: "sessions", type: "table", cols: [
-      { name: "session_id", type: "UUID", pk: true },
-      { name: "user_id", type: "UInt64", pk: false },
-    ]},
-  ]},
-  c2: { name: "billing", tables: [
-    { name: "invoices", type: "table" },
-    { name: "customers", type: "table" },
-  ]},
-};
-
 export default function WorkbenchShell() {
-  const [activeId, setActiveId] = useState(MOCK_CONNECTIONS[0].id);
   const [newConn, setNewConn] = useState(false);
+  const activeId = useWorkbenchStore((s) => s.activeConnectionId);
 
-  const activeSchema = MOCK_SCHEMAS[activeId] ?? null;
+  useEffect(() => {
+    void loadConnections();
+  }, []);
 
   return (
+    <>
     <ResizablePanelGroup orientation="horizontal" className="h-full">
       <ResizablePanel defaultSize="22%" minSize={220} collapsible>
         <ResizablePanelGroup orientation="vertical" className="h-full">
           <ResizablePanel defaultSize="42%" minSize="20%">
-            <ConnectionList
-              connections={MOCK_CONNECTIONS}
-              activeId={activeId}
-              onPick={setActiveId}
-              onAdd={() => setNewConn(true)}
-            />
+            <ConnectionList onAdd={() => setNewConn(true)} />
           </ResizablePanel>
           <ResizableHandle withHandle />
           <ResizablePanel minSize="30%">
-            <SchemaTree schema={activeSchema} />
+            <SchemaTree />
           </ResizablePanel>
         </ResizablePanelGroup>
       </ResizablePanel>
       <ResizableHandle withHandle />
       <ResizablePanel minSize="50%">
-        <EditorPane onConnectionFocus={setActiveId} />
+        <EditorPane />
       </ResizablePanel>
     </ResizablePanelGroup>
+    <NewConnectionDialog open={newConn} onOpenChange={setNewConn} />
+    </>
   );
 }
