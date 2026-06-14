@@ -20,7 +20,7 @@
     "test:e2e:debug": "playwright test --debug",
     "test:e2e:report": "playwright show-report",
     "preview": "vite preview",
-    "postinstall": "electron --version || true",
+    "postinstall": "node -e \"if (process.env.ELECTRON_SKIP_BINARY_DOWNLOAD) { console.log('Skipping Electron binary download (ELECTRON_SKIP_BINARY_DOWNLOAD set)'); process.exit(0); } require('child_process').execSync('electron --version', { stdio: 'inherit' });\" || true",
     "dev:desktop": "electron-vite dev --config electron.vite.config.ts",
     "build:desktop": "electron-vite build --config electron.vite.config.ts",
     "dist:desktop": "pnpm build:desktop && electron-builder --linux AppImage"
