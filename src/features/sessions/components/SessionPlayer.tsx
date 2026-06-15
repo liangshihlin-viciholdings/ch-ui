@@ -59,7 +59,7 @@ export default function SessionPlayer({
           <PlaySquare className="mx-auto mb-3 h-12 w-12 text-muted-foreground/60" />
           <h3 className="text-sm font-medium">Session replay preview</h3>
           <p className="mt-1 text-xs text-muted-foreground">
-            Full visual replay is not yet available in ch-ui. Use the
+            Full visual replay is not yet available in deebee. Use the
             timeline on the right to scrub through recorded events.
           </p>
           {activeEvent && (
