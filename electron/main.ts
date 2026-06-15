@@ -1,6 +1,7 @@
 // Electron main process — opens a single BrowserWindow loading the Vite renderer.
 import { app, BrowserWindow, shell, ipcMain } from "electron";
 import { join } from "path";
+import { readFileSync, writeFileSync } from "node:fs";
 import { is } from "@electron-toolkit/utils";
 import { registerAdapterIPC } from "./ipc-handlers";
 import {
@@ -33,6 +34,43 @@ function registerSecretsIPC(): void {
   );
 }
 
+// --- Native window preferences (persisted across restarts) ------------------
+
+function windowPrefsPath(): string {
+  return join(app.getPath("userData"), "window-prefs.json");
+}
+
+function readAutoHideMenuBar(): boolean {
+  try {
+    const raw = readFileSync(windowPrefsPath(), "utf-8");
+    return (JSON.parse(raw) as { autoHideMenuBar?: boolean }).autoHideMenuBar === true;
+  } catch {
+    return false;
+  }
+}
+
+function writeAutoHideMenuBar(enabled: boolean): void {
+  try {
+    writeFileSync(windowPrefsPath(), JSON.stringify({ autoHideMenuBar: enabled }));
+  } catch {
+    // Best-effort persistence; not fatal if the userData dir is unwritable.
+  }
+}
+
+function registerWindowIPC(): void {
+  ipcMain.handle(
+    "window:setAutoHideMenuBar",
+    (event, enabled: boolean) => {
+      writeAutoHideMenuBar(enabled);
+      const win = BrowserWindow.fromWebContents(event.sender);
+      if (win) {
+        win.setAutoHideMenuBar(enabled);
+        win.setMenuBarVisibility(!enabled);
+      }
+    },
+  );
+}
+
 function createWindow(): BrowserWindow {
   const mainWindow = new BrowserWindow({
     width: 1400,
@@ -41,6 +79,9 @@ function createWindow(): BrowserWindow {
     minHeight: 600,
     show: false,
     title: "ch-ui",
+    // Apply the persisted preference up-front so the menu bar does not flicker
+    // on startup when auto-hide is enabled.
+    autoHideMenuBar: readAutoHideMenuBar(),
     webPreferences: {
       preload: join(__dirname, "../preload/preload.mjs"),
       sandbox: false,
@@ -69,6 +110,7 @@ app.whenReady().then(() => {
   initSecrets();
   registerSecretsIPC();
   registerAdapterIPC();
+  registerWindowIPC();
   createWindow();
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {

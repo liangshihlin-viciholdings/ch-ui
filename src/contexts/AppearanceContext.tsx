@@ -10,6 +10,7 @@ const STORAGE_KEYS = {
   EDITOR_FONT_SIZE: "ch-ui-editor-font-size",
   EDITOR_FONT_FAMILY: "ch-ui-editor-font-family",
   EDITOR_VIM_MODE: "ch-ui-editor-vim-mode",
+  AUTO_HIDE_MENU_BAR: "ch-ui-auto-hide-menu-bar",
 } as const;
 
 const DEFAULT_VALUES = {
@@ -17,6 +18,7 @@ const DEFAULT_VALUES = {
   EDITOR_FONT_SIZE: 14,
   EDITOR_FONT_FAMILY: "system",
   EDITOR_VIM_MODE: false,
+  AUTO_HIDE_MENU_BAR: false,
 } as const;
 
 export type EditorFontFamily =
@@ -34,10 +36,12 @@ interface AppearanceSettings {
   editorFontSize: number;
   editorFontFamily: EditorFontFamily;
   editorVimMode: boolean;
+  autoHideMenuBar: boolean;
   setUIFontSize: (size: number) => void;
   setEditorFontSize: (size: number) => void;
   setEditorFontFamily: (family: EditorFontFamily) => void;
   setEditorVimMode: (enabled: boolean) => void;
+  setAutoHideMenuBar: (enabled: boolean) => void;
 }
 
 const AppearanceContext = createContext<AppearanceSettings | undefined>(
@@ -68,6 +72,13 @@ export function AppearanceProvider({
   const [editorVimMode, setEditorVimModeState] = useState<boolean>(() => {
     const stored = localStorage.getItem(STORAGE_KEYS.EDITOR_VIM_MODE);
     return stored === "true";
+  });
+
+  const [autoHideMenuBar, setAutoHideMenuBarState] = useState<boolean>(() => {
+    const stored = localStorage.getItem(STORAGE_KEYS.AUTO_HIDE_MENU_BAR);
+    return stored === null
+      ? DEFAULT_VALUES.AUTO_HIDE_MENU_BAR
+      : stored === "true";
   });
 
   // Apply UI font size to CSS custom property
@@ -101,6 +112,20 @@ export function AppearanceProvider({
     setStoreVimMode(enabled);
   };
 
+  const setAutoHideMenuBar = (enabled: boolean) => {
+    setAutoHideMenuBarState(enabled);
+    localStorage.setItem(STORAGE_KEYS.AUTO_HIDE_MENU_BAR, enabled.toString());
+    // Desktop only: ask the Electron main process to apply it to the window
+    // immediately. Optional chaining keeps this a no-op in the web build.
+    (
+      window as unknown as {
+        electronAPI?: {
+          invoke?: (channel: string, ...args: unknown[]) => Promise<unknown>;
+        };
+      }
+    ).electronAPI?.invoke?.("window:setAutoHideMenuBar", enabled);
+  };
+
   return (
     <AppearanceContext.Provider
       value={{
@@ -108,10 +133,12 @@ export function AppearanceProvider({
         editorFontSize,
         editorFontFamily,
         editorVimMode,
+        autoHideMenuBar,
         setUIFontSize,
         setEditorFontSize,
         setEditorFontFamily,
         setEditorVimMode,
+        setAutoHideMenuBar,
       }}
     >
       {children}
