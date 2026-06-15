@@ -387,6 +387,20 @@ export function updateTabSql(tabId: string, sql: string): void {
   });
 }
 
+/**
+ * Re-bind a tab to a different connection and make it active. Callers should
+ * restrict the choice to the same engine so the editor's SQL dialect does not
+ * change underneath the user.
+ */
+export function setTabConnection(tabId: string, connectionId: string): void {
+  patch({
+    tabs: store.state.tabs.map((t) =>
+      t.id === tabId ? { ...t, connectionId } : t,
+    ),
+    activeConnectionId: connectionId,
+  });
+}
+
 export async function runQuery(tabId: string): Promise<void> {
   const tab = store.state.tabs.find((t) => t.id === tabId);
   if (!tab) return;

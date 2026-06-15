@@ -16,13 +16,21 @@ import { foldGutter, indentOnInput, bracketMatching } from "@codemirror/language
 import { closeBrackets, closeBracketsKeymap, completionKeymap } from "@codemirror/autocomplete";
 import { defaultKeymap, historyKeymap, indentWithTab } from "@codemirror/commands";
 import { searchKeymap, highlightSelectionMatches } from "@codemirror/search";
-import { ChevronDown, Play, Save, X, Plus } from "lucide-react";
+import { Check, ChevronDown, Play, Save, X, Plus } from "lucide-react";
 import {
   ResizableHandle,
   ResizablePanel,
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import DataTable from "@/components/common/DataTable";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/components/common/theme-provider";
@@ -43,6 +51,8 @@ import {
   openTab,
   closeTab,
   setActiveTab,
+  setTabConnection,
+  connectConnection,
   updateTabSql,
   runQuery,
 } from "@/stores/workbenchStore";
@@ -337,6 +347,7 @@ export default function EditorPane() {
   const tabs = useWorkbenchStore((s) => s.tabs);
   const activeTabId = useWorkbenchStore((s) => s.activeTabId);
   const connections = useWorkbenchStore((s) => s.connections);
+  const statuses = useWorkbenchStore((s) => s.statuses);
   const [saving, setSaving] = useState(false);
 
   const tab = tabs.find((t) => t.id === activeTabId);
@@ -356,17 +367,65 @@ export default function EditorPane() {
   const conn = connections.find((c) => c.id === tab.connectionId);
   const meta = conn ? ENGINES[conn.engine] : undefined;
 
+  // Connections this tab may switch to: same engine only, so the editor's SQL
+  // dialect never changes underneath the user.
+  const sameEngineConns = conn
+    ? connections.filter((c) => c.engine === conn.engine)
+    : [];
+
+  function switchConnection(connectionId: string) {
+    if (connectionId === tab!.connectionId) return;
+    setTabConnection(tab!.id, connectionId);
+    if ((statuses[connectionId] ?? "disconnected") !== "connected") {
+      void connectConnection(connectionId);
+    }
+  }
+
   return (
     <div className="flex h-full flex-col">
       <TabBar />
       {conn && meta && (
         <div className="flex items-center gap-2 border-b border-border px-3 py-1.5">
-          <span className="flex items-center gap-1.5 rounded-md border border-border px-2 py-1 text-xs">
-            <span className={cn("size-2 rounded-full", meta.dot)} />
-            <span className="font-medium">{conn.name}</span>
-            <span className="text-muted-foreground">· {meta.label}</span>
-            <ChevronDown className="size-3 text-muted-foreground" />
-          </span>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                className="flex items-center gap-1.5 rounded-md border border-border px-2 py-1 text-xs hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring data-[state=open]:bg-accent/50"
+                title="Switch this tab's connection (same engine only)"
+              >
+                <span className={cn("size-2 rounded-full", meta.dot)} />
+                <span className="font-medium">{conn.name}</span>
+                <span className="text-muted-foreground">· {meta.label}</span>
+                <ChevronDown className="size-3 text-muted-foreground" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-60">
+              <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
+                Switch to a {meta.label} connection
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {sameEngineConns.map((c) => (
+                <DropdownMenuItem
+                  key={c.id}
+                  className="gap-2"
+                  onClick={() => switchConnection(c.id)}
+                >
+                  <span
+                    className={cn(
+                      "size-2 shrink-0 rounded-full",
+                      ENGINES[c.engine].dot,
+                    )}
+                  />
+                  <span className="min-w-0 flex-1 truncate">{c.name}</span>
+                  {c.id === conn.id && <Check className="size-3.5 shrink-0" />}
+                </DropdownMenuItem>
+              ))}
+              {sameEngineConns.length <= 1 && (
+                <DropdownMenuItem disabled className="text-xs">
+                  No other {meta.label} connections
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
           <div className="ml-auto flex items-center gap-1">
             <Button
               size="sm"
