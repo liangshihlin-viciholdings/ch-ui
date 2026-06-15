@@ -74,6 +74,7 @@ describe("Audit Logging System", () => {
       const mockRunQuery = vi.fn().mockResolvedValue({ rows: [] });
       (useAppStore.default as any).mockReturnValue({
         runQuery: mockRunQuery,
+        clickHouseClient: { query: mockRunQuery },
         credential: { username: "admin_user" },
       });
 
@@ -108,13 +109,15 @@ describe("Audit Logging System", () => {
 
       await waitFor(() => {
         expect(mockRunQuery).toHaveBeenCalledWith(
-          expect.stringContaining("INSERT INTO ch_ui_audit_log"),
           expect.objectContaining({
-            username: "admin_user",
-            operation: "GRANT",
-            entity_type: "USER",
-            entity_name: "test_user",
-            success: 1,
+            query: expect.stringContaining("INSERT INTO ch_ui_audit_log"),
+            query_params: expect.objectContaining({
+              username: "admin_user",
+              operation: "GRANT",
+              entityType: "USER",
+              entityName: "test_user",
+              success: 1,
+            }),
           })
         );
       });
@@ -125,6 +128,7 @@ describe("Audit Logging System", () => {
       const mockRunQuery = vi.fn().mockResolvedValue({ rows: [] });
       (useAppStore.default as any).mockReturnValue({
         runQuery: mockRunQuery,
+        clickHouseClient: { query: mockRunQuery },
         credential: { username: "admin_user" },
       });
 
@@ -160,10 +164,12 @@ describe("Audit Logging System", () => {
 
       await waitFor(() => {
         expect(mockRunQuery).toHaveBeenCalledWith(
-          expect.stringContaining("INSERT INTO ch_ui_audit_log"),
           expect.objectContaining({
-            success: 0,
-            error_message: "DB::Exception: User is protected",
+            query: expect.stringContaining("INSERT INTO ch_ui_audit_log"),
+            query_params: expect.objectContaining({
+              success: 0,
+              errorMessage: "DB::Exception: User is protected",
+            }),
           })
         );
       });
@@ -171,28 +177,28 @@ describe("Audit Logging System", () => {
 
     it("should query audit logs with filters", async () => {
       const useAppStore = await import("@/stores/workspaceStore");
-      const mockRunQuery = vi.fn().mockResolvedValue({
-        rows: [
-          {
-            id: "audit-1",
-            timestamp: "2024-01-30 10:00:00",
-            username: "admin",
-            operation: "GRANT",
-            entity_type: "USER",
-            entity_name: "test_user",
-            description: "Grant SELECT",
-            sql_statements: ["GRANT SELECT ON *.* TO test_user"],
-            before_state: "{}",
-            after_state: "{}",
-            success: 1,
-            error_message: "",
-            client_ip: "",
-            session_id: "",
-          },
-        ],
-      });
+      const auditRow = {
+        id: "audit-1",
+        timestamp: "2024-01-30 10:00:00",
+        username: "admin",
+        operation: "GRANT",
+        entity_type: "USER",
+        entity_name: "test_user",
+        description: "Grant SELECT",
+        sql_statements: ["GRANT SELECT ON *.* TO test_user"],
+        before_state: "{}",
+        after_state: "{}",
+        success: 1,
+        error_message: "",
+        client_ip: "",
+        session_id: "",
+      };
+      const mockRunQuery = vi
+        .fn()
+        .mockResolvedValue({ json: async () => ({ data: [auditRow] }) });
       (useAppStore.default as any).mockReturnValue({
         runQuery: mockRunQuery,
+        clickHouseClient: { query: mockRunQuery },
         credential: { username: "admin" },
       });
 
@@ -216,11 +222,13 @@ describe("Audit Logging System", () => {
 
       await waitFor(() => {
         expect(mockRunQuery).toHaveBeenCalledWith(
-          expect.stringContaining("SELECT"),
           expect.objectContaining({
-            username: "admin",
-            operation: "GRANT",
-            limit: 10,
+            query: expect.stringContaining("SELECT"),
+            query_params: expect.objectContaining({
+              username: "admin",
+              operation: "GRANT",
+              limit: 10,
+            }),
           })
         );
       });
@@ -231,22 +239,22 @@ describe("Audit Logging System", () => {
       const mockRunQuery = vi
         .fn()
         .mockResolvedValueOnce({
-          rows: [{ total_changes: 100, successful_changes: 95, failed_changes: 5 }],
+          data: [{ total_changes: 100, successful_changes: 95, failed_changes: 5 }],
         })
         .mockResolvedValueOnce({
-          rows: [
+          data: [
             { date: "2024-01-30", count: 25 },
             { date: "2024-01-29", count: 30 },
           ],
         })
         .mockResolvedValueOnce({
-          rows: [
+          data: [
             { username: "admin", count: 50 },
             { username: "operator", count: 30 },
           ],
         })
         .mockResolvedValueOnce({
-          rows: [
+          data: [
             { operation: "GRANT", count: 40 },
             { operation: "REVOKE", count: 20 },
           ],
@@ -301,6 +309,7 @@ describe("Audit Logging System", () => {
       const mockRunQuery = vi.fn().mockResolvedValue({ rows: [] });
       (useAppStore.default as any).mockReturnValue({
         runQuery: mockRunQuery,
+        clickHouseClient: { query: mockRunQuery },
         credential: { username: "admin" },
       });
 
@@ -328,6 +337,7 @@ describe("Audit Logging System", () => {
       const mockRunQuery = vi.fn().mockResolvedValue({ rows: [] });
       (useAppStore.default as any).mockReturnValue({
         runQuery: mockRunQuery,
+        clickHouseClient: { query: mockRunQuery },
         credential: { username: "admin" },
       });
 
@@ -364,10 +374,12 @@ describe("Audit Logging System", () => {
 
       await waitFor(() => {
         expect(mockRunQuery).toHaveBeenCalledWith(
-          expect.stringContaining("INSERT INTO ch_ui_audit_log"),
           expect.objectContaining({
-            before_state: JSON.stringify({ max_memory_usage: 5000000000 }),
-            after_state: JSON.stringify({ max_memory_usage: 10000000000 }),
+            query: expect.stringContaining("INSERT INTO ch_ui_audit_log"),
+            query_params: expect.objectContaining({
+              beforeState: JSON.stringify({ max_memory_usage: 5000000000 }),
+              afterState: JSON.stringify({ max_memory_usage: 10000000000 }),
+            }),
           })
         );
       });
@@ -380,6 +392,7 @@ describe("Audit Logging System", () => {
       const mockRunQuery = vi.fn().mockResolvedValue({ rows: [] });
       (useAppStore.default as any).mockReturnValue({
         runQuery: mockRunQuery,
+        clickHouseClient: { query: mockRunQuery },
         credential: { username: "admin" },
       });
 

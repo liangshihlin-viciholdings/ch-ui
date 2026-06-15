@@ -33,6 +33,9 @@ export default defineConfig({
     globals: true,
     environment: "happy-dom",
     setupFiles: ["./src/test/setup.ts"],
+    // Unit tests live under src/. tests/e2e/ holds Playwright specs (run via
+    // `pnpm test:e2e`) — exclude them so vitest doesn't try to collect them.
+    include: ["src/**/*.{test,spec}.{ts,tsx}"],
     coverage: {
       provider: "v8",
       reporter: ["text", "json", "html"],
