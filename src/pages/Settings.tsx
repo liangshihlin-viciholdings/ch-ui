@@ -15,7 +15,7 @@ import useAppStore from "@/stores/workspaceStore";
 import { AppearanceTab } from "@/features/settings/components/AppearanceTab";
 
 export default function SettingsPage() {
-  document.title = "CH-UI | Settings";
+  document.title = "deebee | Settings";
   const { credential, credentialSource, clearLocalData } = useAppStore();
 
   const handleClearLocal = () => {

@@ -1,7 +1,7 @@
-# CH-UI 🚀
+# deebee 🚀
 
 [![Version](https://img.shields.io/github/v/release/caioricciuti/ch-ui?label=version&style=flat-square)](https://github.com/caioricciuti/ch-ui/releases)
-A modern, feature-rich web interface for ClickHouse databases. CH-UI provides an intuitive platform for managing ClickHouse databases, executing queries, and visualizing metrics about your instance.
+A modern, feature-rich web interface for ClickHouse databases. deebee provides an intuitive platform for managing ClickHouse databases, executing queries, and visualizing metrics about your instance.
 
 ---
 
@@ -263,7 +263,7 @@ Data is persisted in `.clickhouse_local_data` directory.
 
 ### Reverse Proxy Setup with Nginx
 
-When deploying CH-UI behind a reverse proxy with a custom base path:
+When deploying deebee behind a reverse proxy with a custom base path:
 
 #### Nginx Configuration
 ```nginx
@@ -271,7 +271,7 @@ server {
     listen 80;
     server_name your-domain.com;
 
-    # CH-UI with custom base path
+    # deebee with custom base path
     location /ch-ui/ {
         proxy_pass http://localhost:5521/;
         proxy_set_header Host $host;
@@ -336,7 +336,7 @@ server {
 
 ## 🎯 Distributed ClickHouse Support
 
-CH-UI now supports distributed ClickHouse deployments with cluster operations:
+deebee now supports distributed ClickHouse deployments with cluster operations:
 
 ### Features
 - **ON CLUSTER Support**: Create tables and users across entire clusters
@@ -353,7 +353,7 @@ In your Settings page, enable "Distributed Mode" and specify your cluster name. 
 1. Enable Distributed Mode in Settings
 2. Create a table with "ON CLUSTER" option checked
 3. Select "Distributed" as the table engine
-4. CH-UI will generate the appropriate DDL with cluster syntax
+4. deebee will generate the appropriate DDL with cluster syntax
 
 ## 🐛 Troubleshooting
 
@@ -366,13 +366,13 @@ If environment variables aren't being applied:
 3. Verify variables are set: The logs should show which variables are SET/NOT SET
 
 #### Reverse Proxy Issues
-If CH-UI doesn't work correctly behind a reverse proxy:
+If deebee doesn't work correctly behind a reverse proxy:
 1. Ensure `VITE_BASE_PATH` matches your proxy location
 2. Don't include trailing slashes in `VITE_BASE_PATH`
 3. Check browser console for 404 errors on assets
 
 #### Column Names with Special Characters
-CH-UI now properly handles column names containing:
+deebee now properly handles column names containing:
 - Dots (e.g., `user.email`)
 - Spaces (e.g., `User Name`)
 - Special characters
@@ -435,7 +435,7 @@ bun run dev
 
 ## ☕ Support the Project
 
-If you find CH-UI helpful, consider supporting its development:
+If you find deebee helpful, consider supporting its development:
 
 <div align="center">
   <a href="https://buymeacoffee.com/caioricciuti?utm_source=ch-ui&utm_medium=github">
@@ -443,7 +443,7 @@ If you find CH-UI helpful, consider supporting its development:
   </a>
 </div>
 
-Your support helps maintain and improve CH-UI! ✨
+Your support helps maintain and improve deebee! ✨
 
 ## 📄 License
 
