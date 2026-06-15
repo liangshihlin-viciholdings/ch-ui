@@ -6,6 +6,8 @@
 
 import { useQuery, type UseQueryResult } from "@tanstack/react-query";
 import { runQuery } from "@/lib/queryRunner";
+import { useWorkbenchStore } from "@/stores/workbenchStore";
+import type { Engine } from "@/lib/db/schema";
 import type { QueryResult } from "@/types/common";
 import type {
   SearchFilter,
@@ -19,6 +21,27 @@ import {
 
 function escape(value: string): string {
   return value.replace(/'/g, "''");
+}
+
+// Case-insensitive substring match, dialect-aware. ClickHouse keeps its
+// positionCaseInsensitive form (byte-identical); other engines use ILIKE
+// (PG/DuckDB) or LOWER(...) LIKE (MySQL/SQLite).
+function containsClause(engine: Engine, field: string, value: string): string {
+  const v = escape(value);
+  if (engine === "clickhouse")
+    return `positionCaseInsensitive(toString(${field}), '${v}') > 0`;
+  if (engine === "postgres" || engine === "duckdb")
+    return `${field}::text ILIKE '%${v}%'`;
+  return `LOWER(${field}) LIKE LOWER('%${v}%')`;
+}
+
+// Timestamp literal bound. ClickHouse wraps it in toDateTime64; standard
+// engines compare against the plain datetime string.
+function tsBound(engine: Engine, col: string, op: string, d: Date): string {
+  const lit = d.toISOString().replace("T", " ").replace("Z", "");
+  return engine === "clickhouse"
+    ? `${col} ${op} toDateTime64('${lit}', 3)`
+    : `${col} ${op} '${lit}'`;
 }
 
 // Parse a fragment like `level:error` into a filter. Anything that isn't
@@ -64,7 +87,7 @@ export function parseSearchQuery(raw: string): {
   return { filters, textTerms };
 }
 
-function filterToSql(filter: SearchFilter): string {
+function filterToSql(engine: Engine, filter: SearchFilter): string {
   const field = filter.field;
   const raw = filter.value;
   switch (filter.operator) {
@@ -81,7 +104,7 @@ function filterToSql(filter: SearchFilter): string {
     case "<=":
       return `${field} <= ${Number(raw)}`;
     case "contains":
-      return `positionCaseInsensitive(toString(${field}), '${escape(raw)}') > 0`;
+      return containsClause(engine, field, raw);
     case "exists":
       return `${field} IS NOT NULL`;
     default:
@@ -89,7 +112,10 @@ function filterToSql(filter: SearchFilter): string {
   }
 }
 
-export function generateSearchSql(input: SearchQueryInput): string {
+export function generateSearchSql(
+  input: SearchQueryInput,
+  engine: Engine = "clickhouse",
+): string {
   const {
     query,
     filters,
@@ -103,12 +129,12 @@ export function generateSearchSql(input: SearchQueryInput): string {
   const allFilters = [...filters, ...parsed.filters];
 
   const where: string[] = [
-    `${timestampColumn} >= toDateTime64('${start.toISOString().replace("T", " ").replace("Z", "")}', 3)`,
-    `${timestampColumn} <= toDateTime64('${end.toISOString().replace("T", " ").replace("Z", "")}', 3)`,
+    tsBound(engine, timestampColumn, ">=", start),
+    tsBound(engine, timestampColumn, "<=", end),
   ];
-  for (const f of allFilters) where.push(filterToSql(f));
+  for (const f of allFilters) where.push(filterToSql(engine, f));
   for (const term of parsed.textTerms) {
-    where.push(`positionCaseInsensitive(toString(Body), '${escape(term)}') > 0`);
+    where.push(containsClause(engine, "Body", term));
   }
 
   const columns = DEFAULT_LOG_COLUMNS.join(", ");
@@ -134,7 +160,11 @@ export function useSearchData(
   options: UseSearchDataOptions,
 ): UseQueryResult<SearchDataResult, Error> {
   const { enabled = true, ...input } = options;
-  const sql = generateSearchSql(input);
+  // Resolve the engine for dialect-aware SQL; unknown/legacy → ClickHouse.
+  const engine = useWorkbenchStore(
+    (s) => s.connections.find((c) => c.id === input.connectionId)?.engine,
+  ) as Engine | undefined;
+  const sql = generateSearchSql(input, engine ?? "clickhouse");
   return useQuery({
     queryKey: ["search-data", sql, input.connectionId ?? "legacy"],
     queryFn: async (): Promise<SearchDataResult> => {
