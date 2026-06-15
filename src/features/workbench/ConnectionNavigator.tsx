@@ -3,7 +3,7 @@
 // is a collapsible node; expanding a disconnected connection connects it and
 // loads its schema. Connection management (connect/disconnect, set default,
 // edit, delete, admin) lives inline via a per-row menu.
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import {
   ChevronRight,
   ChevronDown,
@@ -18,6 +18,10 @@ import {
   Trash2,
   Power,
   Star,
+  RefreshCw,
+  RotateCw,
+  Download,
+  Upload,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,9 +29,17 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -41,6 +53,7 @@ import {
 import { cn } from "@/lib/utils";
 import { ENGINES } from "./engineMeta";
 import type { SavedConnection } from "@/lib/db/schema";
+import type { ConnectionDisplay } from "@/lib/db";
 import {
   useWorkbenchStore,
   connectConnection,
@@ -48,10 +61,13 @@ import {
   selectConnection,
   expandTable,
   openTab,
+  loadConnections,
+  loadSchema,
   setAdminView,
   type ConnectionStatus,
 } from "@/stores/workbenchStore";
 import { deleteConnectionById, setAsDefault } from "@/stores/connectionStore";
+import ExportImportDialog from "@/features/connections/components/ExportImportDialog";
 
 const STATUS_COLOR: Record<ConnectionStatus, string> = {
   connected: "text-emerald-500 fill-emerald-500",
@@ -88,6 +104,9 @@ export default function ConnectionNavigator({
   const [pendingDelete, setPendingDelete] = useState<SavedConnection | null>(
     null,
   );
+  const [exportImport, setExportImport] = useState<null | "export" | "import">(
+    null,
+  );
 
   const needle = q.trim().toLowerCase();
 
@@ -120,15 +139,134 @@ export default function ConnectionNavigator({
     });
   }
 
+  // Tear down and re-establish a connection (re-validates credentials and
+  // reloads its schema/capabilities).
+  async function revalidate(id: string) {
+    if ((statuses[id] ?? "disconnected") === "connected") {
+      await disconnectConnection(id);
+    }
+    await connectConnection(id);
+  }
+
+  // Reload schema for every currently-connected connection.
+  function refreshAllSchemas() {
+    for (const c of connections) {
+      if ((statuses[c.id] ?? "disconnected") === "connected") {
+        void loadSchema(c.id);
+      }
+    }
+  }
+
+  // Per-connection actions, shared between the hover kebab (DropdownMenu) and
+  // the right-click ContextMenu so the two stay in sync. `Item`/`Sep` are the
+  // menu-item / separator components of whichever menu is rendering.
+  function connActions(
+    c: SavedConnection,
+    Item: React.ElementType,
+    Sep: React.ElementType,
+  ) {
+    const status = statuses[c.id] ?? "disconnected";
+    const adminCaps = capabilities[c.id]?.admin;
+    const connected = status === "connected";
+    return (
+      <>
+        {connected ? (
+          <Item onClick={() => void disconnectConnection(c.id)}>
+            <Power className="mr-2 size-3.5" /> Disconnect
+          </Item>
+        ) : (
+          <Item
+            onClick={() => {
+              selectConnection(c.id);
+              void connectConnection(c.id);
+            }}
+          >
+            <Power className="mr-2 size-3.5" /> Connect
+          </Item>
+        )}
+        <Item onClick={() => void revalidate(c.id)}>
+          <RotateCw className="mr-2 size-3.5" /> Revalidate
+        </Item>
+        <Item disabled={!connected} onClick={() => void loadSchema(c.id)}>
+          <RefreshCw className="mr-2 size-3.5" /> Refresh tables
+        </Item>
+        {adminCaps && (
+          <Item
+            onClick={() => {
+              selectConnection(c.id);
+              setAdminView(true);
+            }}
+          >
+            <Shield className="mr-2 size-3.5" /> Admin
+          </Item>
+        )}
+        <Sep />
+        <Item onClick={() => onEdit(c)}>
+          <Pencil className="mr-2 size-3.5" /> Edit…
+        </Item>
+        {!c.isDefault && (
+          <Item onClick={() => void setAsDefault(c.id)}>
+            <Star className="mr-2 size-3.5" /> Set as default
+          </Item>
+        )}
+        <Sep />
+        <Item
+          className="text-destructive focus:text-destructive"
+          onClick={() => setPendingDelete(c)}
+        >
+          <Trash2 className="mr-2 size-3.5" /> Delete
+        </Item>
+      </>
+    );
+  }
+
   return (
     <div className="flex h-full flex-col bg-card">
       <div className="flex items-center justify-between border-b border-border px-3 py-2">
         <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           Connections
         </span>
-        <Button size="icon" variant="ghost" className="size-6" onClick={onAdd}>
-          <Plus className="size-4" />
-        </Button>
+        <div className="flex items-center gap-0.5">
+          <Button
+            size="icon"
+            variant="ghost"
+            className="size-6"
+            onClick={onAdd}
+            title="Add connection"
+          >
+            <Plus className="size-4" />
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="size-6"
+                title="More actions"
+              >
+                <MoreVertical className="size-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-52">
+              <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
+                Navigator
+              </DropdownMenuLabel>
+              <DropdownMenuItem onClick={() => void loadConnections()}>
+                <RefreshCw className="mr-2 size-3.5" /> Refresh connections
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={refreshAllSchemas}>
+                <RefreshCw className="mr-2 size-3.5" /> Refresh all schemas
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => setExportImport("import")}>
+                <Upload className="mr-2 size-3.5" /> Import connections…
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setExportImport("export")}>
+                <Download className="mr-2 size-3.5" /> Export connections…
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
 
       <div className="border-b border-border px-2 py-1.5">
@@ -150,20 +288,21 @@ export default function ConnectionNavigator({
           const status = statuses[c.id] ?? "disconnected";
           const isOpen = !!openConn[c.id];
           const cache = schemas[c.id] ?? null;
-          const adminCaps = capabilities[c.id]?.admin;
           const isActive = c.id === activeId;
 
           return (
             <div key={c.id}>
-              {/* Connection row */}
-              <div
-                className={cn(
-                  "group relative flex w-full items-center gap-1.5 px-2 py-1.5",
-                  isActive
-                    ? "bg-accent text-accent-foreground"
-                    : "hover:bg-accent/50",
-                )}
-              >
+              {/* Connection row (right-click opens the context menu) */}
+              <ContextMenu>
+                <ContextMenuTrigger asChild>
+                  <div
+                    className={cn(
+                      "group relative flex w-full items-center gap-1.5 px-2 py-1.5",
+                      isActive
+                        ? "bg-accent text-accent-foreground"
+                        : "hover:bg-accent/50",
+                    )}
+                  >
                 <button
                   onClick={() => toggleConn(c)}
                   className={cn(
@@ -237,52 +376,16 @@ export default function ConnectionNavigator({
                       <MoreVertical className="size-3.5" />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-44">
-                    {status === "connected" ? (
-                      <DropdownMenuItem
-                        onClick={() => void disconnectConnection(c.id)}
-                      >
-                        <Power className="mr-2 size-3.5" /> Disconnect
-                      </DropdownMenuItem>
-                    ) : (
-                      <DropdownMenuItem
-                        onClick={() => {
-                          selectConnection(c.id);
-                          void connectConnection(c.id);
-                        }}
-                      >
-                        <Power className="mr-2 size-3.5" /> Connect
-                      </DropdownMenuItem>
-                    )}
-                    {adminCaps && (
-                      <DropdownMenuItem
-                        onClick={() => {
-                          selectConnection(c.id);
-                          setAdminView(true);
-                        }}
-                      >
-                        <Shield className="mr-2 size-3.5" /> Admin
-                      </DropdownMenuItem>
-                    )}
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => onEdit(c)}>
-                      <Pencil className="mr-2 size-3.5" /> Edit
-                    </DropdownMenuItem>
-                    {!c.isDefault && (
-                      <DropdownMenuItem onClick={() => void setAsDefault(c.id)}>
-                        <Star className="mr-2 size-3.5" /> Set as default
-                      </DropdownMenuItem>
-                    )}
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      className="text-destructive focus:text-destructive"
-                      onClick={() => setPendingDelete(c)}
-                    >
-                      <Trash2 className="mr-2 size-3.5" /> Delete
-                    </DropdownMenuItem>
+                  <DropdownMenuContent align="end" className="w-48">
+                    {connActions(c, DropdownMenuItem, DropdownMenuSeparator)}
                   </DropdownMenuContent>
                 </DropdownMenu>
-              </div>
+                  </div>
+                </ContextMenuTrigger>
+                <ContextMenuContent className="w-52">
+                  {connActions(c, ContextMenuItem, ContextMenuSeparator)}
+                </ContextMenuContent>
+              </ContextMenu>
 
               {/* Schema → table → column subtree */}
               {isOpen && (
@@ -435,6 +538,15 @@ export default function ConnectionNavigator({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ExportImportDialog
+        open={exportImport !== null}
+        onOpenChange={(open) => {
+          if (!open) setExportImport(null);
+        }}
+        connections={connections as ConnectionDisplay[]}
+        defaultTab={exportImport ?? "export"}
+      />
     </div>
   );
 }

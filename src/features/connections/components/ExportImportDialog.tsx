@@ -1,7 +1,7 @@
 // src/features/connections/components/ExportImportDialog.tsx
 // Dialog for exporting and importing connections
 
-import { useState, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Download,
   Upload,
@@ -29,14 +29,32 @@ interface ExportImportDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   connections: ConnectionDisplay[];
+  /** Which tab to open on. Defaults to "export". */
+  defaultTab?: "export" | "import";
+}
+
+/** Display host for a connection, tolerant of file engines / empty URLs. */
+function connHost(conn: ConnectionDisplay): string {
+  if (conn.filePath) return conn.filePath;
+  try {
+    return conn.url ? new URL(conn.url).host : "—";
+  } catch {
+    return conn.url || "—";
+  }
 }
 
 export default function ExportImportDialog({
   open,
   onOpenChange,
   connections,
+  defaultTab = "export",
 }: ExportImportDialogProps) {
-  const [activeTab, setActiveTab] = useState<"export" | "import">("export");
+  const [activeTab, setActiveTab] = useState<"export" | "import">(defaultTab);
+
+  // Re-sync the active tab whenever the dialog is (re)opened.
+  useEffect(() => {
+    if (open) setActiveTab(defaultTab);
+  }, [open, defaultTab]);
 
   // Export state
   const [selectedConnections, setSelectedConnections] = useState<Set<string>>(
@@ -203,7 +221,8 @@ export default function ExportImportDialog({
                         <div className="flex-1">
                           <span className="font-medium">{conn.name}</span>
                           <p className="text-xs text-muted-foreground font-mono">
-                            {conn.username}@{new URL(conn.url).host}
+                            {conn.username ? `${conn.username}@` : ""}
+                            {connHost(conn)}
                           </p>
                         </div>
                       </div>
