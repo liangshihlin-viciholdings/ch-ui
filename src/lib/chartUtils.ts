@@ -4,10 +4,21 @@ import type {
   AggregateFunction,
   DashboardFilter,
 } from "@/features/analytics/types";
+import type { Engine } from "@/lib/db/schema";
 import {
   interpolateQuery,
   hasTemplateVariables,
 } from "@/features/analytics/utils/queryInterpolation";
+
+// ─────────────────────────────────────────────────────────────────────────
+// Builder-mode SQL generation, dialect-aware.
+//
+// ClickHouse output is preserved BYTE-FOR-BYTE (engine === "clickhouse" branch)
+// so existing dashboards are unaffected. Other engines get standard-SQL
+// equivalents. A few constructs have no portable form on every engine
+// (percentiles on MySQL/SQLite) — those emit NULL with an inline note rather
+// than producing invalid SQL.
+// ─────────────────────────────────────────────────────────────────────────
 
 export function resolveGranularity(
   granularity: string | "auto",
@@ -23,54 +34,177 @@ export function resolveGranularity(
   return "1 day";
 }
 
+const UNIT_SECONDS: Record<string, number> = {
+  second: 1,
+  minute: 60,
+  hour: 3600,
+  day: 86400,
+  week: 604800,
+};
+
+/** Parse a granularity like "5 minute" into total seconds (for MySQL/SQLite bucketing). */
+function granularitySeconds(granularity: string): number {
+  const m = granularity.trim().match(/(\d+)\s*(second|minute|hour|day|week)s?/i);
+  if (!m) return 60;
+  return parseInt(m[1], 10) * (UNIT_SECONDS[m[2].toLowerCase()] ?? 60);
+}
+
+/** Engines that support the SQL-standard `agg(...) FILTER (WHERE ...)` clause. */
+const FILTER_ENGINES: Engine[] = ["postgres", "duckdb", "sqlite"];
+
+function timeBucketExpr(
+  engine: Engine,
+  col: string,
+  granularity: string
+): string {
+  switch (engine) {
+    case "clickhouse":
+      return `toStartOfInterval(${col}, INTERVAL ${granularity})`;
+    case "postgres":
+      // date_bin handles arbitrary intervals (PostgreSQL 14+).
+      return `date_bin(INTERVAL '${granularity}', ${col}, TIMESTAMP '1970-01-01')`;
+    case "duckdb":
+      return `time_bucket(INTERVAL '${granularity}', ${col})`;
+    case "mysql": {
+      const s = granularitySeconds(granularity);
+      return `FROM_UNIXTIME(FLOOR(UNIX_TIMESTAMP(${col}) / ${s}) * ${s})`;
+    }
+    case "sqlite": {
+      const s = granularitySeconds(granularity);
+      return `datetime(CAST(strftime('%s', ${col}) AS INTEGER) / ${s} * ${s}, 'unixepoch')`;
+    }
+    default:
+      return `toStartOfInterval(${col}, INTERVAL ${granularity})`;
+  }
+}
+
+const QUANTILE_P: Partial<Record<AggregateFunction, number>> = {
+  p50: 0.5,
+  p90: 0.9,
+  p95: 0.95,
+  p99: 0.99,
+};
+
 function aggFnToSql(
+  engine: Engine,
   fn: AggregateFunction,
   expr: string,
   condition?: string
 ): string {
-  const cond = condition ? `If(${condition})` : "";
+  // ── ClickHouse: preserve the exact original output. ──
+  if (engine === "clickhouse") {
+    const cond = condition ? `If(${condition})` : "";
+    switch (fn) {
+      case "count":
+        return `count${cond}()`;
+      case "sum":
+        return `sum${cond}(${expr})`;
+      case "avg":
+        return `avg${cond}(${expr})`;
+      case "min":
+        return `min${cond}(${expr})`;
+      case "max":
+        return `max${cond}(${expr})`;
+      case "p50":
+        return `quantile${cond}(0.5)(${expr})`;
+      case "p90":
+        return `quantile${cond}(0.9)(${expr})`;
+      case "p95":
+        return `quantile${cond}(0.95)(${expr})`;
+      case "p99":
+        return `quantile${cond}(0.99)(${expr})`;
+      case "count_distinct":
+        return `uniq${cond}(${expr})`;
+      case "any":
+        return `any${cond}(${expr})`;
+      default:
+        return "count()";
+    }
+  }
+
+  // ── Standard-SQL engines. ──
+  const p = QUANTILE_P[fn];
+  if (p !== undefined) {
+    // Percentiles: ordered-set aggregate on PG/DuckDB; unsupported on MySQL/SQLite.
+    if (engine === "postgres" || engine === "duckdb") {
+      const base = `percentile_cont(${p}) WITHIN GROUP (ORDER BY ${expr})`;
+      return condition ? `${base} FILTER (WHERE ${condition})` : base;
+    }
+    return `NULL /* p-quantile not supported on ${engine} */`;
+  }
+
+  // Base aggregate (no condition).
+  let base: string;
   switch (fn) {
     case "count":
-      return `count${cond}()`;
+      base = "count(*)";
+      break;
     case "sum":
-      return `sum${cond}(${expr})`;
+      base = `sum(${expr})`;
+      break;
     case "avg":
-      return `avg${cond}(${expr})`;
+      base = `avg(${expr})`;
+      break;
     case "min":
-      return `min${cond}(${expr})`;
+      base = `min(${expr})`;
+      break;
     case "max":
-      return `max${cond}(${expr})`;
-    case "p50":
-      return `quantile${cond}(0.5)(${expr})`;
-    case "p90":
-      return `quantile${cond}(0.9)(${expr})`;
-    case "p95":
-      return `quantile${cond}(0.95)(${expr})`;
-    case "p99":
-      return `quantile${cond}(0.99)(${expr})`;
+      base = `max(${expr})`;
+      break;
     case "count_distinct":
-      return `uniq${cond}(${expr})`;
+      base = `count(distinct ${expr})`;
+      break;
     case "any":
-      return `any${cond}(${expr})`;
+      base =
+        engine === "duckdb"
+          ? `any_value(${expr})`
+          : engine === "mysql"
+            ? `ANY_VALUE(${expr})`
+            : `min(${expr})`; // postgres / sqlite have no ANY aggregate
+      break;
     default:
-      return "count()";
+      base = "count(*)";
+  }
+
+  if (!condition) return base;
+
+  // Conditional aggregate.
+  if (FILTER_ENGINES.includes(engine)) {
+    return `${base} FILTER (WHERE ${condition})`;
+  }
+  // MySQL: rewrite with CASE WHEN.
+  switch (fn) {
+    case "count":
+      return `SUM(CASE WHEN ${condition} THEN 1 ELSE 0 END)`;
+    case "count_distinct":
+      return `COUNT(DISTINCT CASE WHEN ${condition} THEN ${expr} END)`;
+    case "any":
+      return `ANY_VALUE(CASE WHEN ${condition} THEN ${expr} END)`;
+    default:
+      return `${fn.toUpperCase()}(CASE WHEN ${condition} THEN ${expr} END)`;
   }
 }
 
-function filterToSqlClause(filter: DashboardFilter): string {
+function filterToSqlClause(engine: Engine, filter: DashboardFilter): string {
   const field = filter.field;
   const value = filter.value;
+  const esc = value.replace(/'/g, "''");
   switch (filter.operator) {
     case "=":
-      return `${field} = '${value.replace(/'/g, "''")}'`;
+      return `${field} = '${esc}'`;
     case "!=":
-      return `${field} != '${value.replace(/'/g, "''")}'`;
+      return `${field} != '${esc}'`;
     case ">":
       return `${field} > ${Number(value)}`;
     case "<":
       return `${field} < ${Number(value)}`;
     case "contains":
-      return `positionCaseInsensitive(${field}, '${value.replace(/'/g, "''")}') > 0`;
+      if (engine === "clickhouse")
+        return `positionCaseInsensitive(${field}, '${esc}') > 0`;
+      if (engine === "postgres" || engine === "duckdb")
+        return `${field} ILIKE '%${esc}%'`;
+      // mysql / sqlite: case-insensitive LIKE via LOWER().
+      return `LOWER(${field}) LIKE LOWER('%${esc}%')`;
     default:
       return "1=1";
   }
@@ -81,16 +215,17 @@ function generateBuilderSql(
   dateRange: [Date, Date],
   tableName: string,
   timestampColumn: string,
-  filters: DashboardFilter[]
+  filters: DashboardFilter[],
+  engine: Engine
 ): string {
   const [start, end] = dateRange;
   const granularity = resolveGranularity(config.granularity, dateRange);
 
   const selectClauses = config.select.map((s) =>
-    aggFnToSql(s.aggFn, s.valueExpression || "*", s.aggCondition)
+    aggFnToSql(engine, s.aggFn, s.valueExpression || "*", s.aggCondition)
   );
 
-  const timeBucket = `toStartOfInterval(${timestampColumn}, INTERVAL ${granularity}) AS time_bucket`;
+  const timeBucket = `${timeBucketExpr(engine, timestampColumn, granularity)} AS time_bucket`;
 
   const select = [
     timeBucket,
@@ -102,7 +237,7 @@ function generateBuilderSql(
     `${timestampColumn} >= '${start.toISOString()}'`,
     `${timestampColumn} <= '${end.toISOString()}'`,
     ...(config.where ? [config.where] : []),
-    ...filters.map(filterToSqlClause),
+    ...filters.map((f) => filterToSqlClause(engine, f)),
   ];
   const where = whereClauses.join("\n  AND ");
 
@@ -117,14 +252,23 @@ export function generateChartSql(
   dateRange: [Date, Date],
   tableName: string,
   timestampColumn: string = "timestamp",
-  filters: DashboardFilter[] = []
+  filters: DashboardFilter[] = [],
+  engine: Engine = "clickhouse"
 ): string {
   if (config.type === "rawsql") {
+    // Raw SQL is authored by the user; template macros remain ClickHouse-only.
     return hasTemplateVariables(config.query)
       ? interpolateQuery(config.query, dateRange)
       : config.query;
   }
-  return generateBuilderSql(config, dateRange, tableName, timestampColumn, filters);
+  return generateBuilderSql(
+    config,
+    dateRange,
+    tableName,
+    timestampColumn,
+    filters,
+    engine
+  );
 }
 
 export function resolveTimeRange(preset: string): [Date, Date] {

@@ -1,16 +1,19 @@
 // src/features/analytics/hooks/useChartData.ts
-// Runs a chart's generated SQL against the active workspace connection via
-// TanStack Query. Intentionally simple — the workspace store owns the
-// ClickHouseClient so we reuse its `runQuery` entry point.
+// Runs a chart's generated SQL via TanStack Query. The dashboard's
+// connectionId (when set) selects both the engine — so builder SQL is
+// generated in the right dialect — and the transport runQuery routes to.
+// A null/undefined connectionId keeps the legacy single-ClickHouse path.
 
 import { useQuery, type UseQueryResult } from "@tanstack/react-query";
 import { runQuery } from "@/lib/queryRunner";
 import { generateChartSql } from "@/lib/chartUtils";
 import { useAutoRefresh } from "@/features/analytics/contexts/AutoRefreshContext";
+import { useWorkbenchStore } from "@/stores/workbenchStore";
 import type {
   ChartConfig,
   DashboardFilter,
 } from "@/features/analytics/types";
+import type { Engine } from "@/lib/db/schema";
 
 export interface UseChartDataOptions {
   config: ChartConfig;
@@ -19,6 +22,8 @@ export interface UseChartDataOptions {
   timestampColumn?: string;
   filters?: DashboardFilter[];
   enabled?: boolean;
+  /** Saved connection to query. null/undefined = legacy default (ClickHouse). */
+  connectionId?: string | null;
 }
 
 export interface ChartDataResult {
@@ -33,14 +38,22 @@ export function useChartData({
   timestampColumn = "timestamp",
   filters = [],
   enabled = true,
+  connectionId,
 }: UseChartDataOptions): UseQueryResult<ChartDataResult, Error> {
   const { refetchInterval } = useAutoRefresh();
+
+  // Resolve the engine for dialect-aware SQL. Unknown/legacy → ClickHouse.
+  const engine = useWorkbenchStore(
+    (s) => s.connections.find((c) => c.id === connectionId)?.engine,
+  ) as Engine | undefined;
+
   const sql = generateChartSql(
     config,
     dateRange,
     tableName,
     timestampColumn,
     filters,
+    engine ?? "clickhouse",
   );
 
   // Raw SQL queries don't need a tableName - the query is self-contained
@@ -48,10 +61,10 @@ export function useChartData({
   const canExecute = isRawSql || !!tableName;
 
   return useQuery({
-    // Cache per SQL — dateRange + config + filters are fully encoded there.
-    queryKey: ["chart-data", sql],
+    // Cache per SQL + connection — same SQL on two connections must not collide.
+    queryKey: ["chart-data", sql, connectionId ?? "legacy"],
     queryFn: async (): Promise<ChartDataResult> => {
-      const result = await runQuery(sql);
+      const result = await runQuery(sql, connectionId ?? undefined);
       return {
         rows: (result.data ?? []) as Record<string, unknown>[],
         sql,
