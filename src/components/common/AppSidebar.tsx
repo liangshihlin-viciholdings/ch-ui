@@ -41,19 +41,30 @@ import { CommandShortcut } from "@/components/ui/command";
 import { Logo } from "@/components/common/Logo";
 import { cn } from "@/lib/utils";
 import useAppStore from "@/stores/workspaceStore";
+import { useWorkbenchStore } from "@/stores/workbenchStore";
 import ConnectionsSection from "@/features/workbench/ConnectionsSection";
 import SavedQueriesSection from "./SavedQueriesSection";
 import CommandPalette, { type PaletteDest } from "./CommandPalette";
 
 // ─── Navigation destinations ──────────────────────────────────────────────
-const PRIMARY: PaletteDest[] = [
-  { to: "/", label: "Workbench", icon: SquareTerminal },
-  { to: "/dashboards", label: "Dashboards", icon: LayoutDashboard },
-  { to: "/search", label: "Search", icon: Search },
-  { to: "/logs", label: "Logs", icon: ScrollText },
-  { to: "/services", label: "Services", icon: Network },
-  { to: "/sessions", label: "Sessions", icon: PlaySquare },
-  { to: "/alerts", label: "Alerts", icon: Bell },
+// Each destination declares the capability it needs to be shown:
+//   "always" — always visible (core / generic).
+//   "any"    — any connection exists (multi-engine features: Dashboards, Alerts).
+//   "ch"     — a ClickHouse-backed legacy connection is available (isServerAvailable);
+//              these features query CH/OTel data through the legacy path.
+type NavGate = "always" | "any" | "ch";
+interface NavDest extends PaletteDest {
+  gate: NavGate;
+}
+
+const NAV_PRIMARY: NavDest[] = [
+  { to: "/", label: "Workbench", icon: SquareTerminal, gate: "always" },
+  { to: "/dashboards", label: "Dashboards", icon: LayoutDashboard, gate: "any" },
+  { to: "/alerts", label: "Alerts", icon: Bell, gate: "any" },
+  { to: "/search", label: "Search", icon: Search, gate: "ch" },
+  { to: "/logs", label: "Logs", icon: ScrollText, gate: "ch" },
+  { to: "/services", label: "Services", icon: Network, gate: "ch" },
+  { to: "/sessions", label: "Sessions", icon: PlaySquare, gate: "ch" },
 ];
 const ADMIN_DEST: PaletteDest = { to: "/admin", label: "Admin", icon: ShieldCheck };
 const SETTINGS_DEST: PaletteDest = { to: "/settings", label: "Settings", icon: SettingsIcon };
@@ -135,6 +146,11 @@ function NavRow({ dest, active }: { dest: PaletteDest; active: boolean }) {
 
 export default function AppSidebar() {
   const { isServerAvailable, isAdmin } = useAppStore();
+  const connections = useWorkbenchStore((s) => s.connections);
+  // Capability flags drive which destinations appear.
+  const hasAnyConnection = isServerAvailable || connections.length > 0;
+  const canShow = (gate: NavGate): boolean =>
+    gate === "always" ? true : gate === "any" ? hasAnyConnection : isServerAvailable;
   const location = useLocation();
   const pathname = location.pathname;
   const isWorkbench = pathname === "/";
@@ -207,7 +223,7 @@ export default function AppSidebar() {
     to === "/" ? pathname === "/" : pathname === to || pathname.startsWith(to + "/");
 
   const paletteDests: PaletteDest[] = [
-    ...(isServerAvailable ? PRIMARY : []),
+    ...NAV_PRIMARY.filter((d) => canShow(d.gate)),
     ...(isServerAvailable && isAdmin ? [ADMIN_DEST] : []),
     SETTINGS_DEST,
   ];
@@ -281,10 +297,9 @@ export default function AppSidebar() {
             {/* NAVIGATE */}
             <SectionGroup label="Navigate" open={navOpen} onToggle={() => setNavOpen((v) => !v)}>
               <div className="px-1">
-                {isServerAvailable &&
-                  PRIMARY.map((d) => (
-                    <NavRow key={d.to} dest={d} active={isActive(d.to)} />
-                  ))}
+                {NAV_PRIMARY.filter((d) => canShow(d.gate)).map((d) => (
+                  <NavRow key={d.to} dest={d} active={isActive(d.to)} />
+                ))}
                 {isServerAvailable && isAdmin && (
                   <NavRow dest={ADMIN_DEST} active={isActive(ADMIN_DEST.to)} />
                 )}
