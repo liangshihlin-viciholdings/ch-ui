@@ -26,6 +26,7 @@ export interface ChartContainerProps {
   tableName: string;
   timestampColumn?: string;
   filters?: DashboardFilter[];
+  connectionId?: string | null;
   height?: number;
   onEdit?: () => void;
   onDuplicate?: () => void;
@@ -39,6 +40,7 @@ export function ChartContainer({
   tableName,
   timestampColumn,
   filters,
+  connectionId,
   height,
   onEdit,
   onDuplicate,
@@ -50,6 +52,7 @@ export function ChartContainer({
     tableName,
     timestampColumn,
     filters,
+    connectionId,
   });
 
   const ChartBody = useMemo(() => getChartComponent(config), [config]);

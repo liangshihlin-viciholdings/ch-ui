@@ -304,6 +304,7 @@ export function DashboardPage({
           dateRange={dateRange}
           tableName={defaultTable}
           filters={filters}
+          connectionId={dashboard.connectionId}
           onLayoutChange={handleLayoutChange}
           onEditTile={handleEditTile}
           onDuplicateTile={handleDuplicateTile}

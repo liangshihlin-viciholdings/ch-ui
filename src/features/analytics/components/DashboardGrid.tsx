@@ -24,6 +24,7 @@ export interface DashboardGridProps {
   tableName: string;
   timestampColumn?: string;
   filters?: DashboardFilter[];
+  connectionId?: string | null;
   onLayoutChange?: (tiles: DashboardTile[]) => void;
   onEditTile?: (id: string) => void;
   onDuplicateTile?: (id: string) => void;
@@ -42,6 +43,7 @@ export function DashboardGrid({
   tableName,
   timestampColumn,
   filters,
+  connectionId,
   onLayoutChange,
   onEditTile,
   onDuplicateTile,
@@ -109,6 +111,7 @@ export function DashboardGrid({
               tableName={tableName}
               timestampColumn={timestampColumn}
               filters={filters}
+              connectionId={connectionId}
               height={chartHeight}
               onEdit={onEditTile ? () => onEditTile(tile.id) : undefined}
               onDuplicate={
