@@ -136,9 +136,9 @@ export function useSearchData(
   const { enabled = true, ...input } = options;
   const sql = generateSearchSql(input);
   return useQuery({
-    queryKey: ["search-data", sql],
+    queryKey: ["search-data", sql, input.connectionId ?? "legacy"],
     queryFn: async (): Promise<SearchDataResult> => {
-      const result = await runQuery(sql);
+      const result = await runQuery(sql, input.connectionId ?? undefined);
       return { result, sql };
     },
     enabled: enabled && !!input.tableName,

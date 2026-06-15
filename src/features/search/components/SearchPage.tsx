@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { DataTable } from "@/components/common/DataTable";
+import { ConnectionPicker } from "@/components/common/ConnectionPicker";
 import { TimePicker } from "@/features/analytics/components/TimePicker";
 import { useTimeRange } from "@/features/analytics/hooks/useTimeRange";
 import {
@@ -37,6 +38,7 @@ export function SearchPage({ savedSearchId }: SearchPageProps) {
   // don't trigger ClickHouse on every keystroke. Hitting Enter / Search
   // promotes the draft into `submittedQuery`.
   const [submittedQuery, setSubmittedQuery] = useState<string>("");
+  const [connectionId, setConnectionId] = useState<string | null>(null);
   const { range, setPreset, setCustom } = useTimeRange("1h");
   const { filters, addFilter, removeFilter, clearFilters, setFilters } =
     useSearchFilters([]);
@@ -51,6 +53,7 @@ export function SearchPage({ savedSearchId }: SearchPageProps) {
       setQueryText(savedSearch.query);
       setSubmittedQuery(savedSearch.query);
       setFilters(savedSearch.filters);
+      setConnectionId(savedSearch.connectionId ?? null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [savedSearch?.id]);
@@ -65,6 +68,7 @@ export function SearchPage({ savedSearchId }: SearchPageProps) {
     tableName,
     dateRange: [range.start, range.end],
     timestampColumn: DEFAULT_TIMESTAMP_COLUMN,
+    connectionId,
     enabled: !!tableName,
   });
 
@@ -95,6 +99,7 @@ export function SearchPage({ savedSearchId }: SearchPageProps) {
       setQueryText(s.query);
       setSubmittedQuery(s.query);
       setFilters(s.filters);
+      setConnectionId(s.connectionId ?? null);
       toast.success(`Loaded "${s.name}"`);
     },
     [setFilters],
@@ -117,6 +122,7 @@ export function SearchPage({ savedSearchId }: SearchPageProps) {
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <ConnectionPicker value={connectionId} onChange={setConnectionId} />
             <TimePicker
               range={range}
               onPresetChange={setPreset}
@@ -126,6 +132,7 @@ export function SearchPage({ savedSearchId }: SearchPageProps) {
               currentQuery={queryText}
               currentFilters={filters}
               currentTable={tableName}
+              currentConnectionId={connectionId}
               onLoad={handleLoadSaved}
             />
           </div>

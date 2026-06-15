@@ -37,6 +37,7 @@ export interface SavedSearchesProps {
   currentQuery: string;
   currentFilters: SearchFilter[];
   currentTable: string;
+  currentConnectionId?: string | null;
   onLoad: (search: SavedSearchRuntime) => void;
 }
 
@@ -44,6 +45,7 @@ export function SavedSearches({
   currentQuery,
   currentFilters,
   currentTable,
+  currentConnectionId,
   onLoad,
 }: SavedSearchesProps) {
   const { data: searches = [], isLoading } = useSavedSearches();
@@ -63,6 +65,7 @@ export function SavedSearches({
         query: currentQuery,
         tableName: currentTable,
         filters: currentFilters,
+        connectionId: currentConnectionId ?? null,
       });
       toast.success(`Saved "${created.name}"`);
       setSaveOpen(false);
