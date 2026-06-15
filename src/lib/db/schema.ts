@@ -102,6 +102,8 @@ export interface SavedDashboard {
   tags: string[];
   filters: unknown[];
   templateId?: string;
+  /** Saved connection this dashboard queries. null/undefined = legacy default. */
+  connectionId?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }

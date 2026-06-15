@@ -54,6 +54,19 @@ export class ChUiDatabase extends Dexie {
           if (!conn.engine) conn.engine = "clickhouse";
         });
     });
+
+    // v6: dashboards gain an optional connectionId (which saved connection the
+    // dashboard queries). Existing dashboards backfill to null = legacy default.
+    this.version(6).stores({
+      dashboards: "id, name, connectionId, createdAt, updatedAt",
+    }).upgrade((tx) => {
+      return tx
+        .table("dashboards")
+        .toCollection()
+        .modify((d: any) => {
+          if (d.connectionId === undefined) d.connectionId = null;
+        });
+    });
   }
 }
 

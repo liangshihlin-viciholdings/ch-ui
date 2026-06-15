@@ -28,6 +28,7 @@ function toRuntime(row: SavedDashboard): Dashboard {
     tags: row.tags ?? [],
     filters: (row.filters as DashboardFilter[]) ?? [],
     templateId: row.templateId,
+    connectionId: row.connectionId ?? null,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
@@ -50,6 +51,7 @@ export interface CreateDashboardInput {
   tags?: string[];
   filters?: DashboardFilter[];
   templateId?: string;
+  connectionId?: string | null;
 }
 
 export async function createDashboard(
@@ -62,6 +64,7 @@ export async function createDashboard(
     tags: input.tags ?? [],
     filters: input.filters ?? [],
     templateId: input.templateId,
+    connectionId: input.connectionId ?? null,
   });
   return toRuntime(row);
 }
@@ -72,6 +75,7 @@ export interface UpdateDashboardInput {
   tiles?: DashboardTile[];
   tags?: string[];
   filters?: DashboardFilter[];
+  connectionId?: string | null;
 }
 
 export async function updateDashboard(
@@ -85,6 +89,7 @@ export async function updateDashboard(
   if (input.tiles !== undefined) patch.tiles = input.tiles;
   if (input.tags !== undefined) patch.tags = input.tags;
   if (input.filters !== undefined) patch.filters = input.filters;
+  if (input.connectionId !== undefined) patch.connectionId = input.connectionId;
 
   await dbUpdate(id, patch);
   return getDashboard(id);

@@ -72,6 +72,8 @@ export interface Dashboard {
   tags: string[];
   filters: DashboardFilter[];
   templateId?: string; // ID of the template this dashboard was created from
+  /** Saved connection this dashboard queries. null = legacy default connection. */
+  connectionId?: string | null;
   createdAt: string;
   updatedAt: string;
 }
