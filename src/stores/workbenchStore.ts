@@ -1,5 +1,6 @@
 import { Store } from "@tanstack/store";
 import { useStore } from "@tanstack/react-store";
+import { liveQuery } from "dexie";
 import { toast } from "sonner";
 
 import type {
@@ -159,16 +160,46 @@ function defaultPort(engine: Engine): number {
 
 // ─── Actions ────────────────────────────────────────────────────────────────
 
+/**
+ * Apply a fresh connection list to the store while preserving the user's
+ * current active connection. The active id is only (re)chosen when the
+ * current one is missing (initial load, or the active connection was
+ * deleted) — preferring the default connection, then the first one. This
+ * avoids the old behaviour of resetting the active connection to conns[0]
+ * on every refresh.
+ */
+function applyConnections(conns: SavedConnection[]): void {
+  const current = store.state.activeConnectionId;
+  const stillExists = current != null && conns.some((c) => c.id === current);
+  patch({
+    connections: conns,
+    activeConnectionId: stillExists
+      ? current
+      : (conns.find((c) => c.isDefault)?.id ?? conns[0]?.id ?? null),
+  });
+}
+
 export async function loadConnections(): Promise<void> {
   try {
-    const conns = await db.connections.toArray();
-    patch({
-      connections: conns,
-      activeConnectionId: conns[0]?.id ?? null,
-    });
+    applyConnections(await db.connections.toArray());
   } catch (error) {
     patch({ error: `Failed to load connections: ${String(error)}` });
   }
+}
+
+// Keep the workbench connection list in sync with the shared Dexie table,
+// regardless of which store/route performs the write (the workbench "+"
+// dialog, the Settings ConnectionManager, or import). This is what makes a
+// newly added connection appear in the sidebar immediately without a reload.
+try {
+  liveQuery(() => db.connections.toArray()).subscribe({
+    next: (conns) => applyConnections(conns),
+    error: () => {
+      /* observable errors are non-fatal; explicit loadConnections() remains */
+    },
+  });
+} catch {
+  // Environments without IndexedDB (e.g. unit tests) simply skip live sync.
 }
 
 export async function connectConnection(connectionId: string): Promise<void> {
