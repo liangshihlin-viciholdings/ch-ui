@@ -112,10 +112,15 @@ function toConnectionConfig(
   const engineMeta = getEngineKind(conn.engine);
   if (engineMeta === "server") {
     const [host, portStr] = splitHostPort(conn.url);
+    // ClickHouse connects via an HTTP(S) URL, so it needs the scheme; the
+    // Postgres/MySQL adapters take a bare host. Preserve the original scheme
+    // (default http) only for ClickHouse.
+    const resolvedHost =
+      conn.engine === "clickhouse" ? `${schemeOf(conn.url)}${host}` : host;
     const config: ServerConnectionConfig = {
       kind: "server",
       engine: conn.engine,
-      host,
+      host: resolvedHost,
       port: portStr ? parseInt(portStr, 10) : defaultPort(conn.engine),
       username: conn.username,
       password,
@@ -143,6 +148,12 @@ function splitHostPort(url: string): [string, string | undefined] {
     return [cleaned.slice(0, idx), cleaned.slice(idx + 1)];
   }
   return [cleaned, undefined];
+}
+
+/** Extract the URL scheme (e.g. "http://") from a stored URL, defaulting to http. */
+function schemeOf(url: string): string {
+  const match = url.match(/^(https?):\/\//i);
+  return match ? `${match[1].toLowerCase()}://` : "http://";
 }
 
 function defaultPort(engine: Engine): number {

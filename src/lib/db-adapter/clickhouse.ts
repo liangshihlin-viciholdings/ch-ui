@@ -65,6 +65,17 @@ export const clickhouseDialect: DialectDescriptor = {
 
 // ─── Adapter ──────────────────────────────────────────────────────────────
 
+/**
+ * Build a valid ClickHouse client URL from a host (which may or may not carry
+ * a scheme) and an optional port. @clickhouse/client requires an absolute
+ * http(s):// URL, so a bare host is given an http:// scheme defensively.
+ */
+function buildClickHouseUrl(host: string, port?: number): string {
+  const withScheme = /^https?:\/\//i.test(host) ? host : `http://${host}`;
+  const base = port ? `${withScheme}:${port}` : withScheme;
+  return base.replace(/\/+$/, "");
+}
+
 export class ClickHouseAdapter implements DbAdapter {
   readonly engineId = "clickhouse";
   readonly capabilities = CLICKHOUSE_CAPABILITIES;
@@ -80,9 +91,7 @@ export class ClickHouseAdapter implements DbAdapter {
       );
     }
     this.config = config;
-    const url = config.port
-      ? `${config.host}:${config.port}`.replace(/\/+$/, "")
-      : config.host.replace(/\/+$/, "");
+    const url = buildClickHouseUrl(config.host, config.port);
     this.client = createClient({
       url,
       pathname: (config.extra?.customPath as string) || undefined,
@@ -129,7 +138,7 @@ export class ClickHouseAdapter implements DbAdapter {
       throw new ClickHouseError("No active connection to reconfigure");
     }
     this.client = createClient({
-      url: `${this.config.host}:${this.config.port}`.replace(/\/+$/, ""),
+      url: buildClickHouseUrl(this.config.host, this.config.port),
       pathname:
         (this.config.extra?.customPath as string) || undefined,
       username: this.config.username,
