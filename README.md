@@ -65,6 +65,10 @@ The web build can be pre-seeded with a ClickHouse connection via environment var
 | `VITE_CLICKHOUSE_DATABASE` | Default database (optional) |
 | `VITE_BASE_PATH` | Base path when served behind a reverse proxy (e.g. `/deebee`) |
 
+## 🙏 Credits
+
+deebee is a fork of [**CH-UI**](https://github.com/caioricciuti/ch-ui) by [Caio Ricciuti](https://github.com/caioricciuti), extended from a ClickHouse UI into a multi-database workbench. Huge thanks to the original project and its contributors.
+
 ## 📄 License
 
-[Apache-2.0](LICENSE).
+[Apache-2.0](LICENSE) — inherited from the upstream CH-UI project.
