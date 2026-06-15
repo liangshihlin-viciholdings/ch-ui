@@ -44,6 +44,7 @@ import { useTimeRange } from "@/features/analytics/hooks/useTimeRange";
 import { useDashboardFilters } from "@/features/analytics/hooks/useDashboardFilters";
 import { DashboardGrid } from "./DashboardGrid";
 import { ConnectionPicker } from "./ConnectionPicker";
+import { useWorkbenchStore } from "@/stores/workbenchStore";
 import { DashboardFilters } from "./DashboardFilters";
 import { TimePicker } from "./TimePicker";
 import { ChartBuilder } from "./ChartBuilder";
@@ -88,6 +89,10 @@ export function DashboardPage({
 }: DashboardPageProps) {
   const { data: dashboard, isLoading } = useDashboard(dashboardId);
   const updateDashboard = useUpdateDashboard();
+  const connections = useWorkbenchStore((s) => s.connections);
+  const activeEngine =
+    connections.find((c) => c.id === dashboard?.connectionId)?.engine ??
+    "clickhouse";
   const deleteDashboard = useDeleteDashboard();
 
   const { range, setPreset, setCustom } = useTimeRange("1h");
@@ -141,6 +146,12 @@ export function DashboardPage({
     const template = getDashboardTemplate(templateId);
     if (!template) {
       toast.error("Template not found");
+      return;
+    }
+    if (template.requiredEngine && template.requiredEngine !== activeEngine) {
+      toast.error(
+        `"${template.name}" requires a ${template.requiredEngine} connection`,
+      );
       return;
     }
     const newTiles = template.tiles.map((tile) => ({
@@ -386,15 +397,30 @@ export function DashboardPage({
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-3 py-4 sm:grid-cols-2">
-            {DASHBOARD_TEMPLATES.map((template) => (
+            {DASHBOARD_TEMPLATES.map((template) => {
+              const incompatible =
+                !!template.requiredEngine &&
+                template.requiredEngine !== activeEngine;
+              return (
               <Card
                 key={template.id}
-                className="cursor-pointer transition-colors hover:border-primary/50"
-                onClick={() => handleImportTemplate(template.id)}
+                className={`transition-colors ${
+                  incompatible
+                    ? "cursor-not-allowed opacity-50"
+                    : "cursor-pointer hover:border-primary/50"
+                }`}
+                onClick={() =>
+                  incompatible ? undefined : handleImportTemplate(template.id)
+                }
               >
                 <CardHeader className="p-4">
-                  <CardTitle className="text-sm font-medium">
+                  <CardTitle className="flex items-center gap-2 text-sm font-medium">
                     {template.name}
+                    {incompatible && (
+                      <span className="rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-normal text-amber-600 dark:text-amber-400">
+                        Requires {template.requiredEngine}
+                      </span>
+                    )}
                   </CardTitle>
                   <CardDescription className="text-xs">
                     {template.description}
@@ -414,7 +440,8 @@ export function DashboardPage({
                   </div>
                 </CardHeader>
               </Card>
-            ))}
+              );
+            })}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setTemplatesOpen(false)}>

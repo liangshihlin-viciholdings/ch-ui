@@ -51,6 +51,10 @@ export function DashboardListPage({ onSelect }: DashboardListPageProps) {
   const createDashboard = useCreateDashboard();
   // New dashboards default to the workbench's active connection (null = legacy).
   const activeConnectionId = useWorkbenchStore((s) => s.activeConnectionId);
+  const connections = useWorkbenchStore((s) => s.connections);
+  const activeEngine =
+    connections.find((c) => c.id === activeConnectionId)?.engine ??
+    "clickhouse";
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [templatesOpen, setTemplatesOpen] = useState(false);
@@ -83,6 +87,12 @@ export function DashboardListPage({ onSelect }: DashboardListPageProps) {
     const template = getDashboardTemplate(templateId);
     if (!template) {
       toast.error("Template not found");
+      return;
+    }
+    if (template.requiredEngine && template.requiredEngine !== activeEngine) {
+      toast.error(
+        `"${template.name}" requires a ${template.requiredEngine} connection`,
+      );
       return;
     }
     setSelectedTemplate(template);
@@ -260,15 +270,30 @@ export function DashboardListPage({ onSelect }: DashboardListPageProps) {
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-3 py-4 sm:grid-cols-2">
-            {DASHBOARD_TEMPLATES.map((template) => (
+            {DASHBOARD_TEMPLATES.map((template) => {
+              const incompatible =
+                !!template.requiredEngine &&
+                template.requiredEngine !== activeEngine;
+              return (
               <Card
                 key={template.id}
-                className="cursor-pointer transition-colors hover:border-primary/50"
-                onClick={() => handleSelectTemplate(template.id)}
+                className={`transition-colors ${
+                  incompatible
+                    ? "cursor-not-allowed opacity-50"
+                    : "cursor-pointer hover:border-primary/50"
+                }`}
+                onClick={() =>
+                  incompatible ? undefined : handleSelectTemplate(template.id)
+                }
               >
                 <CardHeader className="p-4">
-                  <CardTitle className="text-sm font-medium">
+                  <CardTitle className="flex items-center gap-2 text-sm font-medium">
                     {template.name}
+                    {incompatible && (
+                      <span className="rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-normal text-amber-600 dark:text-amber-400">
+                        Requires {template.requiredEngine}
+                      </span>
+                    )}
                   </CardTitle>
                   <CardDescription className="text-xs">
                     {template.description}
@@ -288,7 +313,8 @@ export function DashboardListPage({ onSelect }: DashboardListPageProps) {
                   </div>
                 </CardHeader>
               </Card>
-            ))}
+              );
+            })}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setTemplatesOpen(false)}>

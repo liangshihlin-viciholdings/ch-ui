@@ -11,6 +11,7 @@ export const clickhouseServerTemplate: DashboardTemplate = {
 	description:
 		"Monitor ClickHouse server health, queries, memory, and disk usage",
 	tags: ["ClickHouse", "Database", "Monitoring"],
+	requiredEngine: "clickhouse",
 	setupGuide: {
 		title: "ClickHouse Server Monitoring",
 		docsUrl: "https://clickhouse.com/docs/en/operations/system-tables",
