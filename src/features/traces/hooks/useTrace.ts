@@ -4,6 +4,7 @@
 
 import { useQuery, type UseQueryResult } from "@tanstack/react-query";
 import { runQuery } from "@/lib/queryRunner";
+import { useActiveClickHouseConnectionId } from "@/stores/workbenchStore";
 import {
   DEFAULT_TRACES_TABLE,
   type Span,
@@ -156,6 +157,7 @@ export function useTrace({
   tableName = DEFAULT_TRACES_TABLE,
   enabled = true,
 }: UseTraceOptions): UseQueryResult<Trace, Error> {
+  const connectionId = useActiveClickHouseConnectionId();
   const sql =
     `SELECT ${COLUMNS.join(", ")}\n` +
     `FROM ${tableName}\n` +
@@ -164,9 +166,9 @@ export function useTrace({
     `LIMIT 5000`;
 
   return useQuery({
-    queryKey: ["trace", traceId, tableName],
+    queryKey: ["trace", traceId, tableName, connectionId ?? "legacy"],
     queryFn: async (): Promise<Trace> => {
-      const result = await runQuery(sql);
+      const result = await runQuery(sql, connectionId);
       const rows = (result.data ?? []) as Record<string, unknown>[];
       return buildTrace(traceId, rows);
     },

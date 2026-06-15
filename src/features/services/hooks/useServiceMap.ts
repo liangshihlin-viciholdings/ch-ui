@@ -5,6 +5,7 @@
 
 import { useQuery, type UseQueryResult } from "@tanstack/react-query";
 import { runQuery } from "@/lib/queryRunner";
+import { useActiveClickHouseConnectionId } from "@/stores/workbenchStore";
 import type {
   ServiceAggregation,
   ServiceEdgeSummary,
@@ -140,11 +141,12 @@ export function useServiceMap({
   range,
   enabled = true,
 }: UseServiceMapOptions): UseQueryResult<ServiceMapData, Error> {
+  const connectionId = useActiveClickHouseConnectionId();
   const sql = buildEdgeQuery(range);
   return useQuery({
-    queryKey: ["service-map", sql],
+    queryKey: ["service-map", sql, connectionId ?? "legacy"],
     queryFn: async (): Promise<ServiceMapData> => {
-      const result = await runQuery(sql);
+      const result = await runQuery(sql, connectionId);
       const rows = (result.data ?? []) as EdgeRow[];
       return aggregateRows(rows);
     },
@@ -165,12 +167,13 @@ export function useServiceLatency({
   range,
   enabled = true,
 }: UseServiceLatencyOptions): UseQueryResult<ServiceLatencyStats | null, Error> {
+  const connectionId = useActiveClickHouseConnectionId();
   return useQuery({
-    queryKey: ["service-latency", serviceName, range.start.toISOString(), range.end.toISOString()],
+    queryKey: ["service-latency", serviceName, range.start.toISOString(), range.end.toISOString(), connectionId ?? "legacy"],
     queryFn: async (): Promise<ServiceLatencyStats | null> => {
       if (!serviceName) return null;
       const sql = buildLatencyQuery(serviceName, range);
-      const result = await runQuery(sql);
+      const result = await runQuery(sql, connectionId);
       const row = (result.data?.[0] ?? null) as LatencyRow | null;
       if (!row) {
         return {

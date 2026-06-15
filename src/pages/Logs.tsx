@@ -27,6 +27,8 @@ import {
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import useAppStore from "@/stores/workspaceStore";
+import { runQuery } from "@/lib/queryRunner";
+import { useActiveClickHouseConnectionId } from "@/stores/workbenchStore";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -248,7 +250,10 @@ const formatTimestamp = (timestamp: string) => {
 };
 
 const LogsPage: React.FC = () => {
-  const { runQuery, clickHouseClient, isServerAvailable } = useAppStore();
+  const { clickHouseClient, isServerAvailable } = useAppStore();
+  // Route to the active ClickHouse connection when one is selected; otherwise
+  // fall back to the legacy default (runQuery with no connectionId).
+  const connectionId = useActiveClickHouseConnectionId();
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("system");
@@ -334,7 +339,7 @@ const LogsPage: React.FC = () => {
   
   // Function to fetch logs
   const fetchLogs = async () => {
-    if (!isServerAvailable || !clickHouseClient) {
+    if (!connectionId && (!isServerAvailable || !clickHouseClient)) {
       setError("Not connected to ClickHouse. Please connect first.");
       setIsLoading(false);
       return;
@@ -395,7 +400,7 @@ const LogsPage: React.FC = () => {
         LIMIT 1000
       `;
       
-      const result = await runQuery(query);
+      const result = await runQuery(query, connectionId);
       
       if (result.data && Array.isArray(result.data)) {
         setLogs(result.data as LogEntry[]);

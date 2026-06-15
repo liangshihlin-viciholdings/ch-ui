@@ -5,6 +5,7 @@
 
 import { useQuery, type UseQueryResult } from "@tanstack/react-query";
 import { runQuery } from "@/lib/queryRunner";
+import { useActiveClickHouseConnectionId } from "@/stores/workbenchStore";
 import { DEFAULT_TRACES_TABLE } from "@/features/traces/types";
 import type { QueryResult } from "@/types/common";
 
@@ -23,6 +24,7 @@ export function useTraceSearch({
   limit = 100,
   enabled = true,
 }: TraceSearchOptions): UseQueryResult<QueryResult, Error> {
+  const connectionId = useActiveClickHouseConnectionId();
   const [start, end] = dateRange;
   const startIso = start.toISOString().replace("T", " ").replace("Z", "");
   const endIso = end.toISOString().replace("T", " ").replace("Z", "");
@@ -51,8 +53,8 @@ export function useTraceSearch({
     `LIMIT ${limit}`;
 
   return useQuery({
-    queryKey: ["trace-search", sql],
-    queryFn: () => runQuery(sql),
+    queryKey: ["trace-search", sql, connectionId ?? "legacy"],
+    queryFn: () => runQuery(sql, connectionId),
     enabled,
     staleTime: 15_000,
   });

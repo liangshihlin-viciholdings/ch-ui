@@ -439,6 +439,22 @@ export function useWorkbenchStore<T>(selector: (s: WorkbenchState) => T): T {
   return useStore(store, selector);
 }
 
+/**
+ * The active connection id when it's a ClickHouse connection, else undefined.
+ * CH/OTel feature pages (Logs, Traces, Services, Sessions) use this to route
+ * their queries to the active ClickHouse connection, falling back to the
+ * legacy default (undefined → runQuery's legacy path) otherwise.
+ */
+export function useActiveClickHouseConnectionId(): string | undefined {
+  return useStore(store, (s) => {
+    const id = s.activeConnectionId;
+    if (!id) return undefined;
+    return s.connections.find((c) => c.id === id)?.engine === "clickhouse"
+      ? id
+      : undefined;
+  });
+}
+
 export function useDialectForTab(tabId: string | null) {
   return useStore(store, (s) => {
     if (!tabId) return getDialect("clickhouse");

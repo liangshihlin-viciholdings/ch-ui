@@ -6,6 +6,7 @@
 
 import { useQuery, type UseQueryResult } from "@tanstack/react-query";
 import { runQuery } from "@/lib/queryRunner";
+import { useActiveClickHouseConnectionId } from "@/stores/workbenchStore";
 import type {
   SessionEvent,
   SessionEventKind,
@@ -144,11 +145,12 @@ export function useSessions({
   search = "",
   enabled = true,
 }: UseSessionsOptions): UseQueryResult<SessionSummary[], Error> {
+  const connectionId = useActiveClickHouseConnectionId();
   const sql = buildListQuery(range, search);
   return useQuery({
-    queryKey: ["sessions-list", sql],
+    queryKey: ["sessions-list", sql, connectionId ?? "legacy"],
     queryFn: async (): Promise<SessionSummary[]> => {
-      const result = await runQuery(sql);
+      const result = await runQuery(sql, connectionId);
       const rows = (result.data ?? []) as SessionRow[];
       return rows
         .filter((row) => row.session_id)
@@ -178,11 +180,12 @@ export function useSessionEvents({
   sessionId,
   enabled = true,
 }: UseSessionEventsOptions): UseQueryResult<SessionEvent[], Error> {
+  const connectionId = useActiveClickHouseConnectionId();
   return useQuery({
-    queryKey: ["session-events", sessionId],
+    queryKey: ["session-events", sessionId, connectionId ?? "legacy"],
     queryFn: async (): Promise<SessionEvent[]> => {
       if (!sessionId) return [];
-      const result = await runQuery(buildEventsQuery(sessionId));
+      const result = await runQuery(buildEventsQuery(sessionId), connectionId);
       const rows = (result.data ?? []) as EventRow[];
       return rows.map((row, index) => {
         const attrs = normalizeAttrs(row.attrs);
