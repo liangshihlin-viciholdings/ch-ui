@@ -212,29 +212,26 @@ export default function AppSidebar() {
     SETTINGS_DEST,
   ];
 
-  // Collapsed: a slim reveal strip.
-  if (collapsed) {
-    return (
-      <div className="flex h-screen w-7 shrink-0 flex-col items-center border-r border-border bg-card py-2">
-        <Button
-          size="icon"
-          variant="ghost"
-          className="size-6"
-          onClick={() => setCollapsed(false)}
-          title="Show sidebar (Cmd/Ctrl+B)"
-        >
-          <ChevronRight className="size-4" />
-        </Button>
-      </div>
-    );
-  }
-
   return (
     <>
-      <aside
-        className="relative flex h-screen shrink-0 flex-col border-r border-border bg-card"
-        style={{ width }}
-      >
+      {collapsed ? (
+        // Collapsed: a slim reveal strip.
+        <div className="flex h-screen w-7 shrink-0 flex-col items-center border-r border-border bg-card py-2">
+          <Button
+            size="icon"
+            variant="ghost"
+            className="size-6"
+            onClick={() => setCollapsed(false)}
+            title="Show sidebar (Cmd/Ctrl+B)"
+          >
+            <ChevronRight className="size-4" />
+          </Button>
+        </div>
+      ) : (
+        <aside
+          className="relative flex h-screen shrink-0 flex-col border-r border-border bg-card"
+          style={{ width }}
+        >
         {/* Brand header */}
         <div className="flex items-center gap-2 border-b border-border px-3 py-2.5">
           <Link to="/" className="flex min-w-0 flex-1 items-center gap-2">
@@ -254,27 +251,29 @@ export default function AppSidebar() {
           </Button>
         </div>
 
-        {/* Shared filter (drives the connection tree) */}
-        <div className="border-b border-border px-2 py-2">
-          <div className="flex items-center gap-1.5 rounded-md border border-border bg-muted/30 px-2.5 py-1.5">
-            <Search className="size-3.5 shrink-0 text-muted-foreground/50" />
-            <input
-              type="text"
-              placeholder="Filter tables…"
-              value={filter}
-              onChange={(e) => setFilter(e.target.value)}
-              className="min-w-0 flex-1 bg-transparent text-[12px] text-foreground outline-none placeholder:text-muted-foreground/50"
-            />
-            {filter && (
-              <button
-                onClick={() => setFilter("")}
-                className="shrink-0 text-[11px] text-muted-foreground/40 hover:text-muted-foreground"
-              >
-                ×
-              </button>
-            )}
+        {/* Shared filter — only meaningful where the connection tree shows */}
+        {isWorkbench && (
+          <div className="border-b border-border px-2 py-2">
+            <div className="flex items-center gap-1.5 rounded-md border border-border bg-muted/30 px-2.5 py-1.5">
+              <Search className="size-3.5 shrink-0 text-muted-foreground/50" />
+              <input
+                type="text"
+                placeholder="Filter tables…"
+                value={filter}
+                onChange={(e) => setFilter(e.target.value)}
+                className="min-w-0 flex-1 bg-transparent text-[12px] text-foreground outline-none placeholder:text-muted-foreground/50"
+              />
+              {filter && (
+                <button
+                  onClick={() => setFilter("")}
+                  className="shrink-0 text-[11px] text-muted-foreground/40 hover:text-muted-foreground"
+                >
+                  ×
+                </button>
+              )}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Outline */}
         <ScrollArea className="flex-1">
@@ -359,7 +358,8 @@ export default function AppSidebar() {
           className="absolute right-0 top-0 z-10 h-full w-1 cursor-col-resize hover:bg-ring/40"
           title="Drag to resize"
         />
-      </aside>
+        </aside>
+      )}
 
       <CommandPalette
         open={paletteOpen}

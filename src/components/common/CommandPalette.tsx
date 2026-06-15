@@ -11,6 +11,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
+import { DialogTitle } from "@/components/ui/dialog";
 
 export interface PaletteDest {
   to: string;
@@ -30,6 +31,7 @@ export default function CommandPalette({
   const navigate = useNavigate();
   return (
     <CommandDialog open={open} onOpenChange={onOpenChange}>
+      <DialogTitle className="sr-only">Command palette</DialogTitle>
       <CommandInput placeholder="Search pages…" />
       <CommandList>
         <CommandEmpty>No results found.</CommandEmpty>

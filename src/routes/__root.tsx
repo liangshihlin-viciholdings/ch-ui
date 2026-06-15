@@ -3,7 +3,7 @@ import { ThemeProvider } from "@/components/common/theme-provider";
 import { AppearanceProvider } from "@/contexts/AppearanceContext";
 import { AutoRefreshProvider } from "@/features/analytics/contexts/AutoRefreshContext";
 import AppInitializer from "@/components/common/AppInit";
-import Sidebar from "@/components/common/Sidebar";
+import AppSidebar from "@/components/common/AppSidebar";
 
 export const Route = createRootRoute({
   component: RootLayout,
@@ -16,7 +16,7 @@ function RootLayout() {
         <AutoRefreshProvider>
           <AppInitializer>
             <div className="flex h-screen">
-              <Sidebar />
+              <AppSidebar />
               <Outlet />
             </div>
           </AppInitializer>
