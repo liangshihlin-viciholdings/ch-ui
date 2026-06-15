@@ -1,5 +1,5 @@
 // Electron main process — opens a single BrowserWindow loading the Vite renderer.
-import { app, BrowserWindow, shell, ipcMain } from "electron";
+import { app, BrowserWindow, shell, ipcMain, dialog } from "electron";
 import { join } from "path";
 import { readFileSync, writeFileSync } from "node:fs";
 import { is } from "@electron-toolkit/utils";
@@ -30,6 +30,31 @@ function registerSecretsIPC(): void {
     "secrets:delete",
     (_event, connectionId: string) => {
       deletePassword(connectionId);
+    },
+  );
+}
+
+// Native open-file dialog for file-engine connections (SQLite/DuckDB).
+// Returns the chosen absolute path, or null if cancelled.
+function registerDialogIPC(): void {
+  ipcMain.handle(
+    "dialog:open",
+    async (
+      _event,
+      opts?: { title?: string; filters?: { name: string; extensions: string[] }[] },
+    ): Promise<string | null> => {
+      const options: Electron.OpenDialogOptions = {
+        title: opts?.title ?? "Select database file",
+        properties: ["openFile"],
+        filters: opts?.filters,
+      };
+      const win = BrowserWindow.getFocusedWindow();
+      const result = win
+        ? await dialog.showOpenDialog(win, options)
+        : await dialog.showOpenDialog(options);
+      return result.canceled || result.filePaths.length === 0
+        ? null
+        : result.filePaths[0];
     },
   );
 }
@@ -109,6 +134,7 @@ function createWindow(): BrowserWindow {
 app.whenReady().then(() => {
   initSecrets();
   registerSecretsIPC();
+  registerDialogIPC();
   registerAdapterIPC();
   registerWindowIPC();
   createWindow();

@@ -74,6 +74,23 @@ export default function NewConnectionDialog({
     onOpenChange(next);
   }
 
+  // Native open-file dialog (Electron only). The Browse button is disabled on
+  // the web build, where users type a path instead.
+  const electronAPI = (window as { electronAPI?: { invoke?: (c: string, ...a: unknown[]) => Promise<unknown> } }).electronAPI;
+  async function handleBrowse() {
+    if (!electronAPI?.invoke) return;
+    const extensions =
+      engine === "sqlite" ? ["db", "sqlite", "sqlite3"] : ["duckdb", "db"];
+    const picked = await electronAPI.invoke("dialog:open", {
+      title: "Select database file",
+      filters: [
+        { name: "Database", extensions },
+        { name: "All files", extensions: ["*"] },
+      ],
+    });
+    if (typeof picked === "string") setFilePath(picked);
+  }
+
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (submitting) return;
@@ -220,8 +237,13 @@ export default function NewConnectionDialog({
                   type="button"
                   variant="outline"
                   className="gap-1.5"
-                  disabled
-                  title="Native file picker coming soon — type a path for now"
+                  onClick={handleBrowse}
+                  disabled={!electronAPI?.invoke}
+                  title={
+                    electronAPI?.invoke
+                      ? "Browse for a database file"
+                      : "Native file picker is desktop-only — type a path on web"
+                  }
                 >
                   <FolderOpen className="size-4" /> Browse
                 </Button>
