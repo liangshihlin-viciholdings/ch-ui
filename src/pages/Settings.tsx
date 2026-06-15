@@ -12,7 +12,6 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import useAppStore from "@/stores/workspaceStore";
-import { ConnectionManager } from "@/features/connections/components";
 import { AppearanceTab } from "@/features/settings/components/AppearanceTab";
 
 export default function SettingsPage() {
@@ -67,9 +66,6 @@ export default function SettingsPage() {
               </Alert>
             )}
 
-            {/* Connection Manager - handles add/edit/delete/connect */}
-            <ConnectionManager />
-
             {/* Local data management */}
             <Card className="shadow-lg border-muted">
               <CardHeader>
@@ -83,8 +79,9 @@ export default function SettingsPage() {
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-muted-foreground">
-                  This keeps your saved connections. Use the connection manager
-                  above to delete individual connections.
+                  This keeps your saved connections. Manage individual
+                  connections from the sidebar navigator (right-click a
+                  connection, or use the “＋” / “⋮” menu).
                 </p>
               </CardContent>
               <CardFooter className="border-t bg-muted/50 rounded-b-lg pt-4 flex justify-end">
