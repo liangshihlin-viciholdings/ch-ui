@@ -38,6 +38,7 @@ function alertToRuntime(row: SavedAlert): Alert {
     thresholdValue: row.thresholdValue,
     evaluationInterval: row.evaluationInterval as EvaluationInterval,
     enabled: row.enabled,
+    connectionId: row.connectionId ?? null,
     lastTriggered: row.lastTriggered?.toISOString(),
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
@@ -62,6 +63,7 @@ export interface CreateAlertInput {
   thresholdValue: number;
   evaluationInterval: EvaluationInterval;
   enabled?: boolean;
+  connectionId?: string | null;
 }
 
 export async function createAlert(input: CreateAlertInput): Promise<Alert> {
@@ -73,6 +75,7 @@ export async function createAlert(input: CreateAlertInput): Promise<Alert> {
     thresholdValue: input.thresholdValue,
     evaluationInterval: input.evaluationInterval,
     enabled: input.enabled ?? true,
+    connectionId: input.connectionId ?? null,
   });
   return alertToRuntime(row);
 }
@@ -85,6 +88,7 @@ export interface UpdateAlertInput {
   thresholdValue?: number;
   evaluationInterval?: EvaluationInterval;
   enabled?: boolean;
+  connectionId?: string | null;
   lastTriggered?: Date;
 }
 
@@ -103,6 +107,7 @@ export async function updateAlert(
   if (input.evaluationInterval !== undefined)
     patch.evaluationInterval = input.evaluationInterval;
   if (input.enabled !== undefined) patch.enabled = input.enabled;
+  if (input.connectionId !== undefined) patch.connectionId = input.connectionId;
   if (input.lastTriggered !== undefined) patch.lastTriggered = input.lastTriggered;
 
   await updateAlertRow(id, patch);

@@ -23,6 +23,8 @@ export interface Alert {
   thresholdValue: number;
   evaluationInterval: EvaluationInterval;
   enabled: boolean;
+  /** Saved connection this alert evaluates against. null = legacy default. */
+  connectionId?: string | null;
   /** ISO string when the alert last evaluated truthy. Stubbed — never set
    * server-side today. */
   lastTriggered?: string;

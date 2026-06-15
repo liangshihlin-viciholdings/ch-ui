@@ -145,6 +145,7 @@ export interface SavedAlert {
   thresholdValue: number;
   evaluationInterval: string; // "5m" | "15m" | "1h"
   enabled: boolean;
+  connectionId?: string | null;
   lastTriggered?: Date;
   createdAt: Date;
   updatedAt: Date;

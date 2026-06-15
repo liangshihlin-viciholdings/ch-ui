@@ -80,6 +80,19 @@ export class ChUiDatabase extends Dexie {
           if (s.connectionId === undefined) s.connectionId = null;
         });
     });
+
+    // v8: alerts gain an optional connectionId (which saved connection the
+    // alert evaluates against). Existing rows backfill to null = legacy.
+    this.version(8).stores({
+      alerts: "id, name, enabled, connectionId, createdAt, updatedAt",
+    }).upgrade((tx) => {
+      return tx
+        .table("alerts")
+        .toCollection()
+        .modify((a: any) => {
+          if (a.connectionId === undefined) a.connectionId = null;
+        });
+    });
   }
 }
 
