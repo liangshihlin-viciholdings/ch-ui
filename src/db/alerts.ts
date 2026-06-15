@@ -122,6 +122,7 @@ function searchToRuntime(row: SavedSearch): SavedSearchRuntime {
     query: row.query,
     tableName: row.tableName,
     filters: (row.filters as SearchFilter[]) ?? [],
+    connectionId: row.connectionId ?? null,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
@@ -144,6 +145,7 @@ export interface CreateSavedSearchInput {
   query: string;
   tableName: string;
   filters?: SearchFilter[];
+  connectionId?: string | null;
 }
 
 export async function createSavedSearch(
@@ -154,6 +156,7 @@ export async function createSavedSearch(
     query: input.query,
     tableName: input.tableName,
     filters: input.filters ?? [],
+    connectionId: input.connectionId ?? null,
   });
   return searchToRuntime(row);
 }
@@ -163,6 +166,7 @@ export interface UpdateSavedSearchInput {
   query?: string;
   tableName?: string;
   filters?: SearchFilter[];
+  connectionId?: string | null;
 }
 
 export async function updateSavedSearch(
@@ -174,6 +178,7 @@ export async function updateSavedSearch(
   if (input.query !== undefined) patch.query = input.query;
   if (input.tableName !== undefined) patch.tableName = input.tableName;
   if (input.filters !== undefined) patch.filters = input.filters;
+  if (input.connectionId !== undefined) patch.connectionId = input.connectionId;
 
   await updateSavedSearchRow(id, patch);
   return getSavedSearch(id);

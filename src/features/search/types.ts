@@ -31,6 +31,8 @@ export interface SearchQueryInput {
   limit?: number;
   /** Timestamp column name. Defaults to `Timestamp` for OTel tables. */
   timestampColumn?: string;
+  /** Saved connection to run against. null/undefined = legacy default. */
+  connectionId?: string | null;
 }
 
 // Runtime shape for a persisted search (ISO-string dates, typed filters).
@@ -42,6 +44,7 @@ export interface SavedSearchRuntime {
   query: string;
   tableName: string;
   filters: SearchFilter[];
+  connectionId?: string | null;
   createdAt: string;
   updatedAt: string;
 }

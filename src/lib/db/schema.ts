@@ -122,6 +122,8 @@ export interface SavedSearch {
   query: string;
   tableName: string;
   filters: unknown[];
+  /** Saved connection this search runs against. null/undefined = legacy default. */
+  connectionId?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }

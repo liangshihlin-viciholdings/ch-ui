@@ -67,6 +67,19 @@ export class ChUiDatabase extends Dexie {
           if (d.connectionId === undefined) d.connectionId = null;
         });
     });
+
+    // v7: saved searches gain an optional connectionId (which saved
+    // connection they run against). Existing rows backfill to null = legacy.
+    this.version(7).stores({
+      savedSearches: "id, name, connectionId, createdAt, updatedAt",
+    }).upgrade((tx) => {
+      return tx
+        .table("savedSearches")
+        .toCollection()
+        .modify((s: any) => {
+          if (s.connectionId === undefined) s.connectionId = null;
+        });
+    });
   }
 }
 
