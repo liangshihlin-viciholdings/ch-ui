@@ -34,6 +34,7 @@ import {
   useDashboards,
   useCreateDashboard,
 } from "@/features/analytics/hooks/useDashboard";
+import { useWorkbenchStore } from "@/stores/workbenchStore";
 import {
   PRESET_DASHBOARDS,
   DASHBOARD_TEMPLATES,
@@ -48,6 +49,8 @@ export interface DashboardListPageProps {
 export function DashboardListPage({ onSelect }: DashboardListPageProps) {
   const { data: dashboards = [], isLoading } = useDashboards();
   const createDashboard = useCreateDashboard();
+  // New dashboards default to the workbench's active connection (null = legacy).
+  const activeConnectionId = useWorkbenchStore((s) => s.activeConnectionId);
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [templatesOpen, setTemplatesOpen] = useState(false);
@@ -65,6 +68,7 @@ export function DashboardListPage({ onSelect }: DashboardListPageProps) {
         tiles: [],
         tags: [],
         filters: [],
+        connectionId: activeConnectionId,
       });
       toast.success(`Created "${created.name}"`);
       setOpen(false);
@@ -102,6 +106,7 @@ export function DashboardListPage({ onSelect }: DashboardListPageProps) {
         tags: selectedTemplate.tags,
         filters: [],
         templateId: selectedTemplate.id,
+        connectionId: activeConnectionId,
       });
       toast.success(`Created "${created.name}" from template`);
       setSelectedTemplate(null);

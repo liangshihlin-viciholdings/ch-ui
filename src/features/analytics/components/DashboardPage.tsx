@@ -43,6 +43,7 @@ import {
 import { useTimeRange } from "@/features/analytics/hooks/useTimeRange";
 import { useDashboardFilters } from "@/features/analytics/hooks/useDashboardFilters";
 import { DashboardGrid } from "./DashboardGrid";
+import { ConnectionPicker } from "./ConnectionPicker";
 import { DashboardFilters } from "./DashboardFilters";
 import { TimePicker } from "./TimePicker";
 import { ChartBuilder } from "./ChartBuilder";
@@ -258,6 +259,15 @@ export function DashboardPage({
             </h1>
           </div>
           <div className="flex items-center gap-2">
+            <ConnectionPicker
+              value={dashboard.connectionId}
+              onChange={(id) =>
+                updateDashboard.mutate({
+                  id: dashboard.id,
+                  input: { connectionId: id },
+                })
+              }
+            />
             <AutoRefreshControl />
             <TimePicker
               range={range}
