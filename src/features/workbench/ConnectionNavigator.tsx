@@ -59,6 +59,12 @@ const STATUS_COLOR: Record<ConnectionStatus, string> = {
   disconnected: "text-zinc-400 fill-zinc-400",
 };
 
+// Clean, theme-coloured focus indicator for the plain nav buttons (replaces
+// the browser's default outline, which renders in currentColor and looks
+// like a stray border).
+const NAV_BTN_FOCUS =
+  "rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring";
+
 export default function ConnectionNavigator({
   onAdd,
   onEdit,
@@ -145,6 +151,7 @@ export default function ConnectionNavigator({
           const isOpen = !!openConn[c.id];
           const cache = schemas[c.id] ?? null;
           const adminCaps = capabilities[c.id]?.admin;
+          const isActive = c.id === activeId;
 
           return (
             <div key={c.id}>
@@ -152,20 +159,40 @@ export default function ConnectionNavigator({
               <div
                 className={cn(
                   "group flex w-full items-center gap-1.5 px-2 py-1.5",
-                  c.id === activeId ? "bg-accent" : "hover:bg-accent/50",
+                  isActive
+                    ? "bg-accent text-accent-foreground"
+                    : "hover:bg-accent/50",
                 )}
               >
                 <button
                   onClick={() => toggleConn(c)}
-                  className="flex min-w-0 flex-1 items-center gap-1.5 text-left"
+                  className={cn(
+                    "flex min-w-0 flex-1 items-center gap-1.5 text-left",
+                    NAV_BTN_FOCUS,
+                  )}
                 >
                   {isOpen ? (
-                    <ChevronDown className="size-3 shrink-0 text-muted-foreground" />
+                    <ChevronDown
+                      className={cn(
+                        "size-3 shrink-0",
+                        isActive ? "text-accent-foreground/80" : "text-muted-foreground",
+                      )}
+                    />
                   ) : (
-                    <ChevronRight className="size-3 shrink-0 text-muted-foreground" />
+                    <ChevronRight
+                      className={cn(
+                        "size-3 shrink-0",
+                        isActive ? "text-accent-foreground/80" : "text-muted-foreground",
+                      )}
+                    />
                   )}
                   <span className={cn("size-2 shrink-0 rounded-full", meta.dot)} />
-                  <Icon className="size-4 shrink-0 text-muted-foreground" />
+                  <Icon
+                    className={cn(
+                      "size-4 shrink-0",
+                      isActive ? "text-accent-foreground/80" : "text-muted-foreground",
+                    )}
+                  />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1">
                       <span className="truncate font-medium">{c.name}</span>
@@ -173,7 +200,14 @@ export default function ConnectionNavigator({
                         <Star className="size-3 shrink-0 fill-amber-400 text-amber-400" />
                       )}
                     </div>
-                    <div className="truncate text-[11px] text-muted-foreground">
+                    <div
+                      className={cn(
+                        "truncate text-[11px]",
+                        isActive
+                          ? "text-accent-foreground/70"
+                          : "text-muted-foreground",
+                      )}
+                    >
                       {meta.label}
                       {c.filePath
                         ? ` · ${c.filePath}`
@@ -275,7 +309,10 @@ export default function ConnectionNavigator({
                           onClick={() =>
                             setOpenSchema((o) => ({ ...o, [sk]: !o[sk] }))
                           }
-                          className="flex w-full items-center gap-1.5 py-1 pl-7 pr-2 hover:bg-accent"
+                          className={cn(
+                            "flex w-full items-center gap-1.5 py-1 pl-7 pr-2 hover:bg-accent",
+                            NAV_BTN_FOCUS,
+                          )}
                         >
                           {expanded ? (
                             <ChevronDown className="size-3 text-muted-foreground" />
@@ -305,7 +342,7 @@ export default function ConnectionNavigator({
                                         void expandTable(c.id, s.name, t.name);
                                       }
                                     }}
-                                    className="shrink-0"
+                                    className={cn("shrink-0", NAV_BTN_FOCUS)}
                                     title={
                                       tableOpen
                                         ? "Collapse columns"
@@ -320,7 +357,10 @@ export default function ConnectionNavigator({
                                   </button>
                                   <button
                                     onClick={() => openTableQuery(c.id, s.name, t.name)}
-                                    className="flex min-w-0 flex-1 items-center gap-1.5 text-left"
+                                    className={cn(
+                                      "flex min-w-0 flex-1 items-center gap-1.5 text-left",
+                                      NAV_BTN_FOCUS,
+                                    )}
                                     title={`Open a query for ${t.name}`}
                                   >
                                     <Table2 className="size-3.5 shrink-0 text-muted-foreground" />
