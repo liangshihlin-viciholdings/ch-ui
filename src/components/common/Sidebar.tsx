@@ -2,12 +2,10 @@ import { useState, useEffect, useRef } from "react";
 import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import {
   SquareTerminal,
-  Github,
   LifeBuoy,
   Search,
   ChevronRight,
   ChevronLeft,
-  BookText,
   ShieldCheck,
   CogIcon,
   ScrollText,
@@ -50,7 +48,6 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Separator } from "@/components/ui/separator";
-import { withBasePath } from "@/lib/basePath";
 import useAppStore from "@/stores/workspaceStore";
 import { Logo } from "@/components/common/Logo";
 import { Badge } from "@/components/ui/badge";
@@ -122,18 +119,6 @@ const Sidebar = () => {
 
   const bottomNavLinks = [
     { to: "/settings", label: "Settings", icon: CogIcon, isNewWindow: false },
-    // {
-    //   to: "https://github.com/caioricciuti/ch-ui?utm_source=ch-ui&utm_medium=sidebar",
-    //   label: "GitHub",
-    //   icon: Github,
-    //   isNewWindow: true,
-    // },
-    // {
-    //   to: "https://ch-ui.com/docs?utm_source=ch-ui&utm_medium=sidebar",
-    //   label: "Documentation",
-    //   icon: BookText,
-    //   isNewWindow: true,
-    // },
   ];
 
   return (
