@@ -31,7 +31,8 @@ import {
   useEditorVimMode,
 } from "@/stores/editorStore";
 import { getCodeMirrorTheme, isLightTheme } from "@/features/workspace/editor/codeMirrorThemes";
-import { vimExtension, registerVimExCommands } from "@/features/workspace/editor/vimMode";
+import { createSqlExtensions } from "@/features/workspace/editor/codeMirrorConfig";
+import { registerVimExCommands } from "@/features/workspace/editor/vimMode";
 import { vimSurroundExtension } from "@/features/workspace/editor/vimSurround";
 import { ENGINES } from "./engineMeta";
 import SaveQueryDialog from "./SaveQueryDialog";
@@ -299,25 +300,25 @@ function WorkbenchEditor({
 
   const extensions = useMemo(
     () => [
-      ...(vimMode ? [vimExtension()] : []),
-      dialect.languageSupport(),
-      keymap.of([
-        {
-          key: "Mod-Enter",
-          run: () => { void runQuery(tabId); return true; },
-        },
-        {
-          key: "Mod-s",
-          run: () => { saveRef.current?.(); return true; },
-        },
-      ]),
+      // Identical vim / completion / keymap stack as the pre-A2 SqlEditor.
+      // The per-engine dialect is passed as languageSupport so non-ClickHouse
+      // tabs keep engine-appropriate highlighting. Run/save route through refs
+      // so the extension array does not rebuild (and CodeMirror does not fully
+      // reconfigure) on every tab switch.
+      ...createSqlExtensions({
+        vimMode,
+        onRun: () => runRef.current?.(),
+        onRunAll: () => runRef.current?.(),
+        onSave: () => saveRef.current?.(),
+        languageSupport: dialect.languageSupport(),
+      }),
       ...vimBasicSetup,
       ...themeExtensions,
       fontExtension,
       vimCursorFix,
       EditorView.lineWrapping,
     ],
-    [themeExtensions, fontExtension, vimCursorFix, vimBasicSetup, vimMode, dialect, tabId],
+    [themeExtensions, fontExtension, vimCursorFix, vimBasicSetup, vimMode, dialect],
   );
 
   const handleChange = useCallback(

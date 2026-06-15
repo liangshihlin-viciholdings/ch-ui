@@ -71,6 +71,14 @@ export interface SqlExtensionOptions {
 	onRun: () => void;
 	onRunAll: () => void;
 	onSave: () => void;
+	/**
+	 * Language-support extension to use for syntax highlighting. Defaults to
+	 * the rich ClickHouse dialect (`clickhouseSql()`). The multi-engine
+	 * workbench passes its per-engine dialect here so Postgres/MySQL/SQLite/
+	 * DuckDB tabs keep engine-appropriate highlighting while still sharing the
+	 * identical vim / completion / keymap stack.
+	 */
+	languageSupport?: Extension;
 }
 
 /**
@@ -127,7 +135,7 @@ export function createSqlExtensions(options: SqlExtensionOptions): Extension[] {
 					),
 				]
 			: []),
-		clickhouseSql(),
+		options.languageSupport ?? clickhouseSql(),
 		autocompletion({
 			override: [clickhouseCompletionSource],
 			activateOnTyping: true,
