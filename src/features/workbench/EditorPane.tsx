@@ -23,6 +23,7 @@ import {
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
 import { Button } from "@/components/ui/button";
+import DataTable from "@/components/common/DataTable";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/components/common/theme-provider";
 import {
@@ -84,48 +85,26 @@ function ResultsGrid({ tabId }: { tabId: string }) {
     );
   }
 
-  const columns = result.meta;
-  const rows = result.data;
+  if (!result.data.length) {
+    return (
+      <div className="flex h-full flex-col bg-background">
+        <div className="flex items-center gap-3 border-b border-border px-3 py-1.5 text-xs text-muted-foreground">
+          <span className="font-medium text-foreground">0 rows</span>
+          <span>· {(result.statistics.elapsed / 1000).toFixed(2)}s</span>
+        </div>
+        <div className="flex-1 overflow-auto p-4 text-sm text-muted-foreground">
+          Query returned no rows.
+        </div>
+      </div>
+    );
+  }
 
+  // The shared DataTable renders a stacked column-name / data-type header,
+  // virtualized rows, pagination, and a query-stats footer (elapsed, rows
+  // read, bytes read). AdapterQueryResult is structurally a QueryResult.
   return (
-    <div className="flex h-full flex-col bg-background">
-      <div className="flex items-center gap-3 border-b border-border px-3 py-1.5 text-xs text-muted-foreground">
-        <span className="font-medium text-foreground">{result.rows} rows</span>
-        <span>· {(result.statistics.elapsed / 1000).toFixed(2)}s</span>
-      </div>
-      <div className="flex-1 overflow-auto">
-        <table className="w-full text-sm">
-          <thead className="sticky top-0 bg-muted/50">
-            <tr>
-              {columns.map((col) => (
-                <th
-                  key={col.name}
-                  className="border-b border-border px-3 py-1.5 text-left font-medium"
-                >
-                  {col.name}
-                  <span className="ml-1 text-[10px] font-normal text-muted-foreground">
-                    {col.type}
-                  </span>
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row, i) => (
-              <tr key={i} className="hover:bg-accent/30">
-                {columns.map((col) => (
-                  <td
-                    key={col.name}
-                    className="border-b border-border/50 px-3 py-1 font-mono text-xs"
-                  >
-                    {String(row[col.name] ?? "")}
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+    <div className="h-full overflow-hidden bg-background p-2">
+      <DataTable data={result} height="100%" enablePagination pageSize={100} />
     </div>
   );
 }
