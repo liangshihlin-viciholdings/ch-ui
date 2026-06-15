@@ -56,6 +56,7 @@ function alertToBuilderState(alert: Alert): AlertBuilderState {
     thresholdValue: alert.thresholdValue,
     evaluationInterval: alert.evaluationInterval,
     enabled: alert.enabled,
+    connectionId: alert.connectionId ?? null,
   };
 }
 
@@ -138,7 +139,7 @@ export function AlertList() {
               Alerts
             </h1>
             <p className="text-xs text-muted-foreground">
-              Threshold alerts on ClickHouse queries. Evaluation is
+              Threshold alerts on your database queries. Evaluation is
               client-side only — this preview tells you if the alert would
               fire right now.
             </p>
@@ -270,7 +271,7 @@ export function AlertList() {
             <AlertDialogTitle>Delete alert?</AlertDialogTitle>
             <AlertDialogDescription>
               This will remove the alert from local storage. The underlying
-              ClickHouse data is unaffected.
+              database data is unaffected.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

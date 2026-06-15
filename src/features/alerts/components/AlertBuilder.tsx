@@ -13,6 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { ConnectionPicker } from "@/components/common/ConnectionPicker";
 import { ChartBuilder } from "@/features/analytics/components/ChartBuilder";
 import { createDefaultBuilderConfig } from "@/features/analytics/hooks/useChartConfig";
 import type { BuilderChartConfig, ChartConfig } from "@/features/analytics/types";
@@ -33,6 +34,7 @@ export interface AlertBuilderState {
   thresholdValue: number;
   evaluationInterval: EvaluationInterval;
   enabled: boolean;
+  connectionId?: string | null;
 }
 
 export function createDefaultAlertState(): AlertBuilderState {
@@ -44,6 +46,7 @@ export function createDefaultAlertState(): AlertBuilderState {
     thresholdValue: 0,
     evaluationInterval: "5m",
     enabled: true,
+    connectionId: null,
   };
 }
 
@@ -75,6 +78,15 @@ export function AlertBuilder({ value, onChange }: AlertBuilderProps) {
             onChange={(e) => patch({ name: e.target.value })}
             placeholder="High error rate on api"
             className="h-8"
+          />
+        </div>
+
+        <div className="space-y-1">
+          <Label className="text-xs">Connection</Label>
+          <ConnectionPicker
+            value={value.connectionId}
+            onChange={(id) => patch({ connectionId: id })}
+            className="w-full"
           />
         </div>
 
@@ -169,6 +181,7 @@ export function AlertBuilder({ value, onChange }: AlertBuilderProps) {
           tableName={value.tableName}
           thresholdValue={value.thresholdValue}
           thresholdOperator={value.thresholdOperator}
+          connectionId={value.connectionId}
         />
       </div>
     </div>

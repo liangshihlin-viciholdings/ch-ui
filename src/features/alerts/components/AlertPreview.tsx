@@ -34,6 +34,7 @@ export interface AlertPreviewProps {
   tableName: string;
   thresholdValue: number;
   thresholdOperator: ThresholdOperator;
+  connectionId?: string | null;
   /** Time range end-exclusive. Defaults to the last hour. */
   dateRange?: [Date, Date];
   height?: number;
@@ -84,6 +85,7 @@ export function AlertPreview({
   tableName,
   thresholdValue,
   thresholdOperator,
+  connectionId,
   dateRange,
   height = 220,
 }: AlertPreviewProps) {
@@ -93,6 +95,7 @@ export function AlertPreview({
     config,
     tableName,
     dateRange: resolvedRange,
+    connectionId,
     enabled: !!tableName,
   });
 
