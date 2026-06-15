@@ -1,5 +1,5 @@
-// New connection dialog — engine picker drives the form.
-import { useState, type FormEvent } from "react";
+// New / edit connection dialog — engine picker drives the form.
+import { useEffect, useState, type FormEvent } from "react";
 import { FolderOpen } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -14,15 +14,27 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { ENGINES } from "./engineMeta";
-import type { Engine } from "@/lib/db/schema";
-import { saveConnection } from "@/stores/connectionStore";
+import type { Engine, SavedConnection } from "@/lib/db/schema";
+import { saveConnection, updateConnectionById } from "@/stores/connectionStore";
+
+/** Split a stored connection URL into host (scheme kept) + port. */
+function parseUrl(url: string): { host: string; port: string } {
+  const cleaned = url.replace(/\/+$/, "");
+  const idx = cleaned.lastIndexOf(":");
+  if (idx > 0 && /^\d+$/.test(cleaned.slice(idx + 1))) {
+    return { host: cleaned.slice(0, idx), port: cleaned.slice(idx + 1) };
+  }
+  return { host: cleaned, port: "" };
+}
 
 export default function NewConnectionDialog({
   open,
   onOpenChange,
+  editing,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
+  editing?: SavedConnection | null;
 }) {
   const [engine, setEngine] = useState<Engine>("clickhouse");
   const [name, setName] = useState("");
@@ -33,6 +45,19 @@ export default function NewConnectionDialog({
   const [filePath, setFilePath] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const meta = ENGINES[engine];
+
+  // Prefill the form when opened in edit mode.
+  useEffect(() => {
+    if (!open || !editing) return;
+    const { host: h, port: p } = parseUrl(editing.url ?? "");
+    setEngine(editing.engine);
+    setName(editing.name);
+    setHost(h);
+    setPort(p);
+    setUser(editing.username ?? "");
+    setPass(editing.password ?? "");
+    setFilePath(editing.filePath ?? "");
+  }, [open, editing]);
 
   function reset() {
     setEngine("clickhouse");
@@ -63,21 +88,31 @@ export default function NewConnectionDialog({
         : "";
       const resolvedFile =
         filePath.trim() || (engine === "duckdb" ? ":memory:" : "");
-
-      const created = await saveConnection({
+      const payload = {
         name: name.trim() || `my-${engine}`,
         engine,
         url,
         username: user.trim(),
         password: pass,
         filePath: isServer ? undefined : resolvedFile,
-      });
+      };
 
-      if (created) {
-        toast.success(`Connection "${created.name}" saved`);
-        handleOpenChange(false);
+      if (editing) {
+        const ok = await updateConnectionById(editing.id, payload);
+        if (ok) {
+          toast.success(`Connection "${payload.name}" updated`);
+          handleOpenChange(false);
+        } else {
+          toast.error("Failed to update connection");
+        }
       } else {
-        toast.error("Failed to save connection");
+        const created = await saveConnection(payload);
+        if (created) {
+          toast.success(`Connection "${created.name}" saved`);
+          handleOpenChange(false);
+        } else {
+          toast.error("Failed to save connection");
+        }
       }
     } finally {
       setSubmitting(false);
@@ -88,7 +123,7 @@ export default function NewConnectionDialog({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-[460px]">
         <DialogHeader>
-          <DialogTitle>New connection</DialogTitle>
+          <DialogTitle>{editing ? "Edit connection" : "New connection"}</DialogTitle>
         </DialogHeader>
 
         <div className="grid grid-cols-5 gap-1.5">
@@ -207,7 +242,7 @@ export default function NewConnectionDialog({
               Cancel
             </Button>
             <Button type="submit" disabled={submitting}>
-              {submitting ? "Saving…" : "Save"}
+              {submitting ? "Saving…" : editing ? "Update" : "Save"}
             </Button>
           </DialogFooter>
         </form>
