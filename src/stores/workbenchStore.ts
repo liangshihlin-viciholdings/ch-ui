@@ -342,16 +342,20 @@ export function setAdminView(enabled: boolean): void {
   patch({ adminView: enabled });
 }
 
-export function openTab(connectionId: string): string {
+export function openTab(
+  connectionId: string,
+  opts?: { title?: string; sql?: string },
+): string {
   const tab: WorkbenchTab = {
     id: uid(),
-    title: "Query",
+    title: opts?.title ?? "Query",
     connectionId,
-    sql: "",
+    sql: opts?.sql ?? "",
   };
   patch({
     tabs: [...store.state.tabs, tab],
     activeTabId: tab.id,
+    activeConnectionId: connectionId,
   });
   return tab.id;
 }

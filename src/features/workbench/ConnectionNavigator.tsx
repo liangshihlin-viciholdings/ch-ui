@@ -47,6 +47,7 @@ import {
   disconnectConnection,
   selectConnection,
   expandTable,
+  openTab,
   setAdminView,
   type ConnectionStatus,
 } from "@/stores/workbenchStore";
@@ -101,6 +102,16 @@ export default function ConnectionNavigator({
       await disconnectConnection(id);
     }
     await deleteConnectionById(id);
+  }
+
+  // Clicking a table name opens a new query tab pre-filled with a default
+  // SELECT against that table (the chevron, not the name, toggles columns).
+  function openTableQuery(connId: string, schema: string, table: string) {
+    selectConnection(connId);
+    openTab(connId, {
+      title: table,
+      sql: `SELECT *\nFROM ${schema}.${table}\nLIMIT 100;`,
+    });
   }
 
   return (
@@ -283,29 +294,42 @@ export default function ConnectionNavigator({
                             const cols = cache.columns[colKey];
                             return (
                               <div key={tk}>
-                                <button
-                                  onClick={() => {
-                                    setOpenTable((o) => ({
-                                      ...o,
-                                      [tk]: !o[tk],
-                                    }));
-                                    if (!cols) {
-                                      void expandTable(c.id, s.name, t.name);
+                                <div className="flex w-full items-center gap-1.5 py-1 pl-11 pr-2 hover:bg-accent">
+                                  <button
+                                    onClick={() => {
+                                      setOpenTable((o) => ({
+                                        ...o,
+                                        [tk]: !o[tk],
+                                      }));
+                                      if (!cols) {
+                                        void expandTable(c.id, s.name, t.name);
+                                      }
+                                    }}
+                                    className="shrink-0"
+                                    title={
+                                      tableOpen
+                                        ? "Collapse columns"
+                                        : "Expand columns"
                                     }
-                                  }}
-                                  className="flex w-full items-center gap-1.5 py-1 pl-11 pr-2 hover:bg-accent"
-                                >
-                                  {tableOpen ? (
-                                    <ChevronDown className="size-3 text-muted-foreground" />
-                                  ) : (
-                                    <ChevronRight className="size-3 text-muted-foreground" />
-                                  )}
-                                  <Table2 className="size-3.5 text-muted-foreground" />
-                                  <span className="truncate">{t.name}</span>
-                                  <span className="ml-auto text-[10px] capitalize text-muted-foreground">
-                                    {t.type}
-                                  </span>
-                                </button>
+                                  >
+                                    {tableOpen ? (
+                                      <ChevronDown className="size-3 text-muted-foreground" />
+                                    ) : (
+                                      <ChevronRight className="size-3 text-muted-foreground" />
+                                    )}
+                                  </button>
+                                  <button
+                                    onClick={() => openTableQuery(c.id, s.name, t.name)}
+                                    className="flex min-w-0 flex-1 items-center gap-1.5 text-left"
+                                    title={`Open a query for ${t.name}`}
+                                  >
+                                    <Table2 className="size-3.5 shrink-0 text-muted-foreground" />
+                                    <span className="truncate">{t.name}</span>
+                                    <span className="ml-auto text-[10px] capitalize text-muted-foreground">
+                                      {t.type}
+                                    </span>
+                                  </button>
+                                </div>
                                 {tableOpen &&
                                   (cols ?? []).map((col) => (
                                     <div
