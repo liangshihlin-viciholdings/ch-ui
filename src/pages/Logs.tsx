@@ -450,7 +450,8 @@ const LogsPage: React.FC = () => {
   };
   
   return (
-    <div className="container mx-auto py-6 h-screen flex flex-col">
+    <div className="flex-1 w-full overflow-auto h-screen flex flex-col">
+      <div className="container mx-auto px-4 py-4 flex-1 flex flex-col">
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Logs</h1>
@@ -671,6 +672,7 @@ const LogsPage: React.FC = () => {
           </div>
         </SheetContent>
       </Sheet>
+      </div>
     </div>
   );
 };

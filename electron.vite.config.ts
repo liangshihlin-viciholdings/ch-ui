@@ -5,8 +5,10 @@ import { defineConfig, externalizeDepsPlugin } from "electron-vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { TanStackRouterVite } from "@tanstack/router-plugin/vite";
+import pkg from "./package.json";
 
 const srcAlias = { "@": resolve(__dirname, "./src") };
+const defines = { __CH_UI_VERSION__: JSON.stringify(pkg.version) };
 
 export default defineConfig({
   main: {
@@ -33,6 +35,7 @@ export default defineConfig({
   },
   renderer: {
     root: ".",
+    define: defines,
     plugins: [
       TanStackRouterVite({
         routesDirectory: "./src/routes",

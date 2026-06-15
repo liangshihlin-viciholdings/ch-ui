@@ -107,7 +107,7 @@ export function SearchPage({ savedSearchId }: SearchPageProps) {
 
   return (
     <div className="flex-1 w-full overflow-auto">
-      <div className="container mx-auto space-y-4 py-4">
+      <div className="container mx-auto space-y-4 px-4 py-4">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             <h1 className="truncate text-xl font-semibold tracking-tight text-foreground">

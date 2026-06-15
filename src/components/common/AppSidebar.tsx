@@ -153,7 +153,6 @@ export default function AppSidebar() {
     gate === "always" ? true : gate === "any" ? hasAnyConnection : isServerAvailable;
   const location = useLocation();
   const pathname = location.pathname;
-  const isWorkbench = pathname === "/";
 
   const [width, setWidth] = useState(readWidth);
   const [collapsed, setCollapsed] = useState(readCollapsed);
@@ -267,30 +266,6 @@ export default function AppSidebar() {
           </Button>
         </div>
 
-        {/* Shared filter — only meaningful where the connection tree shows */}
-        {isWorkbench && (
-          <div className="border-b border-border px-2 py-2">
-            <div className="flex items-center gap-1.5 rounded-md border border-border bg-muted/30 px-2.5 py-1.5">
-              <Search className="size-3.5 shrink-0 text-muted-foreground/50" />
-              <input
-                type="text"
-                placeholder="Filter tables…"
-                value={filter}
-                onChange={(e) => setFilter(e.target.value)}
-                className="min-w-0 flex-1 bg-transparent text-[12px] text-foreground outline-none placeholder:text-muted-foreground/50"
-              />
-              {filter && (
-                <button
-                  onClick={() => setFilter("")}
-                  className="shrink-0 text-[11px] text-muted-foreground/40 hover:text-muted-foreground"
-                >
-                  ×
-                </button>
-              )}
-            </div>
-          </div>
-        )}
-
         {/* Outline */}
         <ScrollArea className="flex-1">
           <div className="py-1.5">
@@ -308,21 +283,40 @@ export default function AppSidebar() {
               </div>
             </SectionGroup>
 
-            {/* CONNECTIONS + SAVED QUERIES — workbench route only */}
-            {isWorkbench && (
-              <>
-                <div className="mx-3 my-1.5 border-t border-border/40" />
-                <ConnectionsSection filter={filter} />
-                <div className="mx-3 my-1.5 border-t border-border/40" />
-                <SectionGroup
-                  label="Saved Queries"
-                  open={savedOpen}
-                  onToggle={() => setSavedOpen((v) => !v)}
-                >
-                  <SavedQueriesSection />
-                </SectionGroup>
-              </>
-            )}
+            {/* CONNECTIONS + SAVED QUERIES */}
+            <>
+              <div className="mx-3 my-1.5 border-t border-border/40" />
+              {/* Shared filter — sits above the connection tree it filters */}
+              <div className="px-2 pb-1">
+                <div className="flex items-center gap-1.5 rounded-md border border-border bg-muted/30 px-2.5 py-1.5">
+                  <Search className="size-3.5 shrink-0 text-muted-foreground/50" />
+                  <input
+                    type="text"
+                    placeholder="Filter tables…"
+                    value={filter}
+                    onChange={(e) => setFilter(e.target.value)}
+                    className="min-w-0 flex-1 bg-transparent text-[12px] text-foreground outline-none placeholder:text-muted-foreground/50"
+                  />
+                  {filter && (
+                    <button
+                      onClick={() => setFilter("")}
+                      className="shrink-0 text-[11px] text-muted-foreground/40 hover:text-muted-foreground"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+              </div>
+              <ConnectionsSection filter={filter} />
+              <div className="mx-3 my-1.5 border-t border-border/40" />
+              <SectionGroup
+                label="Saved Queries"
+                open={savedOpen}
+                onToggle={() => setSavedOpen((v) => !v)}
+              >
+                <SavedQueriesSection />
+              </SectionGroup>
+            </>
           </div>
         </ScrollArea>
 

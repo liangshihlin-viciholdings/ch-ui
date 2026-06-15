@@ -49,8 +49,8 @@ export default function Admin() {
 
   return (
     <ErrorBoundary>
-      <div className="max-h-screen w-full overflow-y-auto">
-        <div className="container mx-auto p-6">
+      <div className="flex-1 w-full overflow-y-auto">
+        <div className="container mx-auto px-4 py-4">
         <div className="mb-8">
           <div className="flex items-center justify-between">
             <h1 className="text-3xl font-medium mb-2 flex items-center gap-2">
