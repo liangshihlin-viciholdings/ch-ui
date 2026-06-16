@@ -117,19 +117,24 @@ export function resolveFolderPath(
   folderRef: string,
   folders: Record<string, DbeaverFolder>,
 ): string {
-  if (folders[folderRef]) {
+  const node = folders[folderRef];
+  // UUID-keyed format: the value carries a name and/or a parent-folder link.
+  const isNode =
+    !!node && (typeof node.name === "string" || node["parent-folder"] != null);
+  if (isNode) {
     const parts: string[] = [];
     const seen = new Set<string>();
     let cur: string | null | undefined = folderRef;
     while (cur && folders[cur] && !seen.has(cur)) {
       seen.add(cur);
       const folder: DbeaverFolder = folders[cur];
-      if (folder.name) parts.unshift(folder.name);
+      parts.unshift(folder.name ?? cur);
       cur = folder["parent-folder"] ?? null;
     }
     return parts.join(" / ");
   }
-  // Literal path string (some DBeaver versions store "Prod/Staging").
+  // Name-as-key format ({"MySQL": {}}) — observed in real DBeaver workspaces —
+  // or a literal "Prod/Staging" path string. Either way, split on separators.
   return folderRef
     .split(/[\\/]+/)
     .map((s) => s.trim())

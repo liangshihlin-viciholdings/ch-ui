@@ -106,6 +106,11 @@ describe("resolveFolderPath", () => {
   it("treats an unknown ref as a literal path", () => {
     expect(resolveFolderPath("Prod/Staging", {})).toBe("Prod / Staging");
   });
+
+  it("handles the real name-as-key format with empty values", () => {
+    // Observed in actual DBeaver workspaces: folders are keyed by name with {} values.
+    expect(resolveFolderPath("MySQL", { MySQL: {}, ClickHouse: {} })).toBe("MySQL");
+  });
 });
 
 describe("parseDataSources", () => {
