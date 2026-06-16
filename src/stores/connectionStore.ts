@@ -25,7 +25,7 @@ import {
   createSavedQuery,
   deleteSavedQueriesByConnectionId,
 } from "@/lib/db";
-import type { ImportedConnection } from "@/lib/dbeaver";
+import type { ImportedConnection, ImportedScript } from "@/lib/dbeaver";
 
 export interface ConnectionState {
   connections: ConnectionDisplay[];
@@ -522,6 +522,10 @@ export interface DbeaverImportResult {
   failed: number;
   /** Connections skipped because a connection with the same name already exists. */
   skipped: number;
+  /** SQL scripts imported as saved queries. */
+  scriptsImported: number;
+  /** Scripts skipped (no resolvable target connection, or a create error). */
+  scriptsSkipped: number;
 }
 
 /**
@@ -531,21 +535,31 @@ export interface DbeaverImportResult {
  */
 export async function importFromDbeaver(
   connections: ImportedConnection[],
-  options?: { skipExisting?: boolean },
+  options?: { skipExisting?: boolean; scripts?: ImportedScript[] },
 ): Promise<DbeaverImportResult> {
   const skipExisting = options?.skipExisting ?? true;
   let success = 0;
   let failed = 0;
   let skipped = 0;
+  let scriptsImported = 0;
+  let scriptsSkipped = 0;
 
   try {
     const existing = await getAllConnections();
-    const names = new Set(existing.map((c) => c.name));
+    const idByName = new Map(existing.map((c) => [c.name, c.id]));
+    // DBeaver source connection id -> deebee connection id, so imported scripts
+    // can be linked to the connection they belong to.
+    const idBySourceId = new Map<string, string>();
 
     for (const conn of connections) {
-      if (skipExisting && names.has(conn.name)) {
-        skipped++;
-        continue;
+      const existingId = idByName.get(conn.name);
+      if (existingId) {
+        // Link scripts to the existing same-named connection even when skipped.
+        idBySourceId.set(conn.sourceId, existingId);
+        if (skipExisting) {
+          skipped++;
+          continue;
+        }
       }
       try {
         const saved = await saveConnection({
@@ -559,12 +573,35 @@ export async function importFromDbeaver(
         });
         if (saved) {
           success++;
-          names.add(conn.name);
+          idByName.set(conn.name, saved.id);
+          idBySourceId.set(conn.sourceId, saved.id);
         } else {
           failed++;
         }
       } catch {
         failed++;
+      }
+    }
+
+    // Import SQL scripts as saved queries, linked to their resolved connection.
+    for (const script of options?.scripts ?? []) {
+      const connectionId = script.sourceConnectionId
+        ? idBySourceId.get(script.sourceConnectionId)
+        : undefined;
+      if (!connectionId) {
+        scriptsSkipped++;
+        continue;
+      }
+      try {
+        await createSavedQuery({
+          name: script.name,
+          query: script.query,
+          connectionId,
+          databaseName: script.databaseName ?? "",
+        });
+        scriptsImported++;
+      } catch {
+        scriptsSkipped++;
       }
     }
 
@@ -576,7 +613,7 @@ export async function importFromDbeaver(
     }));
   }
 
-  return { success, failed, skipped };
+  return { success, failed, skipped, scriptsImported, scriptsSkipped };
 }
 
 export function clearError() {

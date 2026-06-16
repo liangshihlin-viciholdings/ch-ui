@@ -72,6 +72,7 @@ export default function DbeaverImportDialog({
   const [result, setResult] = useState<DbeaverParseResult | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [skipExisting, setSkipExisting] = useState(true);
+  const [importScripts, setImportScripts] = useState(true);
 
   // Web upload inputs
   const [dataSourcesFile, setDataSourcesFile] = useState<File | null>(null);
@@ -84,6 +85,7 @@ export default function DbeaverImportDialog({
     setResult(null);
     setSelected(new Set());
     setSkipExisting(true);
+    setImportScripts(true);
     setDataSourcesFile(null);
     setCredentialsFile(null);
     if (desktop) {
@@ -155,12 +157,18 @@ export default function DbeaverImportDialog({
     }
     setImporting(true);
     try {
-      const { success, failed, skipped } = await importFromDbeaver(chosen, {
-        skipExisting,
-      });
-      if (success > 0) {
-        toast.success(`Imported ${success} connection(s) from DBeaver`);
-        if (skipped > 0) toast.info(`${skipped} already existed and were skipped`);
+      const { success, failed, skipped, scriptsImported } =
+        await importFromDbeaver(chosen, {
+          skipExisting,
+          scripts: importScripts ? result.scripts ?? [] : [],
+        });
+      if (success > 0 || scriptsImported > 0) {
+        if (success > 0)
+          toast.success(`Imported ${success} connection(s) from DBeaver`);
+        if (scriptsImported > 0)
+          toast.success(`Imported ${scriptsImported} saved query(ies)`);
+        if (skipped > 0)
+          toast.info(`${skipped} connection(s) already existed and were skipped`);
         if (failed > 0) toast.warning(`${failed} connection(s) failed to import`);
         onOpenChange(false);
       } else if (skipped > 0 && failed === 0) {
@@ -388,6 +396,23 @@ export default function DbeaverImportDialog({
                     Skip connections that already exist (by name)
                   </Label>
                 </div>
+
+                {(result.scripts?.length ?? 0) > 0 && (
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="dbeaver-import-scripts"
+                      checked={importScripts}
+                      onCheckedChange={(c) => setImportScripts(c === true)}
+                    />
+                    <Label
+                      htmlFor="dbeaver-import-scripts"
+                      className="cursor-pointer"
+                    >
+                      Also import {result.scripts?.length} SQL script(s) as saved
+                      queries
+                    </Label>
+                  </div>
+                )}
 
                 <div className="flex gap-2">
                   <Button

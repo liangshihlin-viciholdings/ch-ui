@@ -10,7 +10,13 @@ import DbeaverImportDialog from "../DbeaverImportDialog";
 import { importFromDbeaver } from "@/stores/connectionStore";
 
 vi.mock("@/stores/connectionStore", () => ({
-  importFromDbeaver: vi.fn(async () => ({ success: 1, failed: 0, skipped: 0 })),
+  importFromDbeaver: vi.fn(async () => ({
+    success: 1,
+    failed: 0,
+    skipped: 0,
+    scriptsImported: 0,
+    scriptsSkipped: 0,
+  })),
 }));
 
 vi.mock("sonner", () => ({
@@ -83,7 +89,7 @@ describe("DbeaverImportDialog (web upload flow)", () => {
           username: "admin",
         }),
       ]),
-      { skipExisting: true },
+      { skipExisting: true, scripts: [] },
     );
   });
 });
