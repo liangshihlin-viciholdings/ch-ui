@@ -25,6 +25,7 @@ import {
   createSavedQuery,
   deleteSavedQueriesByConnectionId,
 } from "@/lib/db";
+import type { ImportedConnection } from "@/lib/dbeaver";
 
 export interface ConnectionState {
   connections: ConnectionDisplay[];
@@ -516,6 +517,68 @@ export async function importConnections(
   }
 }
 
+export interface DbeaverImportResult {
+  success: number;
+  failed: number;
+  /** Connections skipped because a connection with the same name already exists. */
+  skipped: number;
+}
+
+/**
+ * Import connections parsed from a DBeaver workspace. Skips connections whose
+ * name already exists (when skipExisting, the default) so re-imports are
+ * idempotent rather than creating duplicates.
+ */
+export async function importFromDbeaver(
+  connections: ImportedConnection[],
+  options?: { skipExisting?: boolean },
+): Promise<DbeaverImportResult> {
+  const skipExisting = options?.skipExisting ?? true;
+  let success = 0;
+  let failed = 0;
+  let skipped = 0;
+
+  try {
+    const existing = await getAllConnections();
+    const names = new Set(existing.map((c) => c.name));
+
+    for (const conn of connections) {
+      if (skipExisting && names.has(conn.name)) {
+        skipped++;
+        continue;
+      }
+      try {
+        const saved = await saveConnection({
+          name: conn.name,
+          engine: conn.engine,
+          url: conn.url,
+          database: conn.database,
+          username: conn.username,
+          password: conn.password,
+          filePath: conn.filePath,
+        });
+        if (saved) {
+          success++;
+          names.add(conn.name);
+        } else {
+          failed++;
+        }
+      } catch {
+        failed++;
+      }
+    }
+
+    await loadConnections();
+  } catch (err) {
+    connectionStore.setState((prev) => ({
+      ...prev,
+      error: err instanceof Error ? err.message : "DBeaver import failed",
+    }));
+  }
+
+  return { success, failed, skipped };
+}
+
 export function clearError() {
   connectionStore.setState((prev) => ({ ...prev, error: null }));
 }
@@ -538,6 +601,7 @@ const actions = {
   getPassword,
   exportConnections,
   importConnections,
+  importFromDbeaver,
   clearError,
 };
 

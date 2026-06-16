@@ -27,6 +27,7 @@ import {
   RotateCw,
   Download,
   Upload,
+  HardDriveDownload,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -74,6 +75,7 @@ import {
 } from "@/stores/workbenchStore";
 import { deleteConnectionById, setAsDefault } from "@/stores/connectionStore";
 import ExportImportDialog from "@/features/connections/components/ExportImportDialog";
+import DbeaverImportDialog from "@/features/connections/components/DbeaverImportDialog";
 
 const STATUS_COLOR: Record<ConnectionStatus, string> = {
   connected: "text-emerald-500 fill-emerald-500",
@@ -121,6 +123,7 @@ export default function ConnectionsSection({
   );
 
   // New / edit connection dialog (owned here, was previously in WorkbenchShell).
+  const [dbeaverOpen, setDbeaverOpen] = useState(false);
   const [connDialogOpen, setConnDialogOpen] = useState(false);
   const [editConn, setEditConn] = useState<SavedConnection | null>(null);
 
@@ -306,6 +309,10 @@ export default function ConnectionsSection({
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => setExportImport("export")}>
               <Download className="mr-2 size-3.5" /> Export connections…
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => setDbeaverOpen(true)}>
+              <HardDriveDownload className="mr-2 size-3.5" /> Migrate from DBeaver…
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -562,8 +569,15 @@ export default function ConnectionsSection({
             })}
 
             {!connections.length && (
-              <div className="px-3 py-4 text-center text-xs text-muted-foreground">
-                No connections yet.
+              <div className="px-3 py-4 text-center text-xs text-muted-foreground space-y-2">
+                <div>No connections yet.</div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setDbeaverOpen(true)}
+                >
+                  <HardDriveDownload className="mr-2 size-3.5" /> Migrate from DBeaver
+                </Button>
               </div>
             )}
           </div>
@@ -603,6 +617,12 @@ export default function ConnectionsSection({
         }}
         connections={connections as ConnectionDisplay[]}
         defaultTab={exportImport ?? "export"}
+      />
+
+      <DbeaverImportDialog
+        open={dbeaverOpen}
+        onOpenChange={setDbeaverOpen}
+        existingNames={new Set(connections.map((c) => c.name))}
       />
 
       <NewConnectionDialog
