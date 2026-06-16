@@ -1,5 +1,40 @@
 import { describe, it, expect } from "vitest";
-import { isJsonExplain, getExplainType, isExplainQuery } from "../sqlUtils";
+import {
+  isJsonExplain,
+  getExplainType,
+  isExplainQuery,
+  stripTrailingFormat,
+} from "../sqlUtils";
+
+describe("stripTrailingFormat", () => {
+  it("removes a trailing FORMAT clause", () => {
+    expect(stripTrailingFormat("SELECT 1 FORMAT JSON")).toBe("SELECT 1");
+    expect(stripTrailingFormat("SELECT 1 FORMAT PrettyCompact")).toBe("SELECT 1");
+  });
+
+  it("removes a trailing FORMAT clause with a semicolon", () => {
+    expect(stripTrailingFormat("SELECT 1 FORMAT TSV;")).toBe("SELECT 1");
+  });
+
+  it("removes a trailing FORMAT across newlines", () => {
+    expect(
+      stripTrailingFormat("SELECT a, b\nFROM t\nGROUP BY a\nFORMAT PrettyCompact"),
+    ).toBe("SELECT a, b\nFROM t\nGROUP BY a");
+  });
+
+  it("leaves a query without a trailing FORMAT unchanged", () => {
+    expect(stripTrailingFormat("SELECT 1")).toBe("SELECT 1");
+    expect(stripTrailingFormat("SELECT count() FROM t")).toBe(
+      "SELECT count() FROM t",
+    );
+  });
+
+  it("does not strip FORMAT inside a trailing string literal", () => {
+    expect(stripTrailingFormat("SELECT 'FORMAT JSON' AS x")).toBe(
+      "SELECT 'FORMAT JSON' AS x",
+    );
+  });
+});
 
 describe("isExplainQuery", () => {
   it("detects bare EXPLAIN", () => {

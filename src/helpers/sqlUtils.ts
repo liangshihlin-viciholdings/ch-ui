@@ -1,5 +1,23 @@
 import type { ExplainType } from "@/types/common";
 
+/**
+ * Strip a trailing `FORMAT <Name>` clause from a query.
+ *
+ * The ClickHouse client appends `FORMAT JSON` to SELECT queries so results can
+ * be parsed as JSON for the grid. If the user's query already ends with a
+ * FORMAT clause (e.g. `FORMAT PrettyCompact`), the request ends up with two
+ * FORMAT clauses and ClickHouse errors. Removing the trailing clause lets the
+ * client apply JSON and the results render normally.
+ *
+ * Only the clause at the very end of the statement is removed (with an optional
+ * trailing semicolon). A FORMAT inside a string literal won't match because a
+ * closing quote follows it. `INSERT ... FORMAT` runs via command() and must not
+ * be passed through this helper.
+ */
+export function stripTrailingFormat(query: string): string {
+  return query.replace(/\s*\bFORMAT\s+[A-Za-z0-9_]+\s*;?\s*$/i, "").trimEnd();
+}
+
 export const isCreateOrInsert = (query: string) => {
   // Remove lines that start with '--'
   const cleanedQuery = query

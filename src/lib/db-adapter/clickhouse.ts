@@ -27,6 +27,7 @@ import {
   isExplainQuery,
   isJsonExplain,
   extractQueryParams,
+  stripTrailingFormat,
 } from "@/helpers/sqlUtils";
 import { ExplainParser } from "@/features/workspace/explain/parser";
 
@@ -184,8 +185,11 @@ export class ClickHouseAdapter implements DbAdapter {
       };
     }
 
+    // The client appends `FORMAT JSON` for parsing; drop any trailing FORMAT
+    // the user wrote so we don't end up with two FORMAT clauses (which errors).
+    const queryForClient = stripTrailingFormat(trimmedQuery);
     const result = await this.client.query({
-      query: trimmedQuery,
+      query: queryForClient,
       ...(params && Object.keys(params).length > 0 && { query_params: params }),
       abort_signal: signal,
     });
