@@ -34,22 +34,28 @@ import type { DbeaverParseResult } from "./types";
 export interface DbeaverConfigInput {
   /** Contents of data-sources.json (object or JSON string). */
   dataSources: unknown;
-  /** Contents of credentials-config.json (Base64 string), if available. */
-  credentialsBase64?: string;
+  /**
+   * Contents of credentials-config.json, if available. Real DBeaver writes this
+   * as raw bytes (IV + AES ciphertext), so prefer passing a Uint8Array; a Base64
+   * string is also accepted for flexibility.
+   */
+  credentials?: Uint8Array | string;
 }
 
 /**
- * Parse a DBeaver workspace into deebee-ready connections, recovering passwords
- * from credentials-config.json when possible. Best-effort: unrecoverable
- * passwords are left blank (see decryptCredentials).
+ * Parse a DBeaver workspace into deebee-ready connections, recovering usernames
+ * and passwords from credentials-config.json when possible. Best-effort:
+ * unrecoverable credentials are left blank (see decryptCredentials).
  */
 export async function parseDbeaverConfig(
   input: DbeaverConfigInput,
 ): Promise<DbeaverParseResult> {
   const result = parseDataSources(input.dataSources);
-  if (input.credentialsBase64) {
-    const creds = await decryptCredentials(input.credentialsBase64);
-    applyCredentials(result, creds);
+  const creds = input.credentials;
+  const hasCreds =
+    creds != null && (typeof creds === "string" ? creds.length > 0 : creds.length > 0);
+  if (hasCreds) {
+    applyCredentials(result, await decryptCredentials(creds!));
   }
   return result;
 }

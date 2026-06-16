@@ -2,8 +2,8 @@
 // Decrypts DBeaver Community's credentials-config.json.
 //
 // Format (DBeaver CE, no workspace master password):
-//   - The whole file is a single Base64 string.
-//   - Decoded bytes = IV (first 16 bytes) ++ AES-128-CBC ciphertext.
+//   - The file is raw bytes (a Base64 string is also accepted as a fallback).
+//   - Bytes = IV (first 16 bytes) ++ AES-128-CBC ciphertext (PKCS7 padding).
 //   - Key = the 16 bytes of the hex string below (hex-decoded, NOT ASCII).
 //   - Plaintext is a JSON object; some versions prepend a 16-byte random block,
 //     so we extract the JSON substring rather than trusting byte offsets.

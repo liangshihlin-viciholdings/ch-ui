@@ -69,8 +69,10 @@ export async function parseUploadedDbeaver(
   credentialsFile?: File,
 ): Promise<DbeaverParseResult> {
   const dataSources = await dataSourcesFile.text();
-  const credentialsBase64 = credentialsFile
-    ? await credentialsFile.text()
+  // credentials-config.json is raw bytes — read as an ArrayBuffer, not text,
+  // so the binary survives intact for decryption.
+  const credentials = credentialsFile
+    ? new Uint8Array(await credentialsFile.arrayBuffer())
     : undefined;
-  return parseDbeaverConfig({ dataSources, credentialsBase64 });
+  return parseDbeaverConfig({ dataSources, credentials });
 }

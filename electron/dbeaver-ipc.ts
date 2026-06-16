@@ -121,11 +121,11 @@ async function readWorkspace(
 
   const dataSources = readFileSync(dataSourcesPath, "utf-8");
   const credPath = join(dirname(dataSourcesPath), CREDENTIALS_FILE);
-  const credentialsBase64 = existsSync(credPath)
-    ? readFileSync(credPath, "utf-8")
-    : undefined;
+  // credentials-config.json is raw bytes (IV + AES ciphertext); read it as a
+  // Buffer, NOT utf-8, or the binary gets mangled and decryption fails.
+  const credentials = existsSync(credPath) ? readFileSync(credPath) : undefined;
 
-  const result = await parseDbeaverConfig({ dataSources, credentialsBase64 });
+  const result = await parseDbeaverConfig({ dataSources, credentials });
 
   // Scripts (desktop only). dataSourcesPath is <project>/.dbeaver/data-sources.json,
   // so the project dir is two levels up; scripts live in <project>/Scripts.

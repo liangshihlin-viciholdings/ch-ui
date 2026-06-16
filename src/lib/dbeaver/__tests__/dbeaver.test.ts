@@ -334,6 +334,13 @@ describe("decryptCredentials", () => {
     expect(out).toEqual(creds);
   });
 
+  it("decrypts from raw bytes (the real DBeaver on-disk format)", async () => {
+    const creds = { pg: { "#connection": { user: "admin", password: "p@ss" } } };
+    const bytes = new Uint8Array(Buffer.from(await encryptCredentials(creds), "base64"));
+    const out = await decryptCredentials(bytes);
+    expect(out).toEqual(creds);
+  });
+
   it("tolerates a leading random block before the JSON", async () => {
     const creds = { ch: { "#connection": { password: "x" } } };
     const b64 = await encryptCredentials(creds, true);
@@ -359,10 +366,10 @@ describe("parseDbeaverConfig (integration)", () => {
         },
       },
     };
-    const credentialsBase64 = await encryptCredentials({
+    const credentials = await encryptCredentials({
       pg: { "#connection": { password: "hunter2" } },
     });
-    const res = await parseDbeaverConfig({ dataSources, credentialsBase64 });
+    const res = await parseDbeaverConfig({ dataSources, credentials });
     expect(res.connections[0]).toMatchObject({
       engine: "postgres",
       url: "h:5432",
