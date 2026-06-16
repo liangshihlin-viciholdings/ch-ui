@@ -197,7 +197,7 @@ export default function DbeaverImportDialog({
         </DialogHeader>
 
         {step === "source" && (
-          <div className="space-y-4 pt-2">
+          <div className="space-y-4 pt-2 min-w-0">
             {desktop ? (
               <>
                 {busy ? (
@@ -214,7 +214,7 @@ export default function DbeaverImportDialog({
                           key={ws.dataSourcesPath}
                           type="button"
                           onClick={() => void handlePickDetected(ws)}
-                          className="flex w-full items-start gap-3 p-3 text-left hover:bg-accent transition-colors"
+                          className="flex w-full min-w-0 items-start gap-3 p-3 text-left hover:bg-accent transition-colors"
                         >
                           <Database className="h-4 w-4 mt-0.5 shrink-0 text-muted-foreground" />
                           <div className="min-w-0 flex-1">
@@ -294,7 +294,7 @@ export default function DbeaverImportDialog({
         )}
 
         {step === "preview" && result && (
-          <div className="space-y-4 pt-2">
+          <div className="space-y-4 pt-2 min-w-0">
             {result.connections.length === 0 ? (
               <p className="text-sm text-muted-foreground py-2">
                 No importable connections found in this workspace.
