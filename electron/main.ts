@@ -4,6 +4,7 @@ import { join } from "path";
 import { readFileSync, writeFileSync } from "node:fs";
 import { is } from "@electron-toolkit/utils";
 import { registerAdapterIPC } from "./ipc-handlers";
+import { registerDbeaverIPC } from "./dbeaver-ipc";
 import {
   initSecrets,
   storePassword,
@@ -136,6 +137,7 @@ app.whenReady().then(() => {
   registerSecretsIPC();
   registerDialogIPC();
   registerAdapterIPC();
+  registerDbeaverIPC();
   registerWindowIPC();
   createWindow();
   app.on("activate", () => {

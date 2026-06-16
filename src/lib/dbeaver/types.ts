@@ -98,3 +98,18 @@ export interface DbeaverParseResult {
   connections: ImportedConnection[];
   skipped: SkippedConnection[];
 }
+
+/**
+ * A DBeaver workspace config file discovered on disk by the Electron main
+ * process (the `dbeaver:detect` IPC channel).
+ */
+export interface DbeaverWorkspaceInfo {
+  /** Absolute path to data-sources.json. */
+  dataSourcesPath: string;
+  /** Absolute path to credentials-config.json, when present. */
+  credentialsPath?: string;
+  /** Whether an encrypted credentials file sits alongside data-sources.json. */
+  hasCredentials: boolean;
+  /** Human-friendly label, e.g. "General (snap)". */
+  label: string;
+}

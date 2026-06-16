@@ -11,6 +11,7 @@ export type {
   ImportedConnection,
   SkippedConnection,
   DbeaverParseResult,
+  DbeaverWorkspaceInfo,
 } from "./types";
 
 export {
