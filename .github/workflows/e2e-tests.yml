@@ -31,17 +31,22 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "22"
-          cache: "npm"
+          cache: "pnpm"
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium firefox
+        run: pnpm exec playwright install --with-deps ${{ matrix.browser }}
 
       - name: Wait for ClickHouse to be ready
         run: |
@@ -55,7 +60,7 @@ jobs:
           done
 
       - name: Run E2E tests
-        run: npm run test:e2e
+        run: pnpm exec playwright test --project=${{ matrix.browser }}
         env:
           CI: true
           BASE_URL: http://localhost:5173

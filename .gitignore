@@ -52,3 +52,6 @@ playwright/.cache/
 .dolt/
 *.db
 out/
+
+# Electron builder output
+dist-electron-out/

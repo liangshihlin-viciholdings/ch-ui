@@ -23,7 +23,10 @@
     "postinstall": "node -e \"if (process.env.ELECTRON_SKIP_BINARY_DOWNLOAD) { console.log('Skipping Electron binary download (ELECTRON_SKIP_BINARY_DOWNLOAD set)'); process.exit(0); } require('child_process').execSync('electron --version', { stdio: 'inherit' });\" || true",
     "dev:desktop": "electron-vite dev --config electron.vite.config.ts",
     "build:desktop": "electron-vite build --config electron.vite.config.ts",
-    "dist:desktop": "pnpm build:desktop && electron-builder --linux AppImage"
+    "dist:desktop": "pnpm build:desktop && electron-builder",
+    "dist:linux": "pnpm build:desktop && electron-builder --linux",
+    "dist:win": "pnpm build:desktop && electron-builder --win",
+    "dist:mac": "pnpm build:desktop && electron-builder --mac"
   },
   "dependencies": {
     "@base-ui/react": "^1.1.0",
@@ -155,8 +158,30 @@
       "out/**/*"
     ],
     "linux": {
-      "target": "AppImage",
-      "category": "Development"
+      "target": [
+        "AppImage",
+        "deb",
+        "tar.gz"
+      ],
+      "category": "Development",
+      "maintainer": "Liang-Shih Lin <liangshihlin@gmail.com>"
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "category": "public.app-category.developer-tools"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
     }
   }
 }
