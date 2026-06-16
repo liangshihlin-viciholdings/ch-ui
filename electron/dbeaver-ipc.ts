@@ -11,15 +11,18 @@
 import { ipcMain } from "electron";
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { homedir } from "node:os";
-import { basename, dirname, join } from "node:path";
-import { parseDbeaverConfig } from "../src/lib/dbeaver";
+import { basename, dirname, join, relative, sep } from "node:path";
+import { parseDbeaverConfig, buildScripts } from "../src/lib/dbeaver";
 import type {
   DbeaverParseResult,
+  DbeaverProjectMetadata,
   DbeaverWorkspaceInfo,
 } from "../src/lib/dbeaver";
 
 const DATA_SOURCES_FILE = "data-sources.json";
 const CREDENTIALS_FILE = "credentials-config.json";
+const PROJECT_METADATA_FILE = "project-metadata.json";
+const SCRIPTS_DIR = "Scripts";
 
 /** Candidate DBeaverData base directories per platform (macOS out of scope). */
 function candidateBaseDirs(): { dir: string; tag: string }[] {
@@ -122,7 +125,53 @@ async function readWorkspace(
     ? readFileSync(credPath, "utf-8")
     : undefined;
 
-  return parseDbeaverConfig({ dataSources, credentialsBase64 });
+  const result = await parseDbeaverConfig({ dataSources, credentialsBase64 });
+
+  // Scripts (desktop only). dataSourcesPath is <project>/.dbeaver/data-sources.json,
+  // so the project dir is two levels up; scripts live in <project>/Scripts.
+  const projectDir = dirname(dirname(dataSourcesPath));
+  const rawScripts = readScripts(projectDir);
+  if (rawScripts.length > 0) {
+    const metaPath = join(dirname(dataSourcesPath), PROJECT_METADATA_FILE);
+    let metadata: DbeaverProjectMetadata | undefined;
+    if (existsSync(metaPath)) {
+      try {
+        metadata = JSON.parse(readFileSync(metaPath, "utf-8"));
+      } catch {
+        // Malformed metadata — scripts just won't be linked to a connection.
+      }
+    }
+    result.scripts = buildScripts(rawScripts, metadata);
+  }
+
+  return result;
+}
+
+// Recursively read every .sql file under <projectDir>/Scripts, keyed by a
+// project-relative POSIX path (e.g. "Scripts/Foo.sql") so keys match the
+// resource paths in project-metadata.json.
+function readScripts(projectDir: string): { path: string; content: string }[] {
+  const scriptsDir = join(projectDir, SCRIPTS_DIR);
+  if (!isDir(scriptsDir)) return [];
+
+  const out: { path: string; content: string }[] = [];
+  const walk = (dir: string): void => {
+    for (const entry of safeReaddir(dir)) {
+      const full = join(dir, entry);
+      if (isDir(full)) {
+        walk(full);
+      } else if (entry.toLowerCase().endsWith(".sql")) {
+        const rel = relative(projectDir, full).split(sep).join("/");
+        try {
+          out.push({ path: rel, content: readFileSync(full, "utf-8") });
+        } catch {
+          // Unreadable file — skip it.
+        }
+      }
+    }
+  };
+  walk(scriptsDir);
+  return out;
 }
 
 export function registerDbeaverIPC(): void {

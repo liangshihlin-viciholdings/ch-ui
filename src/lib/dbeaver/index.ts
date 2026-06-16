@@ -9,8 +9,10 @@ export type {
   DbeaverCredentialEntry,
   DbeaverCredentialsMap,
   ImportedConnection,
+  ImportedScript,
   SkippedConnection,
   DbeaverParseResult,
+  DbeaverProjectMetadata,
   DbeaverWorkspaceInfo,
 } from "./types";
 
@@ -19,6 +21,7 @@ export {
   resolveFolderPath,
   parseDataSources,
   applyCredentials,
+  buildScripts,
 } from "./parser";
 
 export { decryptCredentials } from "./decrypt";

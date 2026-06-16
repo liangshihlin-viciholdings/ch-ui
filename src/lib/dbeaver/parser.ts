@@ -10,7 +10,9 @@ import type {
   DbeaverDataSourcesFile,
   DbeaverFolder,
   DbeaverParseResult,
+  DbeaverProjectMetadata,
   ImportedConnection,
+  ImportedScript,
   SkippedConnection,
 } from "./types";
 
@@ -236,4 +238,31 @@ export function applyCredentials(
     }
   }
   return result;
+}
+
+/**
+ * Map raw DBeaver scripts (read from the project's Scripts/ folder) to
+ * importable saved queries, using project-metadata.json to recover each
+ * script's bound connection id and target database/schema.
+ *
+ * @param rawScripts Each script's path relative to the project dir (e.g.
+ *   "Scripts/Foo.sql") and its SQL content.
+ */
+export function buildScripts(
+  rawScripts: { path: string; content: string }[],
+  metadata: DbeaverProjectMetadata | undefined,
+): ImportedScript[] {
+  const resources = metadata?.resources ?? {};
+  return rawScripts.map((script) => {
+    const meta = resources[script.path] ?? {};
+    const base = script.path.split(/[\\/]+/).pop() ?? script.path;
+    const name = base.replace(/\.sql$/i, "");
+    const sourceConnectionId =
+      meta["default-datasource"] ??
+      meta["sql-editor-data-source-id"] ??
+      undefined;
+    const databaseName =
+      meta["default-catalog"] ?? meta["default-schema"] ?? undefined;
+    return { name, query: script.content, sourceConnectionId, databaseName };
+  });
 }

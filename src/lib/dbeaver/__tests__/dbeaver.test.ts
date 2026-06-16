@@ -6,6 +6,7 @@ import {
   parseDataSources,
   applyCredentials,
   resolveFolderPath,
+  buildScripts,
 } from "../parser";
 import { decryptCredentials } from "../decrypt";
 import { parseDbeaverConfig } from "../index";
@@ -65,6 +66,58 @@ function concat(a: Uint8Array, b: Uint8Array): Uint8Array<ArrayBuffer> {
 function entry(over: Partial<DbeaverConnectionEntry>): DbeaverConnectionEntry {
   return { provider: "", driver: "", name: "c", configuration: {}, ...over };
 }
+
+describe("buildScripts", () => {
+  it("maps a script to name/query and links connection + database", () => {
+    const scripts = buildScripts(
+      [{ path: "Scripts/ClickHouse-ROM.sql", content: "SELECT 1" }],
+      {
+        resources: {
+          "Scripts/ClickHouse-ROM.sql": {
+            "default-datasource": "com_clickhouse-abc",
+            "default-schema": "KR_Ticks",
+          },
+        },
+      },
+    );
+    expect(scripts).toHaveLength(1);
+    expect(scripts[0]).toEqual({
+      name: "ClickHouse-ROM",
+      query: "SELECT 1",
+      sourceConnectionId: "com_clickhouse-abc",
+      databaseName: "KR_Ticks",
+    });
+  });
+
+  it("prefers default-catalog, falls back to sql-editor-data-source-id", () => {
+    const [s] = buildScripts(
+      [{ path: "Scripts/KR.sql", content: "select 2" }],
+      {
+        resources: {
+          "Scripts/KR.sql": {
+            "sql-editor-data-source-id": "mysql8-xyz",
+            "default-catalog": "KRX",
+          },
+        },
+      },
+    );
+    expect(s.sourceConnectionId).toBe("mysql8-xyz");
+    expect(s.databaseName).toBe("KRX");
+  });
+
+  it("handles scripts with no metadata", () => {
+    const [s] = buildScripts(
+      [{ path: "Scripts/Script-1.sql", content: "select 3" }],
+      undefined,
+    );
+    expect(s).toEqual({
+      name: "Script-1",
+      query: "select 3",
+      sourceConnectionId: undefined,
+      databaseName: undefined,
+    });
+  });
+});
 
 describe("detectEngine", () => {
   it("maps known providers/drivers to engines", () => {

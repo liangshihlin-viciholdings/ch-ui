@@ -97,6 +97,33 @@ export interface SkippedConnection {
 export interface DbeaverParseResult {
   connections: ImportedConnection[];
   skipped: SkippedConnection[];
+  /** DBeaver SQL scripts mapped to saved queries (desktop import only). */
+  scripts?: ImportedScript[];
+}
+
+/** A DBeaver SQL script mapped toward a deebee saved query. */
+export interface ImportedScript {
+  /** Script file name without the .sql extension. */
+  name: string;
+  /** Full SQL text of the script. */
+  query: string;
+  /** DBeaver connection id this script is bound to, if any. */
+  sourceConnectionId?: string;
+  /** Target database/catalog/schema recorded for the script, if any. */
+  databaseName?: string;
+}
+
+/** The parts of DBeaver's project-metadata.json the importer uses. */
+export interface DbeaverProjectMetadata {
+  resources?: Record<
+    string,
+    {
+      "default-datasource"?: string;
+      "sql-editor-data-source-id"?: string;
+      "default-catalog"?: string;
+      "default-schema"?: string;
+    }
+  >;
 }
 
 /**
