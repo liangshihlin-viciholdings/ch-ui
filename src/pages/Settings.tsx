@@ -1,4 +1,13 @@
-import { Server, Palette, Database, Clock, Info } from "lucide-react";
+import { useState } from "react";
+import {
+  Server,
+  Palette,
+  Database,
+  Clock,
+  Info,
+  Trash2,
+  Loader2,
+} from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Card,
@@ -21,6 +30,18 @@ import { toast } from "sonner";
 import useAppStore from "@/stores/workspaceStore";
 import { useWorkbenchStore } from "@/stores/workbenchStore";
 import { AppearanceTab } from "@/features/settings/components/AppearanceTab";
+import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { deleteAllConnections } from "@/stores/connectionStore";
 
 const TIMEOUT_PRESETS = [
   { value: "10000", label: "10 seconds" },
@@ -46,6 +67,22 @@ export default function SettingsPage() {
   const activeConnection = connections.find(
     (c) => c.id === activeConnectionId,
   );
+
+  const [confirmRemoveAll, setConfirmRemoveAll] = useState(false);
+  const [removingAll, setRemovingAll] = useState(false);
+
+  const handleRemoveAll = async () => {
+    setConfirmRemoveAll(false);
+    setRemovingAll(true);
+    try {
+      const removed = await deleteAllConnections();
+      toast.success(`Removed ${removed} connection(s)`);
+    } catch {
+      toast.error("Failed to remove connections");
+    } finally {
+      setRemovingAll(false);
+    }
+  };
 
   const handleMaxRowsChange = (value: string) => {
     const num = value.replace(/[^0-9]/g, "");
@@ -292,6 +329,67 @@ export default function SettingsPage() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Danger zone */}
+            <Card className="shadow-lg border-destructive/40">
+              <CardHeader>
+                <CardTitle className="text-2xl font-bold flex items-center gap-2 text-destructive">
+                  <Trash2 className="h-6 w-6" />
+                  Danger Zone
+                </CardTitle>
+                <CardDescription>
+                  Irreversible actions — use with care.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="font-medium">Remove all connections</p>
+                    <p className="text-sm text-muted-foreground">
+                      Permanently deletes all {connections.length} saved
+                      connection(s) and their saved queries. Handy for re-testing
+                      imports.
+                    </p>
+                  </div>
+                  <Button
+                    variant="destructive"
+                    disabled={connections.length === 0 || removingAll}
+                    onClick={() => setConfirmRemoveAll(true)}
+                  >
+                    {removingAll ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-4 w-4 mr-2" />
+                    )}
+                    Remove all
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            <AlertDialog
+              open={confirmRemoveAll}
+              onOpenChange={setConfirmRemoveAll}
+            >
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Remove all connections?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This permanently deletes all {connections.length}{" "}
+                    connection(s) and their saved queries. This cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    onClick={() => void handleRemoveAll()}
+                  >
+                    Remove all
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </TabsContent>
 
           <TabsContent value="appearance">

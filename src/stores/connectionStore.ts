@@ -349,6 +349,38 @@ export async function deleteConnectionById(id: string): Promise<boolean> {
   }
 }
 
+/**
+ * Delete every saved connection and its saved queries. Returns the number of
+ * connections removed. A liveQuery in workbenchStore keeps the sidebar in sync.
+ */
+export async function deleteAllConnections(): Promise<number> {
+  connectionStore.setState((prev) => ({ ...prev, isLoading: true, error: null }));
+  try {
+    const existing = await getAllConnections();
+    for (const conn of existing) {
+      await deleteSavedQueriesByConnectionId(conn.id);
+      await dbDeleteConnection(conn.id);
+    }
+    connectionStore.setState((prev) => ({
+      ...prev,
+      activeConnectionId: null,
+      databasesByConnection: {},
+      lastSelectedDatabaseByConnection: {},
+      isLoading: false,
+    }));
+    await loadConnections();
+    return existing.length;
+  } catch (err) {
+    connectionStore.setState((prev) => ({
+      ...prev,
+      isLoading: false,
+      error:
+        err instanceof Error ? err.message : "Failed to remove connections",
+    }));
+    return 0;
+  }
+}
+
 export function setActiveConnection(id: string | null) {
   connectionStore.setState((prev) => ({ ...prev, activeConnectionId: id }));
 }
@@ -633,6 +665,7 @@ const actions = {
   saveConnection,
   updateConnectionById,
   deleteConnectionById,
+  deleteAllConnections,
   setActiveConnection,
   setAsDefault,
   getPassword,
