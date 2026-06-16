@@ -122,6 +122,7 @@ function toConnectionConfig(
       engine: conn.engine,
       host: resolvedHost,
       port: portStr ? parseInt(portStr, 10) : defaultPort(conn.engine),
+      database: conn.database || undefined,
       username: conn.username,
       password,
       requestTimeout: conn.requestTimeout || 30000,

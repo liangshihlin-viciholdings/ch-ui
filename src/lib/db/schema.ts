@@ -11,6 +11,10 @@ export interface SavedConnection {
   /** Database engine — defaults to "clickhouse" for existing rows */
   engine: Engine;
   url: string;
+  /** Default database/schema (e.g. Postgres/MySQL). Optional — ClickHouse
+   *  selects its database per-query. Populated by the DBeaver importer.
+   *  Non-indexed: persisted by Dexie without a schema version bump. */
+  database?: string;
   username: string;
   password: string;
   useAdvanced: boolean;
@@ -37,6 +41,7 @@ export interface ConnectionDisplay {
   name: string;
   engine: Engine;
   url: string;
+  database?: string;
   username: string;
   password: string;
   useAdvanced: boolean;
@@ -55,6 +60,7 @@ export interface ExportedConnection {
   name: string;
   engine?: Engine;
   url: string;
+  database?: string;
   username: string;
   password?: string;
   useAdvanced: boolean;

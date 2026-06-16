@@ -44,6 +44,7 @@ function toDisplay(conn: SavedConnection): ConnectionDisplay {
     name: conn.name,
     engine: conn.engine,
     url: conn.url,
+    database: conn.database,
     username: conn.username,
     password: conn.password,
     useAdvanced: conn.useAdvanced,
@@ -174,6 +175,7 @@ export async function saveConnection(connection: {
   name: string;
   engine?: Engine;
   url: string;
+  database?: string;
   username: string;
   password: string;
   useAdvanced?: boolean;
@@ -195,6 +197,7 @@ export async function saveConnection(connection: {
       name: connection.name,
       engine: connection.engine ?? "clickhouse",
       url: connection.url,
+      database: connection.database,
       username: connection.username,
       password: connection.password,
       useAdvanced: connection.useAdvanced ?? false,
@@ -230,6 +233,7 @@ export async function updateConnectionById(
     name?: string;
     engine?: Engine;
     url?: string;
+    database?: string;
     username?: string;
     password?: string;
     useAdvanced?: boolean;
@@ -262,6 +266,7 @@ export async function updateConnectionById(
     if (updates.name !== undefined) updateData.name = updates.name;
     if (updates.engine !== undefined) updateData.engine = updates.engine;
     if (updates.url !== undefined) updateData.url = updates.url;
+    if (updates.database !== undefined) updateData.database = updates.database;
     if (updates.username !== undefined) updateData.username = updates.username;
     if (updates.password !== undefined) updateData.password = updates.password;
     if (updates.useAdvanced !== undefined)
@@ -393,6 +398,7 @@ export async function exportConnections(
         name: conn.name,
         engine: conn.engine,
         url: conn.url,
+        database: conn.database,
         username: conn.username,
         password: includePasswords ? conn.password : undefined,
         useAdvanced: conn.useAdvanced,
@@ -459,6 +465,7 @@ export async function importConnections(
           name: conn.name,
           engine: conn.engine,
           url: conn.url,
+          database: conn.database,
           username: conn.username,
           password: conn.password || "",
           useAdvanced: conn.useAdvanced,
