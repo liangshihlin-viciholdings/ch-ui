@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { UserPlus, Edit, Trash2 } from "lucide-react";
 import useAppStore from "@/stores/workspaceStore";
+import { useAdminClient } from "@/features/admin/useAdminClient";
 import { UserData } from "@/features/admin/types";
 import { toast } from "sonner";
 import {
@@ -25,7 +26,8 @@ interface UsersLayerProps {
 }
 
 export default function UsersLayer({ onAddChange }: UsersLayerProps) {
-  const { clickHouseClient, userPrivileges } = useAppStore();
+  const { userPrivileges } = useAppStore();
+  const clickHouseClient = useAdminClient();
   const [users, setUsers] = useState<UserData[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState<UserData | null>(null);

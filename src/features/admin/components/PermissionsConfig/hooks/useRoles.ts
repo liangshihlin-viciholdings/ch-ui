@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import type { ResponseJSON } from "@clickhouse/client-web";
-import useAppStore from "@/stores/workspaceStore";
+import { useAdminClient } from "@/features/admin/useAdminClient";
 import { Role } from "../../CreateUser/PrivilegesSection/types";
 
 interface SystemRoleRow {
@@ -43,7 +43,7 @@ interface UseRolesResult {
  */
 export function useRoles(options: UseRolesOptions = {}): UseRolesResult {
   const { refreshTrigger: externalRefreshTrigger } = options;
-  const { clickHouseClient } = useAppStore();
+  const clickHouseClient = useAdminClient();
   const [roles, setRoles] = useState<Role[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

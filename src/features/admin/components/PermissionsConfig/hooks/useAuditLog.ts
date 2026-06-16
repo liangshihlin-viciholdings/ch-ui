@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import type { ResponseJSON } from "@clickhouse/client-web";
 import useAppStore from "@/stores/workspaceStore";
+import { useAdminClient } from "@/features/admin/useAdminClient";
 import { PendingChange, ChangeExecutionResult } from "../types";
 
 /**
@@ -83,7 +84,8 @@ export interface AuditLogFilters {
  * Hook for managing audit logs
  */
 export function useAuditLog() {
-  const { runQuery, clickHouseClient } = useAppStore();
+  const { runQuery } = useAppStore();
+  const clickHouseClient = useAdminClient();
 
   /**
    * Initialize the audit log table in ClickHouse

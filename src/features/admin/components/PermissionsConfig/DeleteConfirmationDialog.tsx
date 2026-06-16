@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import type { ResponseJSON } from "@clickhouse/client-web";
 import { ConfirmationDialog, ImpactItem } from "@/components/ConfirmationDialog";
-import useAppStore from "@/stores/workspaceStore";
+import { useAdminClient } from "@/features/admin/useAdminClient";
 
 interface DeleteConfirmationDialogProps {
   open: boolean;
@@ -29,7 +29,7 @@ export function DeleteConfirmationDialog({
   onConfirm,
   isLoading = false,
 }: DeleteConfirmationDialogProps) {
-  const { clickHouseClient } = useAppStore();
+  const clickHouseClient = useAdminClient();
   const [impactItems, setImpactItems] = useState<ImpactItem[]>([]);
   const [loadingImpact, setLoadingImpact] = useState(false);
 

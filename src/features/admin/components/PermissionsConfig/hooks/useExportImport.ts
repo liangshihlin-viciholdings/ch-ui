@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import type { ResponseJSON } from "@clickhouse/client-web";
 import useAppStore from "@/stores/workspaceStore";
+import { useAdminClient } from "@/features/admin/useAdminClient";
 import { toast } from "sonner";
 
 /**
@@ -47,7 +48,8 @@ export interface DiffResult {
  * Hook for exporting and importing permissions
  */
 export function useExportImport() {
-  const { clickHouseClient, credential } = useAppStore();
+  const { credential } = useAppStore();
+  const clickHouseClient = useAdminClient();
 
   /**
    * Export permissions to JSON format

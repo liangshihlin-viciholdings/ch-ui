@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Search, Plus, Edit, Trash2 } from "lucide-react";
 import useAppStore from "@/stores/workspaceStore";
+import { useAdminClient } from "@/features/admin/useAdminClient";
 import { toast } from "sonner";
 import {
   Table,
@@ -30,7 +31,8 @@ interface SettingsProfilesLayerProps {
 export default function SettingsProfilesLayer({
   onAddChange,
 }: SettingsProfilesLayerProps) {
-  const { clickHouseClient, userPrivileges } = useAppStore();
+  const { userPrivileges } = useAppStore();
+  const clickHouseClient = useAdminClient();
   const [profiles, setProfiles] = useState<SettingsProfileData[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");

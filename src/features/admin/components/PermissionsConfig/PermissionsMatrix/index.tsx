@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Search, Check, X, Plus, Minus, Shield } from "lucide-react";
 import useAppStore from "@/stores/workspaceStore";
+import { useAdminClient } from "@/features/admin/useAdminClient";
 import { toast } from "sonner";
 import {
   Table,
@@ -61,7 +62,8 @@ interface PermissionsMatrixProps {
 }
 
 export default function PermissionsMatrix({ onAddChange, refreshTrigger }: PermissionsMatrixProps) {
-  const { clickHouseClient, userPrivileges } = useAppStore();
+  const { userPrivileges } = useAppStore();
+  const clickHouseClient = useAdminClient();
   const [matrixData, setMatrixData] = useState<MatrixRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");

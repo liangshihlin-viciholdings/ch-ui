@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Search, Plus, Edit, Trash2 } from "lucide-react";
 import useAppStore from "@/stores/workspaceStore";
+import { useAdminClient } from "@/features/admin/useAdminClient";
 import { toast } from "sonner";
 import {
   Table,
@@ -39,7 +40,8 @@ interface QuotasLayerProps {
 }
 
 export default function QuotasLayer({ onAddChange }: QuotasLayerProps) {
-  const { clickHouseClient, userPrivileges } = useAppStore();
+  const { userPrivileges } = useAppStore();
+  const clickHouseClient = useAdminClient();
   const [quotas, setQuotas] = useState<QuotaData[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");

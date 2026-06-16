@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import type { ResponseJSON } from "@clickhouse/client-web";
-import useAppStore from "@/stores/workspaceStore";
+import { useAdminClient } from "@/features/admin/useAdminClient";
 import {
   GrantedPermission,
   PermissionScope,
@@ -54,7 +54,7 @@ interface UseEffectiveGrantsResult {
  * @returns Combined direct and role-inherited grants with source information
  */
 export function useEffectiveGrants(userName?: string): UseEffectiveGrantsResult {
-  const { clickHouseClient } = useAppStore();
+  const clickHouseClient = useAdminClient();
   const [directGrants, setDirectGrants] = useState<GrantedPermission[]>([]);
   const [assignedRoles, setAssignedRoles] = useState<RoleAssignment[]>([]);
   const [roleGrants, setRoleGrants] = useState<Map<string, GrantedPermission[]>>(new Map());

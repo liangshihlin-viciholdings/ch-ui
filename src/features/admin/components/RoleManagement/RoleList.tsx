@@ -30,7 +30,7 @@ import { MoreVertical, Edit, Trash2, Users } from "lucide-react";
 import { Role } from "../CreateUser/PrivilegesSection/types";
 import { PendingChange } from "../PermissionsConfig/types";
 import { useGrants } from "../PermissionsConfig/hooks/useGrants";
-import useAppStore from "@/stores/workspaceStore";
+import { useAdminClient } from "@/features/admin/useAdminClient";
 
 interface RoleListProps {
   roles: Role[];
@@ -39,7 +39,7 @@ interface RoleListProps {
 }
 
 const RoleList: React.FC<RoleListProps> = ({ roles, onEditRole, onAddChange }) => {
-  const { clickHouseClient } = useAppStore();
+  const clickHouseClient = useAdminClient();
   const [roleToDelete, setRoleToDelete] = useState<Role | null>(null);
   const [userCounts, setUserCounts] = useState<Map<string, number>>(new Map());
 

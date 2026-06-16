@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Search, Plus, Edit, Trash2, Users } from "lucide-react";
 import useAppStore from "@/stores/workspaceStore";
+import { useAdminClient } from "@/features/admin/useAdminClient";
 import { toast } from "sonner";
 import {
   Table,
@@ -28,7 +29,8 @@ interface RolesLayerProps {
 }
 
 export default function RolesLayer({ onAddChange }: RolesLayerProps) {
-  const { clickHouseClient, userPrivileges } = useAppStore();
+  const { userPrivileges } = useAppStore();
+  const clickHouseClient = useAdminClient();
   const [roles, setRoles] = useState<RoleData[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");

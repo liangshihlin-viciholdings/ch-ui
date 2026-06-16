@@ -28,7 +28,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Code, Shield, Plus } from "lucide-react";
-import useAppStore from "@/stores/workspaceStore";
+import { useAdminClient } from "@/features/admin/useAdminClient";
 import { toast } from "sonner";
 import { PendingChange } from "../types";
 import {
@@ -49,7 +49,7 @@ interface EntityOption {
 }
 
 export default function GrantForm({ isOpen, onClose, onAddChange }: GrantFormProps) {
-  const { clickHouseClient } = useAppStore();
+  const clickHouseClient = useAdminClient();
 
   // Entity selection
   const [entities, setEntities] = useState<EntityOption[]>([]);

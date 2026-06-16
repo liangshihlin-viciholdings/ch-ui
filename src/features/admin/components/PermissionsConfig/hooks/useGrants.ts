@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import type { ResponseJSON } from "@clickhouse/client-web";
-import useAppStore from "@/stores/workspaceStore";
+import { useAdminClient } from "@/features/admin/useAdminClient";
 import { GrantedPermission, PermissionScope } from "../../CreateUser/PrivilegesSection/permissions";
 
 interface SystemGrantRow {
@@ -21,7 +21,7 @@ interface UseGrantsOptions {
  * @returns Array of GrantedPermission objects
  */
 export function useGrants({ userName, roleName }: UseGrantsOptions) {
-  const { clickHouseClient } = useAppStore();
+  const clickHouseClient = useAdminClient();
   const [grants, setGrants] = useState<GrantedPermission[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { ResponseJSON } from "@clickhouse/client-web";
 import useAppStore from "@/stores/workspaceStore";
+import { useAdminClient } from "@/features/admin/useAdminClient";
 import { UserPrivileges } from "../types";
 
 /**
@@ -10,7 +11,8 @@ import { UserPrivileges } from "../types";
  * to determine what admin operations they can perform.
  */
 export function useUserPrivileges() {
-  const { clickHouseClient, isServerAvailable } = useAppStore();
+  const { isServerAvailable } = useAppStore();
+  const clickHouseClient = useAdminClient();
   const [privileges, setPrivileges] = useState<UserPrivileges | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

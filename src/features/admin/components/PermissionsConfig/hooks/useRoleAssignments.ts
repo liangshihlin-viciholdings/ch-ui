@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import type { ResponseJSON } from "@clickhouse/client-web";
-import useAppStore from "@/stores/workspaceStore";
+import { useAdminClient } from "@/features/admin/useAdminClient";
 import { RoleAssignment } from "../../CreateUser/PrivilegesSection/types";
 
 interface SystemRoleGrantRow {
@@ -36,7 +36,7 @@ interface UseRoleAssignmentsResult {
  * @returns Role assignments and management methods
  */
 export function useRoleAssignments(userName?: string): UseRoleAssignmentsResult {
-  const { clickHouseClient } = useAppStore();
+  const clickHouseClient = useAdminClient();
   const [roleAssignments, setRoleAssignments] = useState<RoleAssignment[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
