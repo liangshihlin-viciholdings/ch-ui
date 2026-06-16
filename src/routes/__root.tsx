@@ -4,6 +4,7 @@ import { AppearanceProvider } from "@/contexts/AppearanceContext";
 import { AutoRefreshProvider } from "@/features/analytics/contexts/AutoRefreshContext";
 import AppInitializer from "@/components/common/AppInit";
 import AppSidebar from "@/components/common/AppSidebar";
+import { AlertEvaluator } from "@/features/alerts/AlertEvaluator";
 
 export const Route = createRootRoute({
   component: RootLayout,
@@ -19,6 +20,7 @@ function RootLayout() {
               <AppSidebar />
               <Outlet />
             </div>
+            <AlertEvaluator />
           </AppInitializer>
         </AutoRefreshProvider>
       </AppearanceProvider>
