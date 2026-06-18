@@ -2,7 +2,7 @@
 // focus traversal / tab order on admin controls that render disabled in the
 // unit-test DOM (verified under both happy-dom and jsdom, where .focus() is a
 // no-op on disabled elements). Keyboard navigation is validated by Playwright
-// E2E (`pnpm test:e2e`) in a real browser. Tracked by ch-ui-x1s.
+// E2E (`pnpm test:e2e`) in a real browser. Tracked by deebee-x1s.
 import React from "react";
 import { render, screen } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";

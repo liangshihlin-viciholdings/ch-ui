@@ -38,7 +38,7 @@ const resourceCards = [
   {
     title: "Star us on GitHub!",
     description: "Support our project by starring it on GitHub.",
-    link: "https://github.com/caioricciuti/ch-ui",
+    link: "https://github.com/liangshihlin/deebee",
     Icon: Github,
     action: "Star on GitHub",
   },
@@ -50,11 +50,11 @@ const resourceCards = [
     action: "Read Docs",
   },
   {
-    title: "CH-UI Documentation",
+    title: "Deebee Documentation",
     Icon: ExternalLink,
-    description: "Learn how to make the most of CH-UI.",
-    link: "https://ch-ui.com",
-    action: "Explore CH-UI",
+    description: "Learn how to make the most of Deebee.",
+    link: "https://deebee.com",
+    action: "Explore Deebee",
   },
 ];
 

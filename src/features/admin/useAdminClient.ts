@@ -8,7 +8,7 @@
 // falls back to the legacy client, so behavior is unchanged unless the user is
 // on a workbench ClickHouse connection.
 //
-// ch-ui-pev. Note: the legacy fallback also keeps the admin unit tests (which
+// deebee-pev. Note: the legacy fallback also keeps the admin unit tests (which
 // mock workspaceStore.clickHouseClient) working unchanged.
 import { useMemo } from "react";
 import useAppStore from "@/stores/workspaceStore";

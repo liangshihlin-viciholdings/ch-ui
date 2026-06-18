@@ -11,7 +11,7 @@ import {
   type ReactNode,
 } from "react";
 
-const STORAGE_KEY = "ch-ui-auto-refresh";
+const STORAGE_KEY = "deebee-auto-refresh";
 
 export interface AutoRefreshInterval {
   label: string;

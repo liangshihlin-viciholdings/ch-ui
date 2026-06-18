@@ -3,17 +3,17 @@ layout: home
 
 hero:
   name: "Data is better when we see it!"
-  tagline: "CH-UI makes working with data easy. This UI connects you directly to your ClickHouse instance, allowing you to view, filter, and export your data with ease."
+  tagline: "Deebee makes working with data easy. This UI connects you directly to your ClickHouse instance, allowing you to view, filter, and export your data with ease."
   image:
     src: /favicon.svg
-    alt: CH-UI
+    alt: Deebee
   actions:
     - theme: brand
       text: Get Started
       link: /getting-started
     - theme: alt
       text: View on GitHub
-      link: https://github.com/caioricciuti/ch-ui
+      link: https://github.com/liangshihlin/deebee
 
 features:
   - title: SQL Editor
@@ -94,19 +94,19 @@ This custom branch includes significant enhancements beyond the main repository:
 ### Docker
 
 ```bash
-docker run --name ch-ui -p 5521:5521 \
+docker run --name deebee -p 5521:5521 \
   -e VITE_CLICKHOUSE_URL=http://your-clickhouse:8123 \
   -e VITE_CLICKHOUSE_USER=default \
   -e VITE_CLICKHOUSE_PASS=password \
-  ghcr.io/caioricciuti/ch-ui:latest
+  ghcr.io/liangshihlin/deebee:latest
 ```
 
 ### Docker Compose
 
 ```yaml
 services:
-  ch-ui:
-    image: ghcr.io/caioricciuti/ch-ui:latest
+  deebee:
+    image: ghcr.io/liangshihlin/deebee:latest
     ports:
       - "5521:5521"
     environment:
@@ -132,23 +132,23 @@ services:
 
 We would like to thank our sponsors for their support:
 
-### [Ibero Data](https://www.iberodata.es/?utm_source=ch-ui&utm_medium=docs)
+### [Ibero Data](https://www.iberodata.es/?utm_source=deebee&utm_medium=docs)
 
 Empowering businesses with data-driven solutions
 
-[**Become a Sponsor →**](mailto:caio.ricciuti+sponsorship@outlook.com?subject=CH-UI%20Sponsorship%20Inquiry)
+[**Become a Sponsor →**](mailto:liangshihlin+sponsorship@gmail.com?subject=Deebee%20Sponsorship%20Inquiry)
 
 ## Support
 
 - 📖 [Documentation](/getting-started)
-- 🐛 [Report Issues](https://github.com/caioricciuti/ch-ui/issues)
-- 💬 [Discussions](https://github.com/caioricciuti/ch-ui/discussions)
-- ⭐ [Star on GitHub](https://github.com/caioricciuti/ch-ui)
+- 🐛 [Report Issues](https://github.com/liangshihlin/deebee/issues)
+- 💬 [Discussions](https://github.com/liangshihlin/deebee/discussions)
+- ⭐ [Star on GitHub](https://github.com/liangshihlin/deebee)
 
 ## License
 
-CH-UI is open source software [licensed under Apache 2.0](/license).
+Deebee is open source software [licensed under Apache 2.0](/license).
 
 ---
 
-[![Buy Me A Coffee](https://img.buymeacoffee.com/button-api/?text=Buy%20me%20a%20coffee&emoji=&slug=caioricciuti&button_colour=FF813F&font_colour=ffffff&font_family=Cookie&outline_colour=000000&coffee_colour=FFDD00)](https://buymeacoffee.com/caioricciuti)
+[![Buy Me A Coffee](https://img.buymeacoffee.com/button-api/?text=Buy%20me%20a%20coffee&emoji=&slug=liangshihlin&button_colour=FF813F&font_colour=ffffff&font_family=Cookie&outline_colour=000000&coffee_colour=FFDD00)](https://buymeacoffee.com/liangshihlin)

@@ -1,4 +1,4 @@
-// Database adapter types — the abstraction layer that lets ch-ui support
+// Database adapter types — the abstraction layer that lets deebee support
 // multiple database engines (ClickHouse, Postgres, MySQL, SQLite, DuckDB)
 // behind a single interface. The web build only uses ClickHouseAdapter;
 // the desktop build can instantiate adapters per connection.

@@ -1,7 +1,7 @@
 // src/features/sessions/components/SessionPlayer.tsx
 //
 // STUB: Full session replay (rrweb snapshots, DOM diffing, network replay)
-// is out of scope for ch-ui. This component shows a placeholder and a simple
+// is out of scope for deebee. This component shows a placeholder and a simple
 // scrubber that mirrors the currently-selected event index within the
 // session's timeline. The parent coordinates which event is active.
 //

@@ -1,4 +1,4 @@
-// Client-side alert evaluator (ch-ui-npg).
+// Client-side alert evaluator (deebee-npg).
 //
 // While the app is open, periodically runs each enabled alert's query against
 // its connection, checks the threshold, toasts on a rising edge (not-firing ->
@@ -8,7 +8,7 @@
 // LIMITATION: this only runs while the app is open. A true server-side
 // evaluator (alerts firing when the app is closed) needs backend
 // infrastructure that does not exist in this SPA/Electron app — see the note
-// on ch-ui-npg. This is the in-app stopgap.
+// on deebee-npg. This is the in-app stopgap.
 import { useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { useAlerts, useUpdateAlert } from "@/features/alerts/hooks/useAlerts";

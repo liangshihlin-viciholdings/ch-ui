@@ -10,7 +10,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-const STORAGE_KEY = "ch-ui/search-history";
+const STORAGE_KEY = "deebee/search-history";
 const MAX_HISTORY = 20;
 
 type HistoryMap = Record<string, string[]>;

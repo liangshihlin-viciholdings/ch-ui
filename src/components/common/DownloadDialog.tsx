@@ -252,7 +252,7 @@ const DownloadDialog: React.FC<DownloadDialogProps> = ({
       }
 
       const now = new Date().toISOString().split(".")[0].replace(/[:]/g, "-");
-      const exportFilename = `ch_ui_export_${now}`;
+      const exportFilename = `deebee_export_${now}`;
 
       if (downloadOption === "clipboard") {
         const text = await blob.text();

@@ -11,7 +11,7 @@ if (otelEndpoint) {
   HyperDX.init({
     url: otelEndpoint,
     apiKey: otelApiKey ?? "",
-    service: import.meta.env.VITE_OTEL_SERVICE_NAME ?? "ch-ui",
+    service: import.meta.env.VITE_OTEL_SERVICE_NAME ?? "deebee",
     tracePropagationTargets: [/localhost/i, /clickhouse/i],
     consoleCapture: true,
     advancedNetworkCapture: true,

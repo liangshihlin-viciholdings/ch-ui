@@ -1,9 +1,9 @@
 # ClickHouse Permissions Guide
 
-This guide outlines the specific ClickHouse permissions required for different features of CH-UI, following the principle of least privilege.
+This guide outlines the specific ClickHouse permissions required for different features of Deebee, following the principle of least privilege.
 
 ::: info Important Note
-As mentioned in [Issue #69](https://github.com/caioricciuti/ch-ui/issues/69), CH-UI currently requires admin privileges for user management features.
+As mentioned in [Issue #69](https://github.com/liangshihlin/deebee/issues/69), Deebee currently requires admin privileges for user management features.
 :::
 
 ## Basic Usage (Read-Only)
@@ -12,13 +12,13 @@ For users who only need to view data and run SELECT queries:
 
 ```sql
 -- Create a read-only user
-CREATE USER 'ch_ui_readonly' IDENTIFIED BY 'your_password';
+CREATE USER 'deebee_readonly' IDENTIFIED BY 'your_password';
 
 -- Grant minimal permissions
-GRANT SELECT ON *.* TO ch_ui_readonly;
-GRANT SHOW DATABASES ON *.* TO ch_ui_readonly;
-GRANT SHOW TABLES ON *.* TO ch_ui_readonly;
-GRANT SHOW COLUMNS ON *.* TO ch_ui_readonly;
+GRANT SELECT ON *.* TO deebee_readonly;
+GRANT SHOW DATABASES ON *.* TO deebee_readonly;
+GRANT SHOW TABLES ON *.* TO deebee_readonly;
+GRANT SHOW COLUMNS ON *.* TO deebee_readonly;
 ```
 
 ### What this allows:
@@ -40,13 +40,13 @@ For users who need to query and modify data:
 
 ```sql
 -- Create a standard user
-CREATE USER 'ch_ui_user' IDENTIFIED BY 'your_password';
+CREATE USER 'deebee_user' IDENTIFIED BY 'your_password';
 
 -- Grant data manipulation permissions
-GRANT SELECT, INSERT, ALTER, CREATE TABLE, DROP TABLE ON database_name.* TO ch_ui_user;
-GRANT SHOW DATABASES ON *.* TO ch_ui_user;
-GRANT SHOW TABLES ON *.* TO ch_ui_user;
-GRANT SHOW COLUMNS ON *.* TO ch_ui_user;
+GRANT SELECT, INSERT, ALTER, CREATE TABLE, DROP TABLE ON database_name.* TO deebee_user;
+GRANT SHOW DATABASES ON *.* TO deebee_user;
+GRANT SHOW TABLES ON *.* TO deebee_user;
+GRANT SHOW COLUMNS ON *.* TO deebee_user;
 ```
 
 ### What this allows:
@@ -63,18 +63,18 @@ GRANT SHOW COLUMNS ON *.* TO ch_ui_user;
 
 ## Admin Features
 
-For full CH-UI functionality including user management:
+For full Deebee functionality including user management:
 
 ```sql
 -- Create an admin user
-CREATE USER 'ch_ui_admin' IDENTIFIED BY 'your_password';
+CREATE USER 'deebee_admin' IDENTIFIED BY 'your_password';
 
 -- Grant full permissions
-GRANT ALL ON *.* TO ch_ui_admin WITH GRANT OPTION;
+GRANT ALL ON *.* TO deebee_admin WITH GRANT OPTION;
 ```
 
 ::: warning Admin Required
-Currently, the following CH-UI features require ClickHouse admin privileges:
+Currently, the following Deebee features require ClickHouse admin privileges:
 - User management (create, modify, delete users)
 - Access to system logs
 - Managing saved queries (if enabled)
@@ -94,13 +94,13 @@ For users who need to monitor performance without full admin rights:
 
 ```sql
 -- Create a monitoring user
-CREATE USER 'ch_ui_monitor' IDENTIFIED BY 'your_password';
+CREATE USER 'deebee_monitor' IDENTIFIED BY 'your_password';
 
 -- Grant read access to system tables
-GRANT SELECT ON system.* TO ch_ui_monitor;
-GRANT SELECT ON *.* TO ch_ui_monitor;
-GRANT SHOW DATABASES ON *.* TO ch_ui_monitor;
-GRANT SHOW TABLES ON *.* TO ch_ui_monitor;
+GRANT SELECT ON system.* TO deebee_monitor;
+GRANT SELECT ON *.* TO deebee_monitor;
+GRANT SHOW DATABASES ON *.* TO deebee_monitor;
+GRANT SHOW TABLES ON *.* TO deebee_monitor;
 ```
 
 ### What this allows:
@@ -116,18 +116,18 @@ GRANT SHOW TABLES ON *.* TO ch_ui_monitor;
 
 ## Saved Queries Feature
 
-If you want to use CH-UI's saved queries feature:
+If you want to use Deebee's saved queries feature:
 
 ```sql
--- The user needs permission to create the CH_UI database and tables
-GRANT CREATE DATABASE ON *.* TO ch_ui_user;
-GRANT CREATE TABLE ON CH_UI.* TO ch_ui_user;
-GRANT SELECT, INSERT, ALTER, DELETE ON CH_UI.* TO ch_ui_user;
+-- The user needs permission to create the DEEBEE database and tables
+GRANT CREATE DATABASE ON *.* TO deebee_user;
+GRANT CREATE TABLE ON DEEBEE.* TO deebee_user;
+GRANT SELECT, INSERT, ALTER, DELETE ON DEEBEE.* TO deebee_user;
 ```
 
 The saved queries feature will create:
-- Database: `CH_UI`
-- Table: `CH_UI.saved_queries`
+- Database: `DEEBEE`
+- Table: `DEEBEE.saved_queries`
 
 ## Best Practices
 
@@ -137,19 +137,19 @@ Create roles for different access levels:
 
 ```sql
 -- Create roles
-CREATE ROLE ch_ui_readonly_role;
-CREATE ROLE ch_ui_standard_role;
-CREATE ROLE ch_ui_admin_role;
+CREATE ROLE deebee_readonly_role;
+CREATE ROLE deebee_standard_role;
+CREATE ROLE deebee_admin_role;
 
 -- Grant permissions to roles
-GRANT SELECT, SHOW ON *.* TO ch_ui_readonly_role;
-GRANT SELECT, INSERT, ALTER, CREATE TABLE, DROP TABLE ON *.* TO ch_ui_standard_role;
-GRANT ALL ON *.* TO ch_ui_admin_role WITH GRANT OPTION;
+GRANT SELECT, SHOW ON *.* TO deebee_readonly_role;
+GRANT SELECT, INSERT, ALTER, CREATE TABLE, DROP TABLE ON *.* TO deebee_standard_role;
+GRANT ALL ON *.* TO deebee_admin_role WITH GRANT OPTION;
 
 -- Assign roles to users
-GRANT ch_ui_readonly_role TO john_doe;
-GRANT ch_ui_standard_role TO jane_smith;
-GRANT ch_ui_admin_role TO admin_user;
+GRANT deebee_readonly_role TO john_doe;
+GRANT deebee_standard_role TO jane_smith;
+GRANT deebee_admin_role TO admin_user;
 ```
 
 ### 2. Limit Database Access
@@ -183,7 +183,7 @@ Monitor user activity:
 
 ```sql
 -- Check user permissions
-SHOW GRANTS FOR ch_ui_user;
+SHOW GRANTS FOR deebee_user;
 
 -- View recent queries by user
 SELECT 
@@ -194,7 +194,7 @@ SELECT
     read_rows,
     memory_usage
 FROM system.query_log
-WHERE user = 'ch_ui_user'
+WHERE user = 'deebee_user'
   AND event_time > now() - INTERVAL 1 DAY
 ORDER BY event_time DESC
 LIMIT 100;
@@ -204,14 +204,14 @@ LIMIT 100;
 
 ### Using SSL/TLS
 
-Configure secure connections in CH-UI:
+Configure secure connections in Deebee:
 
 ```bash
-docker run --name ch-ui -p 5521:5521 \
+docker run --name deebee -p 5521:5521 \
   -e VITE_CLICKHOUSE_URL=https://your-clickhouse:8443 \
   -e VITE_CLICKHOUSE_USER=secure_user \
   -e VITE_CLICKHOUSE_PASS=secure_password \
-  ghcr.io/caioricciuti/ch-ui:latest
+  ghcr.io/liangshihlin/deebee:latest
 ```
 
 ### IP Restrictions
@@ -221,13 +221,13 @@ Limit access by IP in ClickHouse:
 ```xml
 <!-- users.xml -->
 <users>
-    <ch_ui_user>
+    <deebee_user>
         <password>password</password>
         <networks>
             <ip>192.168.1.0/24</ip>
             <ip>10.0.0.0/8</ip>
         </networks>
-    </ch_ui_user>
+    </deebee_user>
 </users>
 ```
 
@@ -258,16 +258,16 @@ SELECT has_database_access(currentDatabase());
 ## Future Improvements
 
 We're working on:
-- Native CH-UI authentication system
+- Native Deebee authentication system
 - More granular permission controls
 - Role management interface
 - Permission templates
 
-Track progress in [GitHub Issues](https://github.com/caioricciuti/ch-ui/issues).
+Track progress in [GitHub Issues](https://github.com/liangshihlin/deebee/issues).
 
 ## Questions?
 
 If you have questions about permissions or security:
-- Open a [GitHub Discussion](https://github.com/caioricciuti/ch-ui/discussions)
+- Open a [GitHub Discussion](https://github.com/liangshihlin/deebee/discussions)
 - Report security issues privately to the maintainers
-- Check existing [Issues](https://github.com/caioricciuti/ch-ui/issues) for similar questions
+- Check existing [Issues](https://github.com/liangshihlin/deebee/issues) for similar questions

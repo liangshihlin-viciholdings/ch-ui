@@ -27,7 +27,7 @@ export default defineConfig({
     sourcemap: true,
   },
   define: {
-    __CH_UI_VERSION__: JSON.stringify(pkg.version),
+    __DEEBEE_VERSION__: JSON.stringify(pkg.version),
   },
   test: {
     globals: true,

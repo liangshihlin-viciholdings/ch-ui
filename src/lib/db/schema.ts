@@ -1,5 +1,5 @@
 // src/lib/db/schema.ts
-// IndexedDB Schema Declarations for CH-UI
+// IndexedDB Schema Declarations for Deebee
 
 import type { Engine } from "../db-adapter/types";
 

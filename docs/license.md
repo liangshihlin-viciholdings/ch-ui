@@ -1,8 +1,8 @@
 # License
 
-## CH-UI - Apache License 2.0
+## Deebee - Apache License 2.0
 
-Copyright 2025 Caio Ricciuti
+Copyright 2025 Liang-Shih Lin
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -55,7 +55,7 @@ Apache 2.0 is compatible with many other open source licenses and is widely acce
 
 ## Third-Party Licenses
 
-CH-UI is built on top of several open-source projects. We'd like to acknowledge and give credit to these projects:
+Deebee is built on top of several open-source projects. We'd like to acknowledge and give credit to these projects:
 
 - [ClickHouse](https://github.com/ClickHouse/ClickHouse) - Apache 2.0 License
 - [React](https://github.com/facebook/react) - MIT License

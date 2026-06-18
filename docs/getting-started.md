@@ -1,6 +1,6 @@
 # Getting Started
 
-Welcome to CH-UI! This guide will help you get up and running quickly with our modern interface for ClickHouse databases.
+Welcome to Deebee! This guide will help you get up and running quickly with our modern interface for ClickHouse databases.
 
 ## Quick Start ⚡
 
@@ -11,24 +11,24 @@ Choose your preferred installation method:
 ### Simple Docker Setup
 
 ```bash
-docker run --name ch-ui -p 5521:5521 ghcr.io/caioricciuti/ch-ui:latest
+docker run --name deebee -p 5521:5521 ghcr.io/liangshihlin/deebee:latest
 ```
 
 ### Docker with Environment Variables
 
 ```bash
-docker run --name ch-ui -p 5521:5521 \
+docker run --name deebee -p 5521:5521 \
   -e VITE_CLICKHOUSE_URL=http://your-clickhouse-server:8123 \
   -e VITE_CLICKHOUSE_USER=your-username \
   -e VITE_CLICKHOUSE_PASS=your-password \
-  ghcr.io/caioricciuti/ch-ui:latest
+  ghcr.io/liangshihlin/deebee:latest
 ```
 
 ## Docker Compose
 
 ### Complete Example with ClickHouse
 
-Here's a complete example of running both CH-UI and ClickHouse in the same Docker Compose file:
+Here's a complete example of running both Deebee and ClickHouse in the same Docker Compose file:
 
 ```yaml
 services:
@@ -47,8 +47,8 @@ services:
       - "8123:8123/tcp"
       - "9000:9000/tcp"
 
-  ch-ui:
-    image: ghcr.io/caioricciuti/ch-ui:latest
+  deebee:
+    image: ghcr.io/liangshihlin/deebee:latest
     environment:
       VITE_CLICKHOUSE_URL: http://my-docker-host-ip-or-fqdn:8123
       VITE_CLICKHOUSE_USER: default
@@ -68,11 +68,11 @@ For a simpler setup without ClickHouse:
 
 ```yaml
 services:
-  ch-ui:
-    image: ghcr.io/caioricciuti/ch-ui:latest
+  deebee:
+    image: ghcr.io/liangshihlin/deebee:latest
     restart: always
     ports:
-      - "${CH_UI_PORT:-5521}:5521"
+      - "${DEEBEE_PORT:-5521}:5521"
     environment:
       # Core Configuration
       VITE_CLICKHOUSE_URL: "${CLICKHOUSE_URL}"
@@ -99,8 +99,8 @@ docker-compose up -d
 ### Clone Repository
 
 ```bash
-git clone https://github.com/caioricciuti/ch-ui.git
-cd ch-ui
+git clone https://github.com/liangshihlin/deebee.git
+cd deebee
 ```
 
 ### Install Dependencies
@@ -154,7 +154,7 @@ npm run dev
 | `VITE_CLICKHOUSE_CUSTOM_PATH` | Custom path for ClickHouse HTTP interface | No | - | v1.4.0 |
 | `VITE_CLICKHOUSE_REQUEST_TIMEOUT` | Request timeout in milliseconds | No | `30000` | v1.4.0 |
 | **Deployment Configuration** |
-| `VITE_BASE_PATH` | Base path for reverse proxy deployment (e.g., "/ch-ui") | No | `/` | v1.5.30 |
+| `VITE_BASE_PATH` | Base path for reverse proxy deployment (e.g., "/deebee") | No | `/` | v1.5.30 |
 
 For detailed environment variable documentation, see our [Environment Variables Reference](/environment-variables).
 
@@ -206,18 +206,18 @@ For detailed permission requirements, see our [Permissions Guide](/permissions).
 
 ## Next Steps
 
-- [Configure ClickHouse permissions](/permissions) for CH-UI access
+- [Configure ClickHouse permissions](/permissions) for Deebee access
 - [Contribute](/contributing) to the project
-- Check the [Changelog](https://github.com/caioricciuti/ch-ui/releases) for latest updates
+- Check the [Changelog](https://github.com/liangshihlin/deebee/releases) for latest updates
 
 ---
 
 ### Support the Project
 
-If you find CH-UI helpful, consider:
+If you find Deebee helpful, consider:
 
 <div style="text-align: center; margin: 2rem 0;">
-  <a href="https://buymeacoffee.com/caioricciuti" target="_blank">
-    <img src="https://img.buymeacoffee.com/button-api/?text=Buy me a coffee&emoji=&slug=caioricciuti&button_colour=FF813F&font_colour=ffffff&font_family=Cookie&outline_colour=000000&coffee_colour=FFDD00" alt="Buy Me A Coffee" />
+  <a href="https://buymeacoffee.com/liangshihlin" target="_blank">
+    <img src="https://img.buymeacoffee.com/button-api/?text=Buy me a coffee&emoji=&slug=liangshihlin&button_colour=FF813F&font_colour=ffffff&font_family=Cookie&outline_colour=000000&coffee_colour=FFDD00" alt="Buy Me A Coffee" />
   </a>
 </div>

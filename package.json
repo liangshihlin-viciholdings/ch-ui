@@ -2,10 +2,10 @@
   "name": "deebee",
   "private": true,
   "author": {
-    "name": "Caio Ricciuti",
-    "email": "caio.ricciuti@outlook.com"
+    "name": "Liang-Shih Lin",
+    "email": "liangshihlin@gmail.com"
   },
-  "version": "1.6.4",
+  "version": "2.0.0",
   "license": "Apache-2.0",
   "type": "module",
   "main": "out/main/main.js",
@@ -148,7 +148,7 @@
   ],
   "packageManager": "pnpm@10.33.0",
   "build": {
-    "appId": "com.ch-ui.desktop",
+    "appId": "com.deebee.desktop",
     "productName": "deebee",
     "directories": {
       "output": "dist-electron-out"
@@ -185,3 +185,4 @@
     }
   }
 }
+

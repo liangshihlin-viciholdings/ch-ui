@@ -1,16 +1,16 @@
 # Environment Variables
 
-This page provides a complete reference for all environment variables supported by CH-UI.
+This page provides a complete reference for all environment variables supported by Deebee.
 
 ## Overview
 
-CH-UI uses environment variables for configuration, allowing you to customize the application without rebuilding the Docker image. All variables are injected at runtime, making deployment flexible and secure.
+Deebee uses environment variables for configuration, allowing you to customize the application without rebuilding the Docker image. All variables are injected at runtime, making deployment flexible and secure.
 
 ## Variable Reference
 
 ### Core Configuration
 
-These variables are essential for basic CH-UI operation.
+These variables are essential for basic Deebee operation.
 
 #### VITE_CLICKHOUSE_URL
 - **Description**: The URL of your ClickHouse server HTTP interface
@@ -27,7 +27,7 @@ docker run -e VITE_CLICKHOUSE_URL=http://clickhouse.example.com:8123 ...
 - **Description**: Username for ClickHouse authentication
 - **Required**: Yes
 - **Default**: None
-- **Example**: `default`, `ch_ui_user`
+- **Example**: `default`, `deebee_user`
 - **Since**: v1.0.0
 
 #### VITE_CLICKHOUSE_PASS
@@ -48,7 +48,7 @@ These variables enable additional functionality and customization.
 - **Values**: `true` or `false`
 - **Since**: v1.4.0
 
-When enabled, CH-UI will:
+When enabled, Deebee will:
 - Allow access to system tables
 - Enable custom query settings
 - Show advanced configuration options
@@ -77,13 +77,13 @@ Useful for:
 These variables help with specific deployment scenarios.
 
 #### VITE_BASE_PATH
-- **Description**: Base path for deploying CH-UI behind a reverse proxy
+- **Description**: Base path for deploying Deebee behind a reverse proxy
 - **Required**: No
 - **Default**: `/`
-- **Example**: `/ch-ui`, `/analytics/clickhouse`
+- **Example**: `/deebee`, `/analytics/clickhouse`
 - **Since**: v1.5.30
 
-Used when deploying CH-UI at a subpath like `https://example.com/ch-ui/` instead of the root.
+Used when deploying Deebee at a subpath like `https://example.com/deebee/` instead of the root.
 
 ## Complete Configuration Examples
 
@@ -101,7 +101,7 @@ environment:
 environment:
   # Core
   VITE_CLICKHOUSE_URL: "http://clickhouse.prod.example.com:8123"
-  VITE_CLICKHOUSE_USER: "ch_ui_user"
+  VITE_CLICKHOUSE_USER: "deebee_user"
   VITE_CLICKHOUSE_PASS: "${SECURE_PASSWORD}"
   
   # Performance
@@ -123,21 +123,21 @@ environment:
   VITE_CLICKHOUSE_REQUEST_TIMEOUT: "120000"
   
   # Deployment
-  VITE_BASE_PATH: "/ch-ui"
+  VITE_BASE_PATH: "/deebee"
 ```
 
 ### Docker Run with All Variables
 
 ```bash
-docker run --name ch-ui -p 5521:5521 \
+docker run --name deebee -p 5521:5521 \
   -e VITE_CLICKHOUSE_URL=http://clickhouse:8123 \
   -e VITE_CLICKHOUSE_USER=myuser \
   -e VITE_CLICKHOUSE_PASS=mypassword \
   -e VITE_CLICKHOUSE_USE_ADVANCED=true \
   -e VITE_CLICKHOUSE_CUSTOM_PATH=/custom/path \
   -e VITE_CLICKHOUSE_REQUEST_TIMEOUT=60000 \
-  -e VITE_BASE_PATH=/ch-ui \
-  ghcr.io/caioricciuti/ch-ui:latest
+  -e VITE_BASE_PATH=/deebee \
+  ghcr.io/liangshihlin/deebee:latest
 ```
 
 ## Environment Variable Best Practices
@@ -160,8 +160,8 @@ CLICKHOUSE_PASS=secure_password_here
 Reference in `docker-compose.yml`:
 ```yaml
 services:
-  ch-ui:
-    image: ghcr.io/caioricciuti/ch-ui:latest
+  deebee:
+    image: ghcr.io/liangshihlin/deebee:latest
     env_file: .env
     environment:
       VITE_CLICKHOUSE_URL: "${CLICKHOUSE_URL}"
@@ -175,7 +175,7 @@ services:
 apiVersion: v1
 kind: Secret
 metadata:
-  name: ch-ui-secrets
+  name: deebee-secrets
 type: Opaque
 data:
   clickhouse-password: <base64-encoded-password>
@@ -183,22 +183,22 @@ data:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: ch-ui
+  name: deebee
 spec:
   template:
     spec:
       containers:
-      - name: ch-ui
-        image: ghcr.io/caioricciuti/ch-ui:latest
+      - name: deebee
+        image: ghcr.io/liangshihlin/deebee:latest
         env:
         - name: VITE_CLICKHOUSE_URL
           value: "http://clickhouse-service:8123"
         - name: VITE_CLICKHOUSE_USER
-          value: "ch_ui_user"
+          value: "deebee_user"
         - name: VITE_CLICKHOUSE_PASS
           valueFrom:
             secretKeyRef:
-              name: ch-ui-secrets
+              name: deebee-secrets
               key: clickhouse-password
 ```
 
@@ -210,17 +210,17 @@ If environment variables aren't being applied:
 
 1. Check Docker logs:
 ```bash
-docker logs ch-ui
+docker logs deebee
 ```
 
 2. Verify variables are set:
 ```bash
-docker exec ch-ui env | grep VITE_
+docker exec deebee env | grep VITE_
 ```
 
 3. Ensure you're using the latest image:
 ```bash
-docker pull ghcr.io/caioricciuti/ch-ui:latest
+docker pull ghcr.io/liangshihlin/deebee:latest
 ```
 
 ### Common Issues
@@ -231,7 +231,7 @@ docker pull ghcr.io/caioricciuti/ch-ui:latest
 
 ## Version Compatibility
 
-| CH-UI Version | New Variables Added |
+| Deebee Version | New Variables Added |
 |---------------|-------------------|
 | v1.0.0 | `VITE_CLICKHOUSE_URL`, `VITE_CLICKHOUSE_USER`, `VITE_CLICKHOUSE_PASS` |
 | v1.4.0 | `VITE_CLICKHOUSE_USE_ADVANCED`, `VITE_CLICKHOUSE_CUSTOM_PATH`, `VITE_CLICKHOUSE_REQUEST_TIMEOUT` |
@@ -240,6 +240,6 @@ docker pull ghcr.io/caioricciuti/ch-ui:latest
 ## Related Documentation
 
 - [Getting Started](/getting-started) - Quick setup guide
-- [Reverse Proxy Setup](/reverse-proxy) - Configure CH-UI behind nginx/Apache
+- [Reverse Proxy Setup](/reverse-proxy) - Configure Deebee behind nginx/Apache
 - [Distributed ClickHouse](/distributed-clickhouse) - Cluster configuration
 - [Troubleshooting](/troubleshooting) - Common issues and solutions

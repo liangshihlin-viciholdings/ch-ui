@@ -6,11 +6,11 @@ import {
 } from "@/stores/editorStore";
 
 const STORAGE_KEYS = {
-  UI_FONT_SIZE: "ch-ui-font-size",
-  EDITOR_FONT_SIZE: "ch-ui-editor-font-size",
-  EDITOR_FONT_FAMILY: "ch-ui-editor-font-family",
-  EDITOR_VIM_MODE: "ch-ui-editor-vim-mode",
-  AUTO_HIDE_MENU_BAR: "ch-ui-auto-hide-menu-bar",
+  UI_FONT_SIZE: "deebee-font-size",
+  EDITOR_FONT_SIZE: "deebee-editor-font-size",
+  EDITOR_FONT_FAMILY: "deebee-editor-font-family",
+  EDITOR_VIM_MODE: "deebee-editor-vim-mode",
+  AUTO_HIDE_MENU_BAR: "deebee-auto-hide-menu-bar",
 } as const;
 
 const DEFAULT_VALUES = {

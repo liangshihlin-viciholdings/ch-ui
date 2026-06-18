@@ -13,9 +13,9 @@ export interface EditorState {
   vimMode: boolean;
 }
 
-const FONT_SIZE_KEY = "ch-ui-editor-font-size";
-const FONT_FAMILY_KEY = "ch-ui-editor-font-family";
-const VIM_MODE_KEY = "ch-ui-editor-vim-mode";
+const FONT_SIZE_KEY = "deebee-editor-font-size";
+const FONT_FAMILY_KEY = "deebee-editor-font-family";
+const VIM_MODE_KEY = "deebee-editor-vim-mode";
 
 function loadPersisted(): Partial<EditorState> {
   try {

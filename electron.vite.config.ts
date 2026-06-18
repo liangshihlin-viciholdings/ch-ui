@@ -8,7 +8,7 @@ import { TanStackRouterVite } from "@tanstack/router-plugin/vite";
 import pkg from "./package.json";
 
 const srcAlias = { "@": resolve(__dirname, "./src") };
-const defines = { __CH_UI_VERSION__: JSON.stringify(pkg.version) };
+const defines = { __DEEBEE_VERSION__: JSON.stringify(pkg.version) };
 
 export default defineConfig({
   main: {

@@ -281,7 +281,7 @@ export default function SettingsPage() {
                 <div className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm">
                   <span className="text-muted-foreground">Application</span>
                   <span className="font-medium">
-                    deebee v{__CH_UI_VERSION__}
+                    deebee v{__DEEBEE_VERSION__}
                   </span>
 
                   <span className="text-muted-foreground">

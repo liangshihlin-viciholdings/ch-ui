@@ -1,5 +1,5 @@
 // src/lib/db/index.ts
-// Dexie.js Database Configuration for CH-UI
+// Dexie.js Database Configuration for Deebee
 
 import Dexie, { Table } from "dexie";
 import {
@@ -10,7 +10,7 @@ import {
   SavedAlert,
 } from "./schema";
 
-export class ChUiDatabase extends Dexie {
+export class DeebeeDatabase extends Dexie {
   connections!: Table<SavedConnection, string>;
   savedQueries!: Table<SavedQuery, string>;
   dashboards!: Table<SavedDashboard, string>;
@@ -18,7 +18,7 @@ export class ChUiDatabase extends Dexie {
   alerts!: Table<SavedAlert, string>;
 
   constructor() {
-    super("ch-ui-db");
+    super("deebee-db");
 
     this.version(1).stores({
       connections: "id, name, isDefault, createdAt",
@@ -96,7 +96,7 @@ export class ChUiDatabase extends Dexie {
   }
 }
 
-export const db = new ChUiDatabase();
+export const db = new DeebeeDatabase();
 
 // Helper to generate UUIDs
 export function generateId(): string {

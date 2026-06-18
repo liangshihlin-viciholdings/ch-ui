@@ -336,7 +336,7 @@ export class PostgresAdapter implements DbAdapter {
   }
 
   /**
-   * Normalize information_schema.table_type values to ch-ui's table type strings.
+   * Normalize information_schema.table_type values to deebee's table type strings.
    * e.g. "BASE TABLE" -> "table", "VIEW" -> "view", "FOREIGN" -> "foreign_table".
    */
   private normalizeTableType(tableType: string): string {

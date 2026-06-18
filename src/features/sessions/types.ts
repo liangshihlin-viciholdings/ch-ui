@@ -1,5 +1,5 @@
 // src/features/sessions/types.ts
-// Lightweight session-replay model — ch-ui is not a full session replay
+// Lightweight session-replay model — deebee is not a full session replay
 // tool, so we only track what we can reliably pull from otel_logs.
 
 export interface SessionSummary {

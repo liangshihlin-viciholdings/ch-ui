@@ -104,7 +104,7 @@ function createWindow(): BrowserWindow {
     minWidth: 800,
     minHeight: 600,
     show: false,
-    title: "ch-ui",
+    title: "deebee",
     // Apply the persisted preference up-front so the menu bar does not flicker
     // on startup when auto-hide is enabled.
     autoHideMenuBar: readAutoHideMenuBar(),

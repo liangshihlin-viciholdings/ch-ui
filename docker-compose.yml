@@ -1,5 +1,5 @@
 services:
-  ch-ui-enhanced:
+  deebee-enhanced:
     build:
       context: .
       dockerfile: Dockerfile
@@ -8,7 +8,7 @@ services:
         PROXY: ${HTTP_PROXY:-}
     restart: always
     ports:
-      - "${CH_UI_PORT:-5555}:5521"
+      - "${DEEBEE_PORT:-5555}:5521"
     environment:
       VITE_CLICKHOUSE_URL: "${CLICKHOUSE_URL:-}"
       VITE_CLICKHOUSE_USER: "${CLICKHOUSE_USER:-}"

@@ -1,4 +1,4 @@
-# Bun-optimized Dockerfile for CH-UI
+# Bun-optimized Dockerfile for Deebee
 # Using Bun for faster builds and smaller images
 
 # Build stage
@@ -61,14 +61,14 @@ RUN addgroup -S ch-group -g 1001 && \
 RUN chown -R ch-user:ch-group /app
 
 # Add metadata labels
-LABEL org.opencontainers.image.title="CH-UI" \
+LABEL org.opencontainers.image.title="Deebee" \
   org.opencontainers.image.description="A modern web interface for ClickHouse databases" \
-  org.opencontainers.image.vendor="Caio Ricciuti" \
+  org.opencontainers.image.vendor="Liang-Shih Lin" \
   org.opencontainers.image.licenses="Apache-2.0" \
   org.opencontainers.image.version="${VERSION}" \
   org.opencontainers.image.revision="${COMMIT_SHA}" \
   org.opencontainers.image.created="${BUILD_DATE}" \
-  org.opencontainers.image.source="https://github.com/caioricciuti/ch-ui"
+  org.opencontainers.image.source="https://github.com/liangshihlin/deebee"
 
 # Environment variables with defaults
 ENV VITE_CLICKHOUSE_URL="" \

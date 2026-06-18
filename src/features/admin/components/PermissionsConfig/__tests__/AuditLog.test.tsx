@@ -53,7 +53,7 @@ describe("Audit Logging System", () => {
 
       // Verify the CREATE TABLE statement
       const createTableCall = mockRunQuery.mock.calls.find((call) =>
-        call[0].includes("CREATE TABLE IF NOT EXISTS ch_ui_audit_log")
+        call[0].includes("CREATE TABLE IF NOT EXISTS deebee_audit_log")
       );
       expect(createTableCall).toBeDefined();
 
@@ -110,7 +110,7 @@ describe("Audit Logging System", () => {
       await waitFor(() => {
         expect(mockRunQuery).toHaveBeenCalledWith(
           expect.objectContaining({
-            query: expect.stringContaining("INSERT INTO ch_ui_audit_log"),
+            query: expect.stringContaining("INSERT INTO deebee_audit_log"),
             query_params: expect.objectContaining({
               username: "admin_user",
               operation: "GRANT",
@@ -165,7 +165,7 @@ describe("Audit Logging System", () => {
       await waitFor(() => {
         expect(mockRunQuery).toHaveBeenCalledWith(
           expect.objectContaining({
-            query: expect.stringContaining("INSERT INTO ch_ui_audit_log"),
+            query: expect.stringContaining("INSERT INTO deebee_audit_log"),
             query_params: expect.objectContaining({
               success: 0,
               errorMessage: "DB::Exception: User is protected",
@@ -375,7 +375,7 @@ describe("Audit Logging System", () => {
       await waitFor(() => {
         expect(mockRunQuery).toHaveBeenCalledWith(
           expect.objectContaining({
-            query: expect.stringContaining("INSERT INTO ch_ui_audit_log"),
+            query: expect.stringContaining("INSERT INTO deebee_audit_log"),
             query_params: expect.objectContaining({
               beforeState: JSON.stringify({ max_memory_usage: 5000000000 }),
               afterState: JSON.stringify({ max_memory_usage: 10000000000 }),

@@ -109,7 +109,7 @@ export default function ExportImportDialog({
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = `ch-ui-connections-${new Date().toISOString().split("T")[0]}.json`;
+        a.download = `deebee-connections-${new Date().toISOString().split("T")[0]}.json`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);

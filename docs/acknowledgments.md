@@ -1,6 +1,6 @@
 # Acknowledgments 🏆
 
-CH-UI is built on the shoulders of giants. We extend our heartfelt gratitude to the creators and maintainers of the following open-source projects that make our work possible.
+Deebee is built on the shoulders of giants. We extend our heartfelt gratitude to the creators and maintainers of the following open-source projects that make our work possible.
 
 ## ClickHouse ⭐
 

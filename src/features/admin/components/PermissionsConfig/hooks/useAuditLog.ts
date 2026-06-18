@@ -93,7 +93,7 @@ export function useAuditLog() {
   const initializeAuditTable = useCallback(async (): Promise<boolean> => {
     try {
       const createTableSQL = `
-        CREATE TABLE IF NOT EXISTS ch_ui_audit_log (
+        CREATE TABLE IF NOT EXISTS deebee_audit_log (
           id String,
           timestamp DateTime64(3),
           username String,
@@ -157,7 +157,7 @@ export function useAuditLog() {
         };
 
         const insertSQL = `
-          INSERT INTO ch_ui_audit_log (
+          INSERT INTO deebee_audit_log (
             id,
             timestamp,
             username,
@@ -280,7 +280,7 @@ export function useAuditLog() {
             error_message,
             client_ip,
             session_id
-          FROM ch_ui_audit_log
+          FROM deebee_audit_log
           WHERE ${whereClauses.join(" AND ")}
           ORDER BY timestamp DESC
           LIMIT {limit:UInt32}
@@ -356,14 +356,14 @@ export function useAuditLog() {
           count() as total_changes,
           countIf(success = 1) as successful_changes,
           countIf(success = 0) as failed_changes
-        FROM ch_ui_audit_log
+        FROM deebee_audit_log
       `;
 
       const recentActivitySQL = `
         SELECT
           toDate(timestamp) as date,
           count() as count
-        FROM ch_ui_audit_log
+        FROM deebee_audit_log
         WHERE timestamp >= now() - INTERVAL 30 DAY
         GROUP BY date
         ORDER BY date DESC
@@ -374,7 +374,7 @@ export function useAuditLog() {
         SELECT
           username,
           count() as count
-        FROM ch_ui_audit_log
+        FROM deebee_audit_log
         WHERE timestamp >= now() - INTERVAL 30 DAY
         GROUP BY username
         ORDER BY count DESC
@@ -385,7 +385,7 @@ export function useAuditLog() {
         SELECT
           operation,
           count() as count
-        FROM ch_ui_audit_log
+        FROM deebee_audit_log
         WHERE timestamp >= now() - INTERVAL 30 DAY
         GROUP BY operation
         ORDER BY count DESC
