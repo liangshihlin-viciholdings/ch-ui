@@ -8,7 +8,7 @@ Thank you for looking into contributing to Deebee! Your contributions are essent
 
 ### Reporting Bugs 🐛
 
-If you find a bug, please [create an issue](https://github.com/liangshihlin/deebee/issues/new?assignees=&labels=&projects=&template=bug.yml) in our GitHub repository.
+If you find a bug, please [create an issue](https://github.com/ll931217/deebee/issues/new?assignees=&labels=&projects=&template=bug.yml) in our GitHub repository.
 
 Make sure to include:
 1. A clear title describing the bug
@@ -18,7 +18,7 @@ Make sure to include:
 
 ### Requesting Features 💡
 
-Have an idea for a new feature? [Create a feature request](https://github.com/liangshihlin/deebee/issues/new?assignees=&labels=&projects=&template=feature.yml) with:
+Have an idea for a new feature? [Create a feature request](https://github.com/ll931217/deebee/issues/new?assignees=&labels=&projects=&template=feature.yml) with:
 
 1. A clear description of the feature
 2. Why it's needed or how it improves Deebee
@@ -37,7 +37,7 @@ Follow these steps to contribute code:
 1. Fork the repository to your GitHub account or clone it directly:
 
 ```bash
-git clone https://github.com/liangshihlin/deebee.git
+git clone https://github.com/ll931217/deebee.git
 cd deebee
 ```
 
@@ -68,7 +68,7 @@ git push origin feature/my-new-feature
 1. Clone the repository:
 
 ```bash
-git clone https://github.com/liangshihlin/deebee.git
+git clone https://github.com/ll931217/deebee.git
 cd deebee
 ```
 

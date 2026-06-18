@@ -15,7 +15,7 @@ Set the base path when running Deebee:
 ```yaml
 services:
   deebee:
-    image: ghcr.io/liangshihlin/deebee:latest
+    image: ghcr.io/ll931217/deebee:latest
     ports:
       - "127.0.0.1:5521:5521"  # Only bind to localhost
     environment:
@@ -231,7 +231,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
 
   deebee:
-    image: ghcr.io/liangshihlin/deebee:latest
+    image: ghcr.io/ll931217/deebee:latest
     environment:
       VITE_CLICKHOUSE_URL: "http://clickhouse:8123"
       VITE_CLICKHOUSE_USER: "default"
@@ -307,7 +307,7 @@ services:
       - deebee
 
   deebee:
-    image: ghcr.io/liangshihlin/deebee:latest
+    image: ghcr.io/ll931217/deebee:latest
     restart: always
     environment:
       VITE_CLICKHOUSE_URL: "${CLICKHOUSE_URL}"

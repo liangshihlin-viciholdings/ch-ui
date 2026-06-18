@@ -11,7 +11,7 @@ Choose your preferred installation method:
 ### Simple Docker Setup
 
 ```bash
-docker run --name deebee -p 5521:5521 ghcr.io/liangshihlin/deebee:latest
+docker run --name deebee -p 5521:5521 ghcr.io/ll931217/deebee:latest
 ```
 
 ### Docker with Environment Variables
@@ -21,7 +21,7 @@ docker run --name deebee -p 5521:5521 \
   -e VITE_CLICKHOUSE_URL=http://your-clickhouse-server:8123 \
   -e VITE_CLICKHOUSE_USER=your-username \
   -e VITE_CLICKHOUSE_PASS=your-password \
-  ghcr.io/liangshihlin/deebee:latest
+  ghcr.io/ll931217/deebee:latest
 ```
 
 ## Docker Compose
@@ -48,7 +48,7 @@ services:
       - "9000:9000/tcp"
 
   deebee:
-    image: ghcr.io/liangshihlin/deebee:latest
+    image: ghcr.io/ll931217/deebee:latest
     environment:
       VITE_CLICKHOUSE_URL: http://my-docker-host-ip-or-fqdn:8123
       VITE_CLICKHOUSE_USER: default
@@ -69,7 +69,7 @@ For a simpler setup without ClickHouse:
 ```yaml
 services:
   deebee:
-    image: ghcr.io/liangshihlin/deebee:latest
+    image: ghcr.io/ll931217/deebee:latest
     restart: always
     ports:
       - "${DEEBEE_PORT:-5521}:5521"
@@ -99,7 +99,7 @@ docker-compose up -d
 ### Clone Repository
 
 ```bash
-git clone https://github.com/liangshihlin/deebee.git
+git clone https://github.com/ll931217/deebee.git
 cd deebee
 ```
 
@@ -208,7 +208,7 @@ For detailed permission requirements, see our [Permissions Guide](/permissions).
 
 - [Configure ClickHouse permissions](/permissions) for Deebee access
 - [Contribute](/contributing) to the project
-- Check the [Changelog](https://github.com/liangshihlin/deebee/releases) for latest updates
+- Check the [Changelog](https://github.com/ll931217/deebee/releases) for latest updates
 
 ---
 
@@ -217,7 +217,7 @@ For detailed permission requirements, see our [Permissions Guide](/permissions).
 If you find Deebee helpful, consider:
 
 <div style="text-align: center; margin: 2rem 0;">
-  <a href="https://buymeacoffee.com/liangshihlin" target="_blank">
-    <img src="https://img.buymeacoffee.com/button-api/?text=Buy me a coffee&emoji=&slug=liangshihlin&button_colour=FF813F&font_colour=ffffff&font_family=Cookie&outline_colour=000000&coffee_colour=FFDD00" alt="Buy Me A Coffee" />
+  <a href="https://buymeacoffee.com/ll931217" target="_blank">
+    <img src="https://img.buymeacoffee.com/button-api/?text=Buy me a coffee&emoji=&slug=ll931217&button_colour=FF813F&font_colour=ffffff&font_family=Cookie&outline_colour=000000&coffee_colour=FFDD00" alt="Buy Me A Coffee" />
   </a>
 </div>

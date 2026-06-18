@@ -38,7 +38,7 @@ const resourceCards = [
   {
     title: "Star us on GitHub!",
     description: "Support our project by starring it on GitHub.",
-    link: "https://github.com/liangshihlin/deebee",
+    link: "https://github.com/ll931217/deebee",
     Icon: Github,
     action: "Star on GitHub",
   },

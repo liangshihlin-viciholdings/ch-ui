@@ -33,7 +33,7 @@ The desktop app talks to every engine directly; the web build currently focuses 
 **Web (Docker)**
 
 ```bash
-docker run --name deebee -p 5521:5521 ghcr.io/liangshihlin/deebee:latest
+docker run --name deebee -p 5521:5521 ghcr.io/ll931217/deebee:latest
 ```
 
 Then open http://localhost:5521.

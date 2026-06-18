@@ -137,7 +137,7 @@ docker run --name deebee -p 5521:5521 \
   -e VITE_CLICKHOUSE_CUSTOM_PATH=/custom/path \
   -e VITE_CLICKHOUSE_REQUEST_TIMEOUT=60000 \
   -e VITE_BASE_PATH=/deebee \
-  ghcr.io/liangshihlin/deebee:latest
+  ghcr.io/ll931217/deebee:latest
 ```
 
 ## Environment Variable Best Practices
@@ -161,7 +161,7 @@ Reference in `docker-compose.yml`:
 ```yaml
 services:
   deebee:
-    image: ghcr.io/liangshihlin/deebee:latest
+    image: ghcr.io/ll931217/deebee:latest
     env_file: .env
     environment:
       VITE_CLICKHOUSE_URL: "${CLICKHOUSE_URL}"
@@ -189,7 +189,7 @@ spec:
     spec:
       containers:
       - name: deebee
-        image: ghcr.io/liangshihlin/deebee:latest
+        image: ghcr.io/ll931217/deebee:latest
         env:
         - name: VITE_CLICKHOUSE_URL
           value: "http://clickhouse-service:8123"
@@ -220,7 +220,7 @@ docker exec deebee env | grep VITE_
 
 3. Ensure you're using the latest image:
 ```bash
-docker pull ghcr.io/liangshihlin/deebee:latest
+docker pull ghcr.io/ll931217/deebee:latest
 ```
 
 ### Common Issues

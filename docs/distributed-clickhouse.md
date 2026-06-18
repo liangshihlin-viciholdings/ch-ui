@@ -180,7 +180,7 @@ services:
       - clickhouse-network
 
   deebee:
-    image: ghcr.io/liangshihlin/deebee:latest
+    image: ghcr.io/ll931217/deebee:latest
     ports:
       - "5521:5521"
     environment:

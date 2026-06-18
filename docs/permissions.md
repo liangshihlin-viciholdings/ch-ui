@@ -3,7 +3,7 @@
 This guide outlines the specific ClickHouse permissions required for different features of Deebee, following the principle of least privilege.
 
 ::: info Important Note
-As mentioned in [Issue #69](https://github.com/liangshihlin/deebee/issues/69), Deebee currently requires admin privileges for user management features.
+As mentioned in [Issue #69](https://github.com/ll931217/deebee/issues/69), Deebee currently requires admin privileges for user management features.
 :::
 
 ## Basic Usage (Read-Only)
@@ -211,7 +211,7 @@ docker run --name deebee -p 5521:5521 \
   -e VITE_CLICKHOUSE_URL=https://your-clickhouse:8443 \
   -e VITE_CLICKHOUSE_USER=secure_user \
   -e VITE_CLICKHOUSE_PASS=secure_password \
-  ghcr.io/liangshihlin/deebee:latest
+  ghcr.io/ll931217/deebee:latest
 ```
 
 ### IP Restrictions
@@ -263,11 +263,11 @@ We're working on:
 - Role management interface
 - Permission templates
 
-Track progress in [GitHub Issues](https://github.com/liangshihlin/deebee/issues).
+Track progress in [GitHub Issues](https://github.com/ll931217/deebee/issues).
 
 ## Questions?
 
 If you have questions about permissions or security:
-- Open a [GitHub Discussion](https://github.com/liangshihlin/deebee/discussions)
+- Open a [GitHub Discussion](https://github.com/ll931217/deebee/discussions)
 - Report security issues privately to the maintainers
-- Check existing [Issues](https://github.com/liangshihlin/deebee/issues) for similar questions
+- Check existing [Issues](https://github.com/ll931217/deebee/issues) for similar questions

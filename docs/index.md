@@ -13,7 +13,7 @@ hero:
       link: /getting-started
     - theme: alt
       text: View on GitHub
-      link: https://github.com/liangshihlin/deebee
+      link: https://github.com/ll931217/deebee
 
 features:
   - title: SQL Editor
@@ -98,7 +98,7 @@ docker run --name deebee -p 5521:5521 \
   -e VITE_CLICKHOUSE_URL=http://your-clickhouse:8123 \
   -e VITE_CLICKHOUSE_USER=default \
   -e VITE_CLICKHOUSE_PASS=password \
-  ghcr.io/liangshihlin/deebee:latest
+  ghcr.io/ll931217/deebee:latest
 ```
 
 ### Docker Compose
@@ -106,7 +106,7 @@ docker run --name deebee -p 5521:5521 \
 ```yaml
 services:
   deebee:
-    image: ghcr.io/liangshihlin/deebee:latest
+    image: ghcr.io/ll931217/deebee:latest
     ports:
       - "5521:5521"
     environment:
@@ -141,9 +141,9 @@ Empowering businesses with data-driven solutions
 ## Support
 
 - 📖 [Documentation](/getting-started)
-- 🐛 [Report Issues](https://github.com/liangshihlin/deebee/issues)
-- 💬 [Discussions](https://github.com/liangshihlin/deebee/discussions)
-- ⭐ [Star on GitHub](https://github.com/liangshihlin/deebee)
+- 🐛 [Report Issues](https://github.com/ll931217/deebee/issues)
+- 💬 [Discussions](https://github.com/ll931217/deebee/discussions)
+- ⭐ [Star on GitHub](https://github.com/ll931217/deebee)
 
 ## License
 
@@ -151,4 +151,4 @@ Deebee is open source software [licensed under Apache 2.0](/license).
 
 ---
 
-[![Buy Me A Coffee](https://img.buymeacoffee.com/button-api/?text=Buy%20me%20a%20coffee&emoji=&slug=liangshihlin&button_colour=FF813F&font_colour=ffffff&font_family=Cookie&outline_colour=000000&coffee_colour=FFDD00)](https://buymeacoffee.com/liangshihlin)
+[![Buy Me A Coffee](https://img.buymeacoffee.com/button-api/?text=Buy%20me%20a%20coffee&emoji=&slug=ll931217&button_colour=FF813F&font_colour=ffffff&font_family=Cookie&outline_colour=000000&coffee_colour=FFDD00)](https://buymeacoffee.com/ll931217)

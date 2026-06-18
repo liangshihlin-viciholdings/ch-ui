@@ -68,7 +68,7 @@ LABEL org.opencontainers.image.title="Deebee" \
   org.opencontainers.image.version="${VERSION}" \
   org.opencontainers.image.revision="${COMMIT_SHA}" \
   org.opencontainers.image.created="${BUILD_DATE}" \
-  org.opencontainers.image.source="https://github.com/liangshihlin/deebee"
+  org.opencontainers.image.source="https://github.com/ll931217/deebee"
 
 # Environment variables with defaults
 ENV VITE_CLICKHOUSE_URL="" \

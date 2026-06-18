@@ -13,7 +13,7 @@ Environment variables aren't being applied when running Deebee in Docker.
 
 1. **Verify you're using the latest image**:
 ```bash
-docker pull ghcr.io/liangshihlin/deebee:latest
+docker pull ghcr.io/ll931217/deebee:latest
 ```
 
 2. **Check Docker logs**:
@@ -337,14 +337,14 @@ docker exec deebee ping -c 3 clickhouse-server
 
 If you can't resolve your issue:
 
-1. **Search existing issues**: [GitHub Issues](https://github.com/liangshihlin/deebee/issues)
+1. **Search existing issues**: [GitHub Issues](https://github.com/ll931217/deebee/issues)
 2. **Create a new issue** with:
    - Deebee version
    - ClickHouse version
    - Docker/deployment method
    - Error messages
    - Steps to reproduce
-3. **Join discussions**: [GitHub Discussions](https://github.com/liangshihlin/deebee/discussions)
+3. **Join discussions**: [GitHub Discussions](https://github.com/ll931217/deebee/discussions)
 
 ### Collecting Debug Information
 
