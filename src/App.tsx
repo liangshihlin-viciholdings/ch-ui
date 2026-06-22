@@ -1,4 +1,8 @@
-import { RouterProvider, createRouter } from "@tanstack/react-router";
+import {
+  RouterProvider,
+  createRouter,
+  createHashHistory,
+} from "@tanstack/react-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { routeTree } from "./routeTree.gen";
 
@@ -11,9 +15,16 @@ const queryClient = new QueryClient({
   },
 });
 
+// In the packaged desktop build the renderer is served over file://, where the
+// pathname is the on-disk path to index.html and matches no route (-> "Not
+// Found"). Hash history keeps routing in the URL fragment, which works under
+// file://. The web build keeps default browser history.
+const isFileProtocol = window.location.protocol === "file:";
+
 const router = createRouter({
   routeTree,
-  basepath: import.meta.env.BASE_URL,
+  basepath: isFileProtocol ? "/" : import.meta.env.BASE_URL,
+  history: isFileProtocol ? createHashHistory() : undefined,
   context: { queryClient },
 });
 
