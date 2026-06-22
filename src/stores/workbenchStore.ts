@@ -37,6 +37,17 @@ export interface WorkbenchTab {
   dirty?: boolean;
 }
 
+/**
+ * One executed statement and its result. A tab holds an array of these:
+ * a single entry for Ctrl+Enter (statement under the cursor) or one entry
+ * per statement for Ctrl+Shift+Enter (run-all). Each entry carries its own
+ * error so a failure in one statement does not hide the others.
+ */
+export interface WorkbenchResultItem {
+  queryText: string;
+  result: AdapterQueryResult;
+}
+
 interface SchemaCache {
   schemas: SchemaInfo[];
   tables: Record<string, TableInfo[]>;
@@ -60,7 +71,8 @@ interface WorkbenchState {
   tabs: WorkbenchTab[];
   activeTabId: string | null;
   schemas: Record<string, SchemaCache>;
-  results: Record<string, AdapterQueryResult | null>;
+  results: Record<string, WorkbenchResultItem[]>;
+  activeResultIndex: Record<string, number>;
   executing: Record<string, boolean>;
   error: string;
 }
@@ -76,6 +88,7 @@ const initialState: WorkbenchState = {
   activeTabId: null,
   schemas: {},
   results: {},
+  activeResultIndex: {},
   executing: {},
   error: "",
 };
@@ -368,8 +381,9 @@ export function closeTab(tabId: string): void {
       ? (tabs[tabs.length - 1]?.id ?? null)
       : store.state.activeTabId;
   const { [tabId]: _r, ...results } = store.state.results;
+  const { [tabId]: _a, ...activeResultIndex } = store.state.activeResultIndex;
   const { [tabId]: _e, ...executing } = store.state.executing;
-  patch({ tabs, activeTabId, results, executing });
+  patch({ tabs, activeTabId, results, activeResultIndex, executing });
 }
 
 export function setActiveTab(tabId: string): void {
@@ -402,7 +416,55 @@ export function setTabConnection(tabId: string, connectionId: string): void {
   });
 }
 
-export async function runQuery(tabId: string): Promise<void> {
+function errorResult(error: unknown): AdapterQueryResult {
+  return {
+    meta: [],
+    data: [],
+    statistics: { elapsed: 0, rows_read: 0, bytes_read: 0 },
+    rows: 0,
+    error: String(error),
+  };
+}
+
+/**
+ * Run a single statement (the statement under the cursor for Ctrl+Enter, or a
+ * selection). When `sql` is omitted the whole tab buffer is used. The result
+ * replaces the tab's result set with a single entry.
+ */
+export async function runQuery(tabId: string, sql?: string): Promise<void> {
+  const tab = store.state.tabs.find((t) => t.id === tabId);
+  if (!tab) return;
+  const queryText = (sql ?? tab.sql).trim();
+  const transport = getTransport(tab.connectionId);
+
+  patch({
+    executing: { ...store.state.executing, [tabId]: true },
+  });
+
+  let item: WorkbenchResultItem;
+  try {
+    const result = await transport.query(queryText);
+    item = { queryText, result };
+  } catch (error) {
+    item = { queryText, result: errorResult(error) };
+  }
+  patch({
+    results: { ...store.state.results, [tabId]: [item] },
+    activeResultIndex: { ...store.state.activeResultIndex, [tabId]: 0 },
+    executing: { ...store.state.executing, [tabId]: false },
+  });
+}
+
+/**
+ * Run every statement (Ctrl+Shift+Enter) sequentially, collecting one result
+ * per statement so each can be shown in its own result tab. A statement that
+ * throws records its error and does not abort the remaining statements —
+ * matching the behaviour the deprecated workspace shipped.
+ */
+export async function runAllQueries(
+  tabId: string,
+  queries: string[],
+): Promise<void> {
   const tab = store.state.tabs.find((t) => t.id === tabId);
   if (!tab) return;
   const transport = getTransport(tab.connectionId);
@@ -411,27 +473,30 @@ export async function runQuery(tabId: string): Promise<void> {
     executing: { ...store.state.executing, [tabId]: true },
   });
 
-  try {
-    const result = await transport.query(tab.sql);
-    patch({
-      results: { ...store.state.results, [tabId]: result },
-      executing: { ...store.state.executing, [tabId]: false },
-    });
-  } catch (error) {
-    patch({
-      results: {
-        ...store.state.results,
-        [tabId]: {
-          meta: [],
-          data: [],
-          statistics: { elapsed: 0, rows_read: 0, bytes_read: 0 },
-          rows: 0,
-          error: String(error),
-        },
-      },
-      executing: { ...store.state.executing, [tabId]: false },
-    });
+  const items: WorkbenchResultItem[] = [];
+  for (const raw of queries) {
+    const queryText = raw.trim();
+    if (!queryText) continue;
+    try {
+      const result = await transport.query(queryText);
+      items.push({ queryText, result });
+    } catch (error) {
+      items.push({ queryText, result: errorResult(error) });
+    }
   }
+
+  patch({
+    results: { ...store.state.results, [tabId]: items },
+    activeResultIndex: { ...store.state.activeResultIndex, [tabId]: 0 },
+    executing: { ...store.state.executing, [tabId]: false },
+  });
+}
+
+/** Select which statement's result is shown in the results panel. */
+export function setActiveResultIndex(tabId: string, index: number): void {
+  patch({
+    activeResultIndex: { ...store.state.activeResultIndex, [tabId]: index },
+  });
 }
 
 // ─── Hook ───────────────────────────────────────────────────────────────────

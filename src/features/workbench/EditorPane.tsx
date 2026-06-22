@@ -1,6 +1,20 @@
-import { useState, useMemo, useEffect, useRef, useCallback } from "react";
-import CodeMirror, { EditorView, type ReactCodeMirrorRef } from "@uiw/react-codemirror";
+import {
+  useState,
+  useMemo,
+  useEffect,
+  useRef,
+  useCallback,
+  type MutableRefObject,
+} from "react";
+import CodeMirror, {
+  EditorView,
+  Decoration,
+  type DecorationSet,
+  type ReactCodeMirrorRef,
+  type ViewUpdate,
+} from "@uiw/react-codemirror";
 import { keymap } from "@codemirror/view";
+import { StateField, type EditorState } from "@codemirror/state";
 import {
   lineNumbers,
   highlightActiveLine,
@@ -55,40 +69,114 @@ import {
   connectConnection,
   updateTabSql,
   runQuery,
+  runAllQueries,
+  setActiveResultIndex,
+  type WorkbenchResultItem,
 } from "@/stores/workbenchStore";
+import type { AdapterQueryResult } from "@/lib/db-adapter/types";
+import {
+  parseQueries,
+  findQueryAtCursor,
+} from "@/helpers/queryParser";
 
-function ResultsGrid({ tabId }: { tabId: string }) {
-  const result = useWorkbenchStore((s) => s.results[tabId] ?? null);
-  const executing = useWorkbenchStore((s) => s.executing[tabId] ?? false);
+// ─── Current-statement highlight (StateField + decorations) ────────────────
+// Shades the statement the caret sits in so it's obvious which statement
+// Ctrl+Enter will run. Self-contained: the field recomputes from each
+// transaction's own state, so nothing dispatches into the editor from an
+// update listener (which CodeMirror forbids). Only applied when the buffer
+// holds 2+ statements.
 
-  if (executing) {
-    return (
-      <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-        Running…
-      </div>
-    );
+function computeHighlight(state: EditorState): DecorationSet {
+  const doc = state.doc.toString();
+  const queries = parseQueries(doc);
+  if (queries.length <= 1) return Decoration.none;
+
+  const { line, column } = offsetToLineCol(doc, state.selection.main.head);
+  const idx = findQueryAtCursor(queries, line, column);
+  const q = idx >= 0 ? queries[idx] : undefined;
+  if (!q) return Decoration.none;
+
+  const docLen = state.doc.length;
+  const from = Math.min(
+    lineColToOffset(doc, q.startLine, q.startColumn),
+    docLen,
+  );
+  // endColumn for the last (semicolon-free) statement can sit past the final
+  // character, so +1 may exceed doc length — clamp.
+  const to = Math.min(lineColToOffset(doc, q.endLine, q.endColumn + 1), docLen);
+  if (from >= to) return Decoration.none;
+
+  return Decoration.set([
+    Decoration.mark({ class: "cm-current-query-highlight" }).range(from, to),
+  ]);
+}
+
+const highlightField = StateField.define<DecorationSet>({
+  create: (state) => computeHighlight(state),
+  update(deco, tr) {
+    if (tr.docChanged || tr.selection) return computeHighlight(tr.state);
+    // Neither doc nor selection changed: keep decorations, mapping positions
+    // through any other changes. Clearing on a thrown map is safe.
+    try {
+      return deco.map(tr.changes);
+    } catch {
+      return Decoration.none;
+    }
+  },
+  provide: (f) => EditorView.decorations.from(f),
+});
+
+// ParsedQuery positions are 1-based (line, column); the editor works in 0-based
+// character offsets. These convert between the two.
+function lineColToOffset(doc: string, line: number, column: number): number {
+  const lines = doc.split("\n");
+  let offset = 0;
+  for (let i = 0; i < line - 1 && i < lines.length; i++) {
+    offset += lines[i].length + 1; // +1 for the newline
   }
+  return offset + Math.max(0, column - 1);
+}
 
-  if (!result) {
-    return (
-      <div className="flex h-full flex-col bg-background">
-        <div className="flex items-center gap-3 border-b border-border px-3 py-1.5 text-xs text-muted-foreground">
-          <span className="font-medium text-foreground">0 rows</span>
-        </div>
-        <div className="flex-1 overflow-auto p-4 text-sm text-muted-foreground">
-          Run a query to see results
-        </div>
-      </div>
-    );
+function offsetToLineCol(
+  doc: string,
+  offset: number,
+): { line: number; column: number } {
+  let line = 1;
+  let column = 1;
+  const limit = Math.min(offset, doc.length);
+  for (let i = 0; i < limit; i++) {
+    if (doc.charCodeAt(i) === 10) {
+      line++;
+      column = 1;
+    } else {
+      column++;
+    }
   }
+  return { line, column };
+}
 
+// Stable empty reference so the store selector doesn't churn on every render.
+const EMPTY_RESULTS: WorkbenchResultItem[] = [];
+
+/** Short label for a result tab: the statement's first line, else "Result N". */
+function resultLabel(queryText: string, index: number): string {
+  const firstLine = queryText.split("\n")[0].trim();
+  if (firstLine.length > 0 && firstLine.length <= 28) return firstLine;
+  if (firstLine.length > 28) return `${firstLine.slice(0, 27)}…`;
+  return `Result ${index + 1}`;
+}
+
+// ─── Result rendering ──────────────────────────────────────────────────────
+
+/** Render one statement's result: error, empty, or the data grid. */
+function ResultBody({ result }: { result: AdapterQueryResult }) {
   if (result.error) {
     return (
       <div className="flex h-full flex-col bg-background">
         <div className="border-b border-border px-3 py-1.5 text-xs text-destructive">
           Error
         </div>
-        <div className="flex-1 overflow-auto p-4 text-sm text-destructive">
+        <div className="flex-1 overflow-auto whitespace-pre-wrap p-4 font-mono text-sm text-destructive">
           {result.error}
         </div>
       </div>
@@ -115,6 +203,91 @@ function ResultsGrid({ tabId }: { tabId: string }) {
   return (
     <div className="h-full overflow-hidden bg-background p-2">
       <DataTable data={result} height="100%" enablePagination pageSize={100} />
+    </div>
+  );
+}
+
+/** One selectable tab per statement (run-all). Hidden for single results. */
+function ResultTabBar({
+  items,
+  activeIndex,
+  tabId,
+}: {
+  items: WorkbenchResultItem[];
+  activeIndex: number;
+  tabId: string;
+}) {
+  return (
+    <div className="flex items-center gap-1 overflow-x-auto border-b border-border bg-muted/30 px-2 py-1.5">
+      {items.map((it, i) => {
+        const isError = !!it.result.error;
+        const selected = i === activeIndex;
+        return (
+          <button
+            key={i}
+            title={it.queryText}
+            onClick={() => setActiveResultIndex(tabId, i)}
+            className={cn(
+              "flex items-center gap-1.5 whitespace-nowrap rounded-md px-2.5 py-1 text-xs transition-colors",
+              selected
+                ? "border border-border bg-background shadow-sm"
+                : "border border-transparent hover:bg-muted",
+              isError && "text-destructive",
+            )}
+          >
+            <span
+              className={cn(
+                "size-1.5 shrink-0 rounded-full",
+                isError ? "bg-destructive" : "bg-emerald-500",
+              )}
+            />
+            <span className="max-w-32 truncate">
+              {resultLabel(it.queryText, i)}
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function ResultsGrid({ tabId }: { tabId: string }) {
+  const items = useWorkbenchStore((s) => s.results[tabId] ?? EMPTY_RESULTS);
+  const executing = useWorkbenchStore((s) => s.executing[tabId] ?? false);
+  const activeIndex = useWorkbenchStore((s) => s.activeResultIndex[tabId] ?? 0);
+
+  if (executing) {
+    return (
+      <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+        Running…
+      </div>
+    );
+  }
+
+  if (!items.length) {
+    return (
+      <div className="flex h-full flex-col bg-background">
+        <div className="flex items-center gap-3 border-b border-border px-3 py-1.5 text-xs text-muted-foreground">
+          <span className="font-medium text-foreground">0 rows</span>
+        </div>
+        <div className="flex-1 overflow-auto p-4 text-sm text-muted-foreground">
+          Run a query to see results
+        </div>
+      </div>
+    );
+  }
+
+  const safeIndex = Math.min(Math.max(activeIndex, 0), items.length - 1);
+  const active = items[safeIndex];
+
+  return (
+    <div className="flex h-full flex-col bg-background">
+      {items.length > 1 && (
+        <ResultTabBar items={items} activeIndex={safeIndex} tabId={tabId} />
+      )}
+      <div className="min-h-0 flex-1 overflow-hidden">
+        <ResultBody result={active.result} />
+      </div>
     </div>
   );
 }
@@ -194,14 +367,28 @@ const FONT_FAMILY_MAP: Record<string, string> = {
   "ibm-plex-mono": "'IBM Plex Mono', monospace",
 };
 
+interface WorkbenchEditorApi {
+  runCurrent: () => void;
+  runAll: () => void;
+}
+
+interface StatementInfo {
+  count: number;
+  index: number;
+}
+
 function WorkbenchEditor({
   tabId,
   dialect,
   onSave,
+  apiRef,
+  onStatementInfo,
 }: {
   tabId: string;
   dialect: ReturnType<typeof useDialectForTab>;
   onSave: () => void;
+  apiRef: MutableRefObject<WorkbenchEditorApi | null>;
+  onStatementInfo: (info: StatementInfo) => void;
 }) {
   const { theme } = useTheme();
   const fontSize = useEditorFontSize();
@@ -213,20 +400,67 @@ function WorkbenchEditor({
 
   const saveRef = useRef<() => void>(() => {});
   const runRef = useRef<() => void>(() => {});
+  const runAllRef = useRef<() => void>(() => {});
 
   const tab = useWorkbenchStore((s) => s.tabs.find((t) => t.id === tabId));
 
+  // The statement under the caret (or the active selection). Falls back to the
+  // whole buffer when nothing can be resolved.
+  const getCurrentStatement = useCallback((): string => {
+    const view = cmRef.current?.view;
+    const fallback = tab?.sql ?? "";
+    if (!view) return fallback;
+    const sel = view.state.selection.main;
+    if (!sel.empty) return view.state.sliceDoc(sel.from, sel.to);
+    const doc = view.state.doc.toString();
+    const queries = parseQueries(doc);
+    const { line, column } = offsetToLineCol(doc, sel.head);
+    const idx = findQueryAtCursor(queries, line, column);
+    return idx >= 0 && queries[idx] ? queries[idx].text : doc;
+  }, [tab?.sql]);
+
+  // Every non-empty statement in the buffer, in document order.
+  const getAllStatements = useCallback((): string[] => {
+    const view = cmRef.current?.view;
+    const doc = view ? view.state.doc.toString() : tab?.sql ?? "";
+    return parseQueries(doc)
+      .map((q) => q.text)
+      .filter((t) => t.trim().length > 0);
+  }, [tab?.sql]);
+
   useEffect(() => {
     saveRef.current = onSave;
-    runRef.current = () => { void runQuery(tabId); };
-  }, [tabId, onSave]);
+    runRef.current = () => {
+      void runQuery(tabId, getCurrentStatement());
+    };
+    runAllRef.current = () => {
+      const queries = getAllStatements();
+      if (queries.length <= 1) {
+        void runQuery(tabId, queries[0] ?? getCurrentStatement());
+      } else {
+        void runAllQueries(tabId, queries);
+      }
+    };
+  }, [tabId, onSave, getCurrentStatement, getAllStatements]);
+
+  // Expose the run handlers to the toolbar, which lives in the parent
+  // EditorPane (only the editor knows the live cursor position).
+  useEffect(() => {
+    apiRef.current = {
+      runCurrent: () => runRef.current?.(),
+      runAll: () => runAllRef.current?.(),
+    };
+    return () => {
+      apiRef.current = null;
+    };
+  }, [apiRef]);
 
   useEffect(() => {
     if (!vimMode) return;
     registerVimExCommands({
       onSave: () => saveRef.current?.(),
       onRun: () => runRef.current?.(),
-      onRunAll: () => runRef.current?.(),
+      onRunAll: () => runAllRef.current?.(),
     });
   }, [vimMode]);
 
@@ -287,6 +521,21 @@ function WorkbenchEditor({
     [vimMode],
   );
 
+  const highlightTheme = useMemo(
+    () =>
+      EditorView.theme(
+        {
+          ".cm-current-query-highlight": {
+            backgroundColor: isDark
+              ? "rgba(99, 179, 237, 0.12)"
+              : "rgba(66, 153, 225, 0.08)",
+          },
+        },
+        { dark: isDark },
+      ),
+    [isDark],
+  );
+
   const extensions = useMemo(
     () => [
       // Identical vim / completion / keymap stack as the pre-A2 SqlEditor.
@@ -297,17 +546,27 @@ function WorkbenchEditor({
       ...createSqlExtensions({
         vimMode,
         onRun: () => runRef.current?.(),
-        onRunAll: () => runRef.current?.(),
+        onRunAll: () => runAllRef.current?.(),
         onSave: () => saveRef.current?.(),
         languageSupport: dialect.languageSupport(),
       }),
+      highlightField,
+      highlightTheme,
       ...vimBasicSetup,
       ...themeExtensions,
       fontExtension,
       vimCursorFix,
       EditorView.lineWrapping,
     ],
-    [themeExtensions, fontExtension, vimCursorFix, vimBasicSetup, vimMode, dialect],
+    [
+      themeExtensions,
+      fontExtension,
+      vimCursorFix,
+      vimBasicSetup,
+      vimMode,
+      dialect,
+      highlightTheme,
+    ],
   );
 
   const handleChange = useCallback(
@@ -315,10 +574,31 @@ function WorkbenchEditor({
     [tabId],
   );
 
+  // Report the statement count + the index under the caret to the toolbar's
+  // 1/N indicator. Safe inside onUpdate: it only calls setState, never
+  // view.dispatch (the highlight is a self-contained StateField instead).
+  const handleUpdate = useCallback(
+    (update: ViewUpdate) => {
+      if (!update.selectionSet && !update.docChanged) return;
+      const doc = update.state.doc.toString();
+      const queries = parseQueries(doc);
+      const { line, column } = offsetToLineCol(
+        doc,
+        update.state.selection.main.head,
+      );
+      const index = queries.length
+        ? findQueryAtCursor(queries, line, column)
+        : -1;
+      onStatementInfo({ count: queries.length, index });
+    },
+    [onStatementInfo],
+  );
+
   return (
     <CodeMirror
       ref={cmRef}
       value={tab?.sql ?? ""}
+      onUpdate={handleUpdate}
       height="100%"
       basicSetup={
         vimMode
@@ -350,8 +630,29 @@ export default function EditorPane() {
   const statuses = useWorkbenchStore((s) => s.statuses);
   const [saving, setSaving] = useState(false);
 
+  // The toolbar (Run / Run all / 1-of-N) lives here, but only the editor knows
+  // the live caret. WorkbenchEditor publishes its run handlers via this ref and
+  // reports the current statement count/index through onStatementInfo.
+  const editorApiRef = useRef<WorkbenchEditorApi | null>(null);
+  const [stmtInfo, setStmtInfo] = useState<StatementInfo>({
+    count: 0,
+    index: -1,
+  });
+  const handleStatementInfo = useCallback((info: StatementInfo) => {
+    // Dedupe so caret moves within a single statement don't re-render.
+    setStmtInfo((prev) =>
+      prev.count === info.count && prev.index === info.index ? prev : info,
+    );
+  }, []);
+
   const tab = tabs.find((t) => t.id === activeTabId);
   const dialect = useDialectForTab(activeTabId);
+  // Statement count derives from the buffer so the 1/N indicator and Run-all
+  // button are correct on load, before the editor reports a cursor position.
+  const statementCount = useMemo(
+    () => parseQueries(tab?.sql ?? "").length,
+    [tab?.sql],
+  );
 
   if (!tab) {
     return (
@@ -427,13 +728,33 @@ export default function EditorPane() {
             </DropdownMenuContent>
           </DropdownMenu>
           <div className="ml-auto flex items-center gap-1">
+            {statementCount > 1 && (
+              <span
+                className="mr-1 rounded bg-muted px-1.5 py-0.5 text-xs tabular-nums text-muted-foreground"
+                title="Statement under the cursor / total statements"
+              >
+                {(stmtInfo.index >= 0 ? stmtInfo.index : 0) + 1}/{statementCount}
+              </span>
+            )}
             <Button
               size="sm"
               className="h-7 gap-1.5"
-              onClick={() => void runQuery(tab.id)}
+              title="Run the statement under the cursor (Ctrl+Enter)"
+              onClick={() => editorApiRef.current?.runCurrent()}
             >
               <Play className="size-3.5" /> Run
             </Button>
+            {statementCount > 1 && (
+              <Button
+                size="sm"
+                variant="secondary"
+                className="h-7 gap-1.5"
+                title="Run all statements; one result tab each (Ctrl+Shift+Enter)"
+                onClick={() => editorApiRef.current?.runAll()}
+              >
+                <Play className="size-3.5" /> Run all
+              </Button>
+            )}
             <Button
               size="sm"
               variant="outline"
@@ -448,7 +769,13 @@ export default function EditorPane() {
       <ResizablePanelGroup orientation="vertical" className="flex-1">
         <ResizablePanel defaultSize="55%">
           <div className="h-full overflow-hidden">
-            <WorkbenchEditor tabId={tab.id} dialect={dialect} onSave={() => setSaving(true)} />
+            <WorkbenchEditor
+              tabId={tab.id}
+              dialect={dialect}
+              onSave={() => setSaving(true)}
+              apiRef={editorApiRef}
+              onStatementInfo={handleStatementInfo}
+            />
           </div>
         </ResizablePanel>
         <ResizableHandle withHandle />
