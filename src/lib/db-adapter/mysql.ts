@@ -3,6 +3,7 @@
 // parameterized queries handled natively by the mysql2 driver.
 
 import mysql from "mysql2/promise";
+import { Types } from "mysql2";
 import type { Pool, RowDataPacket, FieldPacket } from "mysql2/promise";
 import type {
   DbAdapter,
@@ -36,6 +37,51 @@ const MYSQL_CAPABILITIES: AdapterCapabilities = {
     settingsProfiles: false,
   },
 };
+
+// ─── Field type mapping ─────────────────────────────────────────────────────
+// mysql2 reports column types as numeric protocol codes (e.g. 253, 246, 10).
+// Map them to readable SQL type names so the UI shows "VARCHAR" instead of "253".
+// Codes without a friendly override fall back to the mysql2 enum name.
+
+const MYSQL_TYPE_NAMES: Record<number, string> = {
+  [Types.DECIMAL]: "DECIMAL",
+  [Types.TINY]: "TINYINT",
+  [Types.SHORT]: "SMALLINT",
+  [Types.LONG]: "INT",
+  [Types.FLOAT]: "FLOAT",
+  [Types.DOUBLE]: "DOUBLE",
+  [Types.NULL]: "NULL",
+  [Types.TIMESTAMP]: "TIMESTAMP",
+  [Types.LONGLONG]: "BIGINT",
+  [Types.INT24]: "MEDIUMINT",
+  [Types.DATE]: "DATE",
+  [Types.TIME]: "TIME",
+  [Types.DATETIME]: "DATETIME",
+  [Types.YEAR]: "YEAR",
+  [Types.NEWDATE]: "DATE",
+  [Types.VARCHAR]: "VARCHAR",
+  [Types.BIT]: "BIT",
+  [Types.JSON]: "JSON",
+  [Types.NEWDECIMAL]: "DECIMAL",
+  [Types.ENUM]: "ENUM",
+  [Types.SET]: "SET",
+  [Types.TINY_BLOB]: "TINYBLOB",
+  [Types.MEDIUM_BLOB]: "MEDIUMBLOB",
+  [Types.LONG_BLOB]: "LONGBLOB",
+  [Types.BLOB]: "BLOB",
+  [Types.VAR_STRING]: "VARCHAR",
+  [Types.STRING]: "CHAR",
+  [Types.GEOMETRY]: "GEOMETRY",
+};
+
+function mysqlTypeName(code: number | undefined): string {
+  if (code == null) return "unknown";
+  return (
+    MYSQL_TYPE_NAMES[code] ??
+    (Types as unknown as Record<number, string>)[code] ??
+    String(code)
+  );
+}
 
 // ─── Adapter ──────────────────────────────────────────────────────────────
 
@@ -117,7 +163,7 @@ export class MySQLAdapter implements DbAdapter {
       return {
         meta: fields.map((f: FieldPacket) => ({
           name: f.name,
-          type: String(f.type ?? "unknown"),
+          type: mysqlTypeName(f.type),
         })),
         data: rows,
         statistics: { elapsed: 0, rows_read: rows.length, bytes_read: 0 },
