@@ -1,5 +1,6 @@
 {
   "name": "deebee",
+  "desktopName": "deebee",
   "private": true,
   "author": {
     "name": "Liang-Shih Lin",
@@ -185,4 +186,3 @@
     }
   }
 }
-

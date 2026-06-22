@@ -3,8 +3,12 @@
 // parameterized queries handled natively by the mysql2 driver.
 
 import mysql from "mysql2/promise";
-import { Types } from "mysql2";
+// mysql2 is CommonJS — `Types` is only reachable via the default export.
+// A named ESM import (`import { Types }`) throws at runtime in the packaged app.
+import mysql2 from "mysql2";
 import type { Pool, RowDataPacket, FieldPacket } from "mysql2/promise";
+
+const { Types } = mysql2;
 import type {
   DbAdapter,
   ConnectionConfig,
