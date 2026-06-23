@@ -77,15 +77,117 @@ interface WorkbenchState {
   error: string;
 }
 
+// ─── Session persistence ──────────────────────────────────────────────────
+// Restore the user's open query tabs across reloads so the app reopens to the
+// last session instead of an empty "New Query" page. Only the durable slice —
+// the open tabs, the active tab, and the active connection pointer — is saved
+// to localStorage (mirroring workspaceStore's "app-storage" and
+// connectionStore's "connection-storage"). Query results, execution flags,
+// schemas, and the connection list are transient/re-derivable and are NOT
+// persisted; tabs reference a connectionId only, so no password is duplicated
+// here (connections — and their secrets — are re-read from Dexie/keychain).
+const SESSION_STORAGE_KEY = "deebee-workbench-session";
+const SESSION_VERSION = 1;
+const SESSION_PERSIST_DEBOUNCE_MS = 400;
+
+export interface PersistedSession {
+  tabs: WorkbenchTab[];
+  activeTabId: string | null;
+  activeConnectionId: string | null;
+}
+
+/** Serialise the durable session slice into a versioned envelope. */
+function serializeSession(s: WorkbenchState): string {
+  return JSON.stringify({
+    version: SESSION_VERSION,
+    state: {
+      tabs: s.tabs,
+      activeTabId: s.activeTabId,
+      activeConnectionId: s.activeConnectionId,
+    } satisfies PersistedSession,
+  });
+}
+
+/**
+ * Read the persisted session from localStorage, tolerating missing, partial,
+ * or older shapes (returns null when there is nothing valid to restore). Tab
+ * ids are kept verbatim — the results/executing/activeResultIndex maps are
+ * keyed by them — and the active tab is repointed to a surviving tab if the
+ * stored one is gone. A restored activeConnectionId that references a
+ * since-deleted connection is self-correcting: the Dexie liveQuery below calls
+ * applyConnections(), which falls back to the default/first connection.
+ */
+function loadPersistedSession(): PersistedSession | null {
+  try {
+    if (typeof localStorage === "undefined") return null;
+    const raw = localStorage.getItem(SESSION_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as {
+      version?: number;
+      state?: Partial<PersistedSession>;
+    };
+    // Gate on the schema version: an envelope from a different version may use
+    // a changed shape, so discard it rather than risk partially hydrating
+    // garbled state. We do NOT removeItem here — a newer client's data should
+    // survive an older client reading it (forward-compat over a downgrade).
+    if (parsed?.version !== SESSION_VERSION) return null;
+
+    const state = parsed.state;
+    if (!state || !Array.isArray(state.tabs)) return null;
+
+    const tabs: WorkbenchTab[] = state.tabs
+      .filter(
+        (t): t is WorkbenchTab =>
+          !!t &&
+          typeof t.id === "string" &&
+          typeof t.title === "string" &&
+          typeof t.connectionId === "string" &&
+          typeof t.sql === "string",
+      )
+      .map((t) => ({
+        id: t.id,
+        title: t.title,
+        connectionId: t.connectionId,
+        sql: t.sql,
+        ...(t.dirty === true ? { dirty: true as const } : {}),
+      }));
+
+    // No usable tabs survived (corrupt/all-malformed, or a genuinely empty
+    // session). The version already matched, so this entry is ours and unusable
+    // — clear it so a stale blob doesn't suppress restore on every future boot.
+    if (tabs.length === 0) {
+      localStorage.removeItem(SESSION_STORAGE_KEY);
+      return null;
+    }
+
+    const storedActive = state.activeTabId;
+    const activeTabId =
+      typeof storedActive === "string" && tabs.some((t) => t.id === storedActive)
+        ? storedActive
+        : (tabs[tabs.length - 1]?.id ?? null);
+
+    const activeConnectionId =
+      typeof state.activeConnectionId === "string"
+        ? state.activeConnectionId
+        : (tabs.find((t) => t.id === activeTabId)?.connectionId ?? null);
+
+    return { tabs, activeTabId, activeConnectionId };
+  } catch {
+    return null;
+  }
+}
+
+const persistedSession = loadPersistedSession();
+
 const initialState: WorkbenchState = {
   connections: [],
-  activeConnectionId: null,
+  activeConnectionId: persistedSession?.activeConnectionId ?? null,
   statuses: {},
   capabilities: {},
   admin: {},
   adminView: false,
-  tabs: [],
-  activeTabId: null,
+  tabs: persistedSession?.tabs ?? [],
+  activeTabId: persistedSession?.activeTabId ?? null,
   schemas: {},
   results: {},
   activeResultIndex: {},
@@ -94,6 +196,64 @@ const initialState: WorkbenchState = {
 };
 
 const store = new Store<WorkbenchState>(initialState);
+
+// Persist the durable session slice (debounced) whenever it changes. The store
+// fires on every setState — schema loads, status changes, query runs, and every
+// keystroke via updateTabSql (which has no debounce of its own) — so we coalesce
+// bursts behind a short timer and re-read state at fire time, writing only when
+// the serialised slice actually changed. localStorage writes never trigger
+// setState, so there is no feedback loop.
+let lastSessionSerialized = serializeSession(initialState);
+let sessionPersistTimer: ReturnType<typeof setTimeout> | null = null;
+
+/** Write the current durable slice now, skipping a no-op write. */
+function writeSessionNow(): void {
+  try {
+    if (typeof localStorage === "undefined") return;
+    const serialized = serializeSession(store.state);
+    if (serialized === lastSessionSerialized) return;
+    localStorage.setItem(SESSION_STORAGE_KEY, serialized);
+    lastSessionSerialized = serialized;
+  } catch {
+    // best-effort: ignore quota errors / unavailable storage
+  }
+}
+
+/** Cancel the pending debounce and persist synchronously (used on unload). */
+function flushSession(): void {
+  if (sessionPersistTimer) {
+    clearTimeout(sessionPersistTimer);
+    sessionPersistTimer = null;
+  }
+  writeSessionNow();
+}
+
+try {
+  store.subscribe(() => {
+    if (sessionPersistTimer) clearTimeout(sessionPersistTimer);
+    sessionPersistTimer = setTimeout(() => {
+      sessionPersistTimer = null;
+      writeSessionNow();
+    }, SESSION_PERSIST_DEBOUNCE_MS);
+  });
+
+  // The debounce timer is discarded if the page is torn down before it fires —
+  // a fast edit immediately before reload/close would be lost. Flush
+  // synchronously when the page is hidden or unloaded so the last burst of
+  // edits is always captured. `pagehide` covers close/navigation (incl. the
+  // Electron renderer); `visibilitychange → hidden` covers minimise/tab-switch
+  // and is the most broadly reliable signal.
+  if (typeof window !== "undefined") {
+    window.addEventListener("pagehide", flushSession);
+  }
+  if (typeof document !== "undefined") {
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "hidden") flushSession();
+    });
+  }
+} catch {
+  // environments without a working Store subscription skip persistence
+}
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -202,6 +362,48 @@ function applyConnections(conns: SavedConnection[]): void {
       ? current
       : (conns.find((c) => c.isDefault)?.id ?? conns[0]?.id ?? null),
   });
+  maybeAutoConnectRestoredSession(conns);
+}
+
+// ── Session-restore auto-connect (one-shot) ─────────────────────────────────
+// After a restored session's connections first become available, connect the
+// active tab's connection so the user can run queries immediately — mirroring
+// AppInit's auto-connect of the last connection. Only the active tab's
+// connection is auto-connected; other restored tabs surface a "disconnected"
+// badge in the editor toolbar and connect on demand. The guard makes this run
+// at most once, and only when there was a session to restore.
+let sessionAutoConnectPending = persistedSession != null;
+
+/**
+ * Decide which connection to auto-connect on restore: the active tab's
+ * connection (falling back to the persisted active connection), but only if it
+ * still exists in `conns` and is currently disconnected. Pure, for testability.
+ */
+export function pickSessionAutoConnect(
+  session: PersistedSession | null,
+  conns: Pick<SavedConnection, "id">[],
+  statuses: Record<string, ConnectionStatus>,
+): string | null {
+  if (!session || conns.length === 0) return null;
+  const activeTab = session.tabs.find((t) => t.id === session.activeTabId);
+  const targetId = activeTab?.connectionId ?? session.activeConnectionId;
+  if (!targetId || !conns.some((c) => c.id === targetId)) return null;
+  return (statuses[targetId] ?? "disconnected") === "disconnected"
+    ? targetId
+    : null;
+}
+
+function maybeAutoConnectRestoredSession(conns: SavedConnection[]): void {
+  // Wait for a real (non-empty) connection list — the liveQuery can emit []
+  // transiently before Dexie resolves — and act only once.
+  if (!sessionAutoConnectPending || conns.length === 0) return;
+  sessionAutoConnectPending = false;
+  const targetId = pickSessionAutoConnect(
+    persistedSession,
+    conns,
+    store.state.statuses,
+  );
+  if (targetId) void connectConnection(targetId);
 }
 
 export async function loadConnections(): Promise<void> {

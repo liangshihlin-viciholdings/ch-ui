@@ -277,6 +277,24 @@ export default function ConnectionsSection({
           size="icon"
           variant="ghost"
           className="size-6"
+          onClick={() => setExportImport("import")}
+          title="Import connections"
+        >
+          <Upload className="size-4" />
+        </Button>
+        <Button
+          size="icon"
+          variant="ghost"
+          className="size-6"
+          onClick={() => setExportImport("export")}
+          title="Export connections"
+        >
+          <Download className="size-4" />
+        </Button>
+        <Button
+          size="icon"
+          variant="ghost"
+          className="size-6"
           onClick={openAdd}
           title="Add connection"
         >
@@ -302,13 +320,6 @@ export default function ConnectionsSection({
             </DropdownMenuItem>
             <DropdownMenuItem onClick={refreshAllSchemas}>
               <RefreshCw className="mr-2 size-3.5" /> Refresh all schemas
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => setExportImport("import")}>
-              <Upload className="mr-2 size-3.5" /> Import connections…
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setExportImport("export")}>
-              <Download className="mr-2 size-3.5" /> Export connections…
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => setDbeaverOpen(true)}>

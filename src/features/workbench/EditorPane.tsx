@@ -30,7 +30,7 @@ import { foldGutter, indentOnInput, bracketMatching } from "@codemirror/language
 import { closeBrackets, closeBracketsKeymap, completionKeymap } from "@codemirror/autocomplete";
 import { defaultKeymap, historyKeymap, indentWithTab } from "@codemirror/commands";
 import { searchKeymap, highlightSelectionMatches } from "@codemirror/search";
-import { Check, ChevronDown, Play, Save, X, Plus } from "lucide-react";
+import { Check, ChevronDown, Play, Save, X, Plus, Power, Circle } from "lucide-react";
 import {
   ResizableHandle,
   ResizablePanel,
@@ -356,6 +356,14 @@ function TabBar() {
   );
 }
 
+// Connection-status dot colours for the editor toolbar (mirrors the sidebar's
+// ConnectionsSection so the two read the same at a glance).
+const STATUS_DOT: Record<string, string> = {
+  connected: "text-emerald-500 fill-emerald-500",
+  idle: "text-amber-500 fill-amber-500",
+  disconnected: "text-zinc-400 fill-zinc-400",
+};
+
 const FONT_FAMILY_MAP: Record<string, string> = {
   system: "ui-monospace, SFMono-Regular, Menlo, monospace",
   "jetbrains-mono": "'JetBrains Mono', monospace",
@@ -667,6 +675,8 @@ export default function EditorPane() {
 
   const conn = connections.find((c) => c.id === tab.connectionId);
   const meta = conn ? ENGINES[conn.engine] : undefined;
+  const connStatus = statuses[tab.connectionId] ?? "disconnected";
+  const connConnected = connStatus === "connected";
 
   // Connections this tab may switch to: same engine only, so the editor's SQL
   // dialect never changes underneath the user.
@@ -696,6 +706,10 @@ export default function EditorPane() {
                 <span className={cn("size-2 rounded-full", meta.dot)} />
                 <span className="font-medium">{conn.name}</span>
                 <span className="text-muted-foreground">· {meta.label}</span>
+                <Circle
+                  className={cn("size-2 shrink-0", STATUS_DOT[connStatus])}
+                  aria-label={`Connection ${connStatus}`}
+                />
                 <ChevronDown className="size-3 text-muted-foreground" />
               </button>
             </DropdownMenuTrigger>
@@ -727,6 +741,17 @@ export default function EditorPane() {
               )}
             </DropdownMenuContent>
           </DropdownMenu>
+          {!connConnected && (
+            <button
+              type="button"
+              onClick={() => void connectConnection(tab.connectionId)}
+              className="flex items-center gap-1 rounded-md border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-xs font-medium text-amber-600 hover:bg-amber-500/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:text-amber-400"
+              title="This tab's connection is not connected — click to connect"
+            >
+              <Power className="size-3" />
+              {connStatus === "idle" ? "Idle — Connect" : "Disconnected — Connect"}
+            </button>
+          )}
           <div className="ml-auto flex items-center gap-1">
             {statementCount > 1 && (
               <span
