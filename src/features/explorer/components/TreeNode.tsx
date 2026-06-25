@@ -13,19 +13,24 @@ import {
   FilePlus,
   FolderPlus,
   BookA,
-  Columns3Cog
+  Columns3Cog,
+  FileCode,
+  Hash,
+  Copy
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
+  ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import ConfirmationDialog from "@/components/common/ConfirmationDialog";
@@ -40,6 +45,13 @@ export interface TreeNodeData {
   children?: TreeNodeData[];
   query?: string;
   total_bytes?: number;
+}
+
+interface MenuOption {
+  label: string;
+  icon: React.ReactNode;
+  action: () => void;
+  separatorBefore?: boolean;
 }
 
 interface TreeNodeProps {
@@ -96,24 +108,105 @@ const TreeNode: React.FC<TreeNodeProps> = ({
     }
   };
 
-  const handleQueryData = useCallback(
+  // Open a query tab for a leaf node and immediately execute it, so the user
+  // sees data without pressing Run. Reuses an existing tab if already open.
+  const handleOpenAndRun = useCallback(
     (database: string, table: string) => async () => {
       const query = `SELECT * FROM \`${database}\`.\`${table}\` LIMIT 1000`;
       const title = `Query - ${table}`;
-      const existingTab = getTabById(title);
+      const tabId = `query-${database}-${table}`;
+      const existingTab = getTabById(tabId);
 
       if (existingTab) {
-        toast.warning("A tab with this query is already open");
+        setActiveTab(existingTab.id);
       } else {
-        addTab({
-          id: `query-${table}`,
+        await addTab({
+          id: tabId,
           type: "sql",
           title: title,
           content: `-- ${title}\n${query}`,
         });
       }
+      await runQuery(query, tabId);
     },
-    [addTab, getTabById]
+    [addTab, getTabById, setActiveTab, runQuery]
+  );
+
+  // Open SHOW CREATE output in an editable (prefilled) SQL tab.
+  const handleViewDDL = useCallback(
+    (database: string, table: string) => async () => {
+      const result = await runQuery(
+        `SHOW CREATE TABLE \`${database}\`.\`${table}\``
+      );
+      if (result.error) {
+        toast.error(result.error);
+        return;
+      }
+      const row = result.data?.[0] as Record<string, unknown> | undefined;
+      const ddl =
+        (row?.statement as string) ??
+        (row ? String(Object.values(row)[0] ?? "") : "");
+      if (!ddl) {
+        toast.error(`Could not retrieve DDL for ${table}`);
+        return;
+      }
+      const tabId = `ddl-${database}-${table}`;
+      const existingTab = getTabById(tabId);
+      if (existingTab) {
+        setActiveTab(existingTab.id);
+        return;
+      }
+      await addTab({
+        id: tabId,
+        type: "sql",
+        title: `DDL - ${table}`,
+        content: ddl,
+      });
+    },
+    [addTab, getTabById, setActiveTab, runQuery]
+  );
+
+  // Show row count via the instant system.tables estimate; fall back to an
+  // exact count() when total_rows is null (e.g. views).
+  const handleCountRows = useCallback(
+    (database: string, table: string) => async () => {
+      const estimate = await runQuery(
+        `SELECT total_rows FROM system.tables WHERE database = '${database}' AND name = '${table}'`
+      );
+      if (estimate.error) {
+        toast.error(estimate.error);
+        return;
+      }
+      let total = (estimate.data?.[0] as { total_rows?: unknown } | undefined)
+        ?.total_rows;
+      if (total === null || total === undefined) {
+        const exact = await runQuery(
+          `SELECT count() AS c FROM \`${database}\`.\`${table}\``
+        );
+        if (exact.error) {
+          toast.error(exact.error);
+          return;
+        }
+        total = (exact.data?.[0] as { c?: unknown } | undefined)?.c;
+      }
+      const n = Number(total);
+      toast.info(
+        `${database}.${table} ≈ ${Number.isFinite(n) ? n.toLocaleString() : total} rows`
+      );
+    },
+    [runQuery]
+  );
+
+  const handleCopy = useCallback(
+    (text: string, label: string) => async () => {
+      try {
+        await navigator.clipboard.writeText(text);
+        toast.success(`Copied ${label}`);
+      } catch {
+        toast.error(`Failed to copy ${label}`);
+      }
+    },
+    []
   );
 
   const getIcon = useMemo(() => {
@@ -228,8 +321,59 @@ const TreeNode: React.FC<TreeNodeProps> = ({
     setIsConfirmDialogOpen(true);
   };
 
-  const contextMenuOptions = useMemo(
-    () => ({
+  const contextMenuOptions = useMemo(() => {
+    const needsParent =
+      <T,>(fn: (db: string, name: string) => T) =>
+      (): void | T =>
+        parentDatabaseName
+          ? fn(parentDatabaseName, node.name)
+          : void toast.error("Parent database name is undefined.");
+
+    // Shared menu for queryable leaf nodes (table / view / mv / dictionary).
+    // Only the destructive Delete action varies by node type.
+    const leafMenu = (
+      deleteLabel: string,
+      deleteAction: (db: string, name: string) => void
+    ): MenuOption[] => [
+      {
+        label: "View Info",
+        icon: <Eye className="w-4 h-4 mr-2" />,
+        action: needsParent((db, name) => openInfoTab(db, name)),
+      },
+      {
+        label: "View DDL",
+        icon: <FileCode className="w-4 h-4 mr-2" />,
+        action: needsParent((db, name) => handleViewDDL(db, name)()),
+        separatorBefore: true,
+      },
+      {
+        label: "Count Rows",
+        icon: <Hash className="w-4 h-4 mr-2" />,
+        action: needsParent((db, name) => handleCountRows(db, name)()),
+        separatorBefore: true,
+      },
+      {
+        label: "Copy Name",
+        icon: <Copy className="w-4 h-4 mr-2" />,
+        action: handleCopy(node.name, "name"),
+        separatorBefore: true,
+      },
+      {
+        label: "Copy Qualified Name",
+        icon: <Copy className="w-4 h-4 mr-2" />,
+        action: needsParent((db, name) =>
+          handleCopy(`\`${db}\`.\`${name}\``, "qualified name")()
+        ),
+      },
+      {
+        label: deleteLabel,
+        icon: <Trash className="w-4 h-4 mr-2" />,
+        action: needsParent(deleteAction),
+        separatorBefore: true,
+      },
+    ];
+
+    return {
       database: [
         {
           label: "View Info",
@@ -250,100 +394,29 @@ const TreeNode: React.FC<TreeNodeProps> = ({
           label: "Delete",
           icon: <Trash className="w-4 h-4 mr-2" />,
           action: () => actionDropDatabase(node.name),
+          separatorBefore: true,
         },
-      ],
-      table: [
-        {
-          label: "Query Table",
-          icon: <TerminalIcon className="w-4 h-4 mr-2" />,
-          action: parentDatabaseName
-            ? handleQueryData(parentDatabaseName, node.name)
-            : () => {
-                toast.error("Parent database name is undefined.");
-              },
-        },
-        {
-          label: "Delete",
-          icon: <Trash className="w-4 h-4 mr-2" />,
-          action: parentDatabaseName
-            ? () => actionDropTable(parentDatabaseName, node.name)
-            : () => {
-                toast.error("Parent database name is undefined.");
-              },
-        },
-      ],
-      view: [
-        {
-          label: "Query View",
-          icon: <TerminalIcon className="w-4 h-4 mr-2" />,
-          action: parentDatabaseName
-            ? handleQueryData(parentDatabaseName, node.name)
-            : () => {
-                toast.error("Parent database name is undefined.");
-              },
-        },
-        {
-          label: "Delete",
-          icon: <Trash className="w-4 h-4 mr-2" />,
-          action: parentDatabaseName
-            ? () => actionDropView(parentDatabaseName, node.name)
-            : () => {
-                toast.error("Parent database name is undefined.");
-              },
-        },
-      ],
-      dictionary: [
-        {
-          label: "Query Dictionary",
-          icon: <TerminalIcon className="w-4 h-4 mr-2" />,
-          action: parentDatabaseName
-            ? handleQueryData(parentDatabaseName, node.name)
-            : () => {
-                toast.error("Parent database name is undefined.");
-              },
-        },
-        {
-          label: "Delete Dictionary",
-          icon: <Trash className="w-4 h-4 mr-2" />,
-          action: parentDatabaseName
-            ? () => actionDropDictionary(parentDatabaseName, node.name)
-            : () => {
-                toast.error("Parent database name is undefined.");
-              },
-        },
-      ],
-      materialized_view: [
-        {
-          label: "Query Materialized View",
-          icon: <TerminalIcon className="w-4 h-4 mr-2" />,
-          action: parentDatabaseName
-            ? handleQueryData(parentDatabaseName, node.name)
-            : () => {
-                toast.error("Parent database name is undefined.");
-              },
-        },
-        {
-          label: "Delete Materialized View",
-          icon: <Trash className="w-4 h-4 mr-2" />,
-          action: parentDatabaseName
-            ? () => actionDropMaterializedView(parentDatabaseName, node.name)
-            : () => {
-                toast.error("Parent database name is undefined.");
-              },
-        },
-      ],
-    }),
-    [
-      parentDatabaseName,
-      node.name,
-      handleQueryData,
-      actionDropDatabase,
-      actionDropTable,
-      actionDropView,
-      actionDropDictionary,
-      actionDropMaterializedView,
-    ]
-  );
+      ] as MenuOption[],
+      table: leafMenu("Delete", actionDropTable),
+      view: leafMenu("Delete", actionDropView),
+      dictionary: leafMenu("Delete Dictionary", actionDropDictionary),
+      materialized_view: leafMenu(
+        "Delete Materialized View",
+        actionDropMaterializedView
+      ),
+    };
+  }, [
+    parentDatabaseName,
+    node.name,
+    handleViewDDL,
+    handleCountRows,
+    handleCopy,
+    actionDropDatabase,
+    actionDropTable,
+    actionDropView,
+    actionDropDictionary,
+    actionDropMaterializedView,
+  ]);
 
   return (
     <>
@@ -366,11 +439,16 @@ const TreeNode: React.FC<TreeNodeProps> = ({
               )}
               {getIcon}
               <div
-                onClick={() => {
-                  if (node.type === "table" || node.type === "view" || node.type === "dictionary" || node.type === "materialized_view") {
-                    // Using non-null assertion since parentDatabaseName should be defined for table/view
+                onClick={(e) => {
+                  if (
+                    node.type === "table" ||
+                    node.type === "view" ||
+                    node.type === "dictionary" ||
+                    node.type === "materialized_view"
+                  ) {
+                    e.stopPropagation();
                     if (parentDatabaseName) {
-                      openInfoTab(parentDatabaseName, node.name);
+                      handleOpenAndRun(parentDatabaseName, node.name)();
                     } else {
                       toast.error("Parent database name is undefined.");
                     }
@@ -397,10 +475,15 @@ const TreeNode: React.FC<TreeNodeProps> = ({
                   {contextMenuOptions[
                     node.type as keyof typeof contextMenuOptions
                   ].map((option, index) => (
-                    <DropdownMenuItem key={index} onSelect={option.action}>
-                      {option.icon}
-                      {option.label}
-                    </DropdownMenuItem>
+                    <React.Fragment key={index}>
+                      {option.separatorBefore && index > 0 && (
+                        <DropdownMenuSeparator />
+                      )}
+                      <DropdownMenuItem onSelect={option.action}>
+                        {option.icon}
+                        {option.label}
+                      </DropdownMenuItem>
+                    </React.Fragment>
                   ))}
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -410,10 +493,13 @@ const TreeNode: React.FC<TreeNodeProps> = ({
         <ContextMenuContent>
           {contextMenuOptions[node.type as keyof typeof contextMenuOptions].map(
             (option, index) => (
-              <ContextMenuItem key={index} onSelect={option.action}>
-                {option.icon}
-                {option.label}
-              </ContextMenuItem>
+              <React.Fragment key={index}>
+                {option.separatorBefore && index > 0 && <ContextMenuSeparator />}
+                <ContextMenuItem onSelect={option.action}>
+                  {option.icon}
+                  {option.label}
+                </ContextMenuItem>
+              </React.Fragment>
             )
           )}
         </ContextMenuContent>
