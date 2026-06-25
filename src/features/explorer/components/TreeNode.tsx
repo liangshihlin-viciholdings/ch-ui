@@ -153,7 +153,7 @@ const TreeNode: React.FC<TreeNodeProps> = ({
         toast.error(`Failed to drop database ${database}`);
       }
     });
-    setIsConfirmDialogOpen(true); // ✅ Corrected to open the dialog
+    setIsConfirmDialogOpen(true);
   };
 
   const actionDropTable = async (database: string, table: string) => {
@@ -171,7 +171,7 @@ const TreeNode: React.FC<TreeNodeProps> = ({
         toast.error(`Failed to drop table ${table}`);
       }
     });
-    setIsConfirmDialogOpen(true); // ✅ Corrected to open the dialog
+    setIsConfirmDialogOpen(true);
   };
 
   const actionDropView = async (database: string, view: string) => {
@@ -189,7 +189,7 @@ const TreeNode: React.FC<TreeNodeProps> = ({
         toast.error(`Failed to drop view ${view}`);
       }
     });
-    setIsConfirmDialogOpen(true); // ✅ Opens the dialog for views
+    setIsConfirmDialogOpen(true);
   };
 
   const actionDropDictionary = async (database: string, dictionary: string) => {
@@ -207,7 +207,7 @@ const TreeNode: React.FC<TreeNodeProps> = ({
         toast.error(`Failed to drop dictionary ${dictionary}`);
       }
     });
-    setIsConfirmDialogOpen(true); // ✅ Opens the dialog for views
+    setIsConfirmDialogOpen(true);
   };
 
   const actionDropMaterializedView = async (database: string, materializedView: string) => {
@@ -225,7 +225,7 @@ const TreeNode: React.FC<TreeNodeProps> = ({
         toast.error(`Failed to drop materialized view ${materializedView}`);
       }
     });
-    setIsConfirmDialogOpen(true); // ✅ Opens the dialog for materialized views
+    setIsConfirmDialogOpen(true);
   };
 
   const contextMenuOptions = useMemo(
@@ -329,8 +329,8 @@ const TreeNode: React.FC<TreeNodeProps> = ({
             ? () => actionDropMaterializedView(parentDatabaseName, node.name)
             : () => {
                 toast.error("Parent database name is undefined.");
-              }
-            }
+              },
+        },
       ],
     }),
     [
