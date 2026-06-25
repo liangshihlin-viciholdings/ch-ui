@@ -16,7 +16,8 @@ import {
   Columns3Cog,
   FileCode,
   Hash,
-  Copy
+  Copy,
+  Download
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -34,6 +35,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import ConfirmationDialog from "@/components/common/ConfirmationDialog";
+import ExportTableDialog from "@/features/explorer/components/ExportTableDialog";
+import { isExportSupported } from "@/features/explorer/utils/exportTable";
 import { toast } from "sonner";
 import useAppStore from "@/stores/workspaceStore";
 import { useTreeExpansion } from "@/features/explorer/context/TreeExpansionContext";
@@ -78,6 +81,7 @@ const TreeNode: React.FC<TreeNodeProps> = ({
   );
   const [confirmTitle, setConfirmTitle] = useState("");
   const [confirmDescription, setConfirmDescription] = useState("");
+  const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
   const {
     addTab,
     runQuery,
@@ -85,6 +89,7 @@ const TreeNode: React.FC<TreeNodeProps> = ({
     setActiveTab,
     openCreateTableModal,
     openCreateDatabaseModal,
+    clickHouseClient,
   } = useAppStore();
 
   const toggleOpen = useCallback((e: React.MouseEvent) => {
@@ -365,6 +370,17 @@ const TreeNode: React.FC<TreeNodeProps> = ({
           handleCopy(`\`${db}\`.\`${name}\``, "qualified name")()
         ),
       },
+      // Export streams via Electron IPC — desktop only.
+      ...(isExportSupported()
+        ? [
+            {
+              label: "Export Table",
+              icon: <Download className="w-4 h-4 mr-2" />,
+              action: needsParent(() => setIsExportDialogOpen(true)),
+              separatorBefore: true,
+            } as MenuOption,
+          ]
+        : []),
       {
         label: deleteLabel,
         icon: <Trash className="w-4 h-4 mr-2" />,
@@ -539,6 +555,15 @@ const TreeNode: React.FC<TreeNodeProps> = ({
         confirmText="Delete"
         cancelText="Cancel"
       />
+      {isExportDialogOpen && parentDatabaseName && (
+        <ExportTableDialog
+          open={isExportDialogOpen}
+          onOpenChange={setIsExportDialogOpen}
+          database={parentDatabaseName}
+          table={node.name}
+          client={clickHouseClient}
+        />
+      )}
     </>
   );
 };
