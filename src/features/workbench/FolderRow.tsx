@@ -38,6 +38,9 @@ export default function FolderRow({
   onNewSubfolder,
   onDelete,
   dragHandle,
+  innerRef,
+  style,
+  isDragging,
 }: {
   folder: ConnectionFolder;
   depth: number;
@@ -46,8 +49,12 @@ export default function FolderRow({
   onRename: (name: string) => void;
   onNewSubfolder: () => void;
   onDelete: () => void;
-  /** Optional drag-handle node (rendered by the parent in Phase 4). */
+  /** Optional drag-handle node (the grip), wired by the parent. */
   dragHandle?: React.ReactNode;
+  /** Sortable node ref + transform style, supplied by the parent's SortableRow. */
+  innerRef?: (el: HTMLElement | null) => void;
+  style?: React.CSSProperties;
+  isDragging?: boolean;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(folder.name);
@@ -69,8 +76,12 @@ export default function FolderRow({
 
   return (
     <div
-      className="group relative flex w-full items-center gap-1.5 py-1.5 pr-2 hover:bg-accent/50"
-      style={{ paddingLeft: depth * INDENT_PX + 8 }}
+      ref={innerRef}
+      className={cn(
+        "group relative flex w-full items-center gap-1.5 py-1.5 pr-2 hover:bg-accent/50",
+        isDragging && "opacity-40",
+      )}
+      style={{ ...style, paddingLeft: depth * INDENT_PX + 8 }}
     >
       <button
         onClick={onToggle}

@@ -8,12 +8,13 @@
 // Used both standalone (workbench panel) and embedded in the global AppSidebar.
 // Pass `filter` to drive table filtering from an external (shared) input; omit
 // it to render this section's own "Filter tables…" box.
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   ChevronRight,
   ChevronDown,
   Plus,
   FolderPlus,
+  GripVertical,
   Table2,
   Circle,
   Search,
@@ -30,6 +31,22 @@ import {
   Upload,
   HardDriveDownload,
 } from "lucide-react";
+import {
+  DndContext,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragStartEvent,
+  type DragMoveEvent,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -64,8 +81,12 @@ import FolderRow from "./FolderRow";
 import {
   buildTree,
   flattenTree,
+  getDropTarget,
+  descendantIds,
+  isDescendant,
   INDENT_PX,
   type FlatItem,
+  type DropTarget,
 } from "./connectionTree";
 import type { SavedConnection, ConnectionFolder } from "@/lib/db/schema";
 import type { ConnectionDisplay } from "@/lib/db";
@@ -73,6 +94,7 @@ import {
   createConnectionFolder,
   updateConnectionFolder,
   deleteConnectionFolder,
+  updateConnection,
 } from "@/lib/db";
 import {
   useWorkbenchStore,
@@ -101,6 +123,63 @@ const STATUS_COLOR: Record<ConnectionStatus, string> = {
 // like a stray border).
 const NAV_BTN_FOCUS =
   "rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring";
+
+type SortableState = ReturnType<typeof useSortable>;
+
+// Wraps one tree row in dnd-kit sortable wiring. Render-prop so the (large)
+// connection-row JSX stays inline in ConnectionsSection with its closures intact.
+function SortableRow({
+  id,
+  disabled,
+  children,
+}: {
+  id: string;
+  disabled: boolean;
+  children: (s: {
+    setNodeRef: SortableState["setNodeRef"];
+    style: React.CSSProperties;
+    attributes: SortableState["attributes"];
+    listeners: SortableState["listeners"];
+    isDragging: boolean;
+  }) => React.ReactNode;
+}) {
+  const { setNodeRef, transform, transition, attributes, listeners, isDragging } =
+    useSortable({ id, disabled });
+  const style: React.CSSProperties = {
+    transform: CSS.Translate.toString(transform),
+    transition,
+  };
+  return <>{children({ setNodeRef, style, attributes, listeners, isDragging })}</>;
+}
+
+// Hover-revealed grip carrying the drag listeners. Clicks are swallowed so the
+// handle never triggers the row's toggle/select.
+function DragHandle({
+  attributes,
+  listeners,
+  className,
+}: {
+  attributes: SortableState["attributes"];
+  listeners: SortableState["listeners"];
+  className?: string;
+}) {
+  return (
+    <button
+      {...attributes}
+      {...listeners}
+      onClick={(e) => e.stopPropagation()}
+      className={cn(
+        "flex size-6 items-center justify-center text-muted-foreground/70 opacity-0 group-hover:opacity-100 cursor-grab active:cursor-grabbing",
+        NAV_BTN_FOCUS,
+        className,
+      )}
+      title="Drag to move"
+      aria-label="Drag to reorder"
+    >
+      <GripVertical className="size-3.5" />
+    </button>
+  );
+}
 
 export default function ConnectionsSection({
   filter: externalFilter,
@@ -205,6 +284,79 @@ export default function ConnectionsSection({
         const next = new Set(prev);
         next.delete(parentId);
         return next;
+      });
+    }
+  }
+
+  // ── Drag and drop ────────────────────────────────────────────────────────────
+  // Single DndContext over the flattened tree (dnd-kit "sortable tree": one
+  // SortableContext, one items array, horizontal offset projects depth/parent).
+  // DnD is disabled while filtering — the visible rows are a subset, so a
+  // reorder would corrupt the order of hidden siblings.
+  const dndDisabled = needle.length > 0;
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+  );
+  const [activeDragId, setActiveDragId] = useState<string | null>(null);
+  const [projected, setProjected] = useState<DropTarget | null>(null);
+  // Rows frozen at drag start (dragged folder's descendants removed, so the
+  // whole subtree moves as one). The live liveQuery keeps updating the store
+  // underneath; we render this snapshot until the drag ends to keep dnd-kit's
+  // item set stable.
+  const frozenRef = useRef<FlatItem[]>([]);
+  const displayItems = activeDragId ? frozenRef.current : flatItems;
+
+  function handleDragStart(e: DragStartEvent) {
+    const id = String(e.active.id);
+    const item = flatItems.find((i) => i.id === id);
+    let frozen = flatItems;
+    if (item?.kind === "folder") {
+      const desc = new Set(descendantIds(flatItems, id));
+      frozen = flatItems.filter((i) => !desc.has(i.id));
+    }
+    frozenRef.current = frozen;
+    setActiveDragId(id);
+    setProjected(null);
+  }
+
+  function handleDragMove(e: DragMoveEvent) {
+    const { active, over, delta } = e;
+    if (!over) {
+      setProjected(null);
+      return;
+    }
+    setProjected(
+      getDropTarget(frozenRef.current, String(active.id), String(over.id), delta.x),
+    );
+  }
+
+  async function handleDragEnd(e: DragEndEvent) {
+    const { active, over, delta } = e;
+    const items = frozenRef.current;
+    // Unfreeze BEFORE the Dexie await: the write triggers a fresh liveQuery
+    // emission, and we want that re-render to use the live tree, not the frozen one.
+    setActiveDragId(null);
+    setProjected(null);
+    if (!over) return;
+
+    const id = String(active.id);
+    const t = getDropTarget(items, id, String(over.id), delta.x);
+    if (!t) return;
+    const item = items.find((i) => i.id === id);
+    if (!item) return;
+    if (item.parentId === t.parentId && item.sortOrder === t.sortOrder) return;
+
+    if (item.kind === "folder") {
+      // Cycle guard: never nest a folder into itself or a descendant.
+      if (t.parentId === id || isDescendant(folders, t.parentId, id)) return;
+      await updateConnectionFolder(id, {
+        parentId: t.parentId,
+        sortOrder: t.sortOrder,
+      });
+    } else {
+      await updateConnection(id, {
+        folderId: t.parentId,
+        sortOrder: t.sortOrder,
       });
     }
   }
@@ -435,24 +587,60 @@ export default function ConnectionsSection({
             </div>
           )}
 
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragStart={handleDragStart}
+            onDragMove={handleDragMove}
+            onDragEnd={handleDragEnd}
+            onDragCancel={() => {
+              setActiveDragId(null);
+              setProjected(null);
+            }}
+          >
+          <SortableContext
+            items={displayItems.map((i) => i.id)}
+            strategy={verticalListSortingStrategy}
+          >
           <div className="pb-1 text-sm">
-            {flatItems.map((item) => {
+            {displayItems.map((item) => {
+              // The dragged row follows the live horizontal projection so its
+              // indent previews where it will nest.
+              const depth =
+                item.id === activeDragId && projected
+                  ? projected.depth
+                  : item.depth;
+
               if (item.kind === "folder") {
                 const f = folderById.get(item.id);
                 if (!f) return null;
                 return (
-                  <FolderRow
-                    key={f.id}
-                    folder={f}
-                    depth={item.depth}
-                    collapsed={collapsedFolders.has(f.id)}
-                    onToggle={() => toggleFolder(f.id)}
-                    onRename={(name) =>
-                      void updateConnectionFolder(f.id, { name })
-                    }
-                    onNewSubfolder={() => void addFolder(f.id)}
-                    onDelete={() => void deleteConnectionFolder(f.id)}
-                  />
+                  <SortableRow key={f.id} id={f.id} disabled={dndDisabled}>
+                    {({ setNodeRef, style, attributes, listeners, isDragging }) => (
+                      <FolderRow
+                        folder={f}
+                        depth={depth}
+                        collapsed={collapsedFolders.has(f.id)}
+                        onToggle={() => toggleFolder(f.id)}
+                        onRename={(name) =>
+                          void updateConnectionFolder(f.id, { name })
+                        }
+                        onNewSubfolder={() => void addFolder(f.id)}
+                        onDelete={() => void deleteConnectionFolder(f.id)}
+                        innerRef={setNodeRef}
+                        style={style}
+                        isDragging={isDragging}
+                        dragHandle={
+                          dndDisabled ? null : (
+                            <DragHandle
+                              attributes={attributes}
+                              listeners={listeners}
+                            />
+                          )
+                        }
+                      />
+                    )}
+                  </SortableRow>
                 );
               }
 
@@ -466,229 +654,242 @@ export default function ConnectionsSection({
               const isActive = c.id === activeId;
 
               return (
-                <div
-                  key={c.id}
-                  style={{ paddingLeft: item.depth * INDENT_PX }}
-                >
-                  {/* Connection row (right-click opens the context menu) */}
-                  <ContextMenu>
-                    <ContextMenuTrigger asChild>
-                      <div
-                        className={cn(
-                          "group relative flex w-full items-center gap-1.5 px-2 py-1.5",
-                          isActive
-                            ? "bg-accent text-accent-foreground"
-                            : "hover:bg-accent/50",
-                        )}
-                      >
-                        <button
-                          onClick={() => toggleConn(c)}
-                          className={cn(
-                            "flex min-w-0 flex-1 items-center gap-1.5 text-left",
-                            NAV_BTN_FOCUS,
-                          )}
-                        >
-                          {isOpen ? (
-                            <ChevronDown
-                              className={cn(
-                                "size-3 shrink-0",
-                                isActive
-                                  ? "text-accent-foreground/80"
-                                  : "text-muted-foreground",
-                              )}
-                            />
-                          ) : (
-                            <ChevronRight
-                              className={cn(
-                                "size-3 shrink-0",
-                                isActive
-                                  ? "text-accent-foreground/80"
-                                  : "text-muted-foreground",
-                              )}
-                            />
-                          )}
-                          <span
-                            className={cn("size-2 shrink-0 rounded-full", meta.dot)}
-                          />
-                          <Icon
+                <SortableRow key={c.id} id={c.id} disabled={dndDisabled}>
+                  {({ setNodeRef, style, attributes, listeners, isDragging }) => (
+                    <div
+                      ref={setNodeRef}
+                      style={{ ...style, paddingLeft: depth * INDENT_PX }}
+                      className={cn(isDragging && "opacity-40")}
+                    >
+                      {/* Connection row (right-click opens the context menu) */}
+                      <ContextMenu>
+                        <ContextMenuTrigger asChild>
+                          <div
                             className={cn(
-                              "size-4 shrink-0",
+                              "group relative flex w-full items-center gap-1.5 px-2 py-1.5",
                               isActive
-                                ? "text-accent-foreground/80"
-                                : "text-muted-foreground",
+                                ? "bg-accent text-accent-foreground"
+                                : "hover:bg-accent/50",
                             )}
-                          />
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-1">
-                              <span className="min-w-0 truncate font-medium">
-                                {c.name}
-                              </span>
-                              <Circle
-                                className={cn(
-                                  "size-2 shrink-0",
-                                  STATUS_COLOR[status],
-                                )}
-                              />
-                              {c.isDefault && (
-                                <Star className="size-3 shrink-0 fill-amber-400 text-amber-400" />
-                              )}
-                            </div>
-                            <div
-                              className={cn(
-                                "truncate text-[11px]",
-                                isActive
-                                  ? "text-accent-foreground/70"
-                                  : "text-muted-foreground",
-                              )}
-                            >
-                              {meta.label}
-                              {c.filePath
-                                ? ` · ${c.filePath}`
-                                : c.url
-                                  ? ` · ${c.url}`
-                                  : ""}
-                            </div>
-                          </div>
-                        </button>
-
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="absolute right-1.5 top-1/2 size-6 -translate-y-1/2 opacity-0 group-hover:opacity-100 data-[state=open]:opacity-100"
-                              title="Connection actions"
-                            >
-                              <MoreVertical className="size-3.5" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-48">
-                            {connActions(c, DropdownMenuItem, DropdownMenuSeparator)}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                    </ContextMenuTrigger>
-                    <ContextMenuContent className="w-52">
-                      {connActions(c, ContextMenuItem, ContextMenuSeparator)}
-                    </ContextMenuContent>
-                  </ContextMenu>
-
-                  {/* Schema → table → column subtree */}
-                  {isOpen && (
-                    <div>
-                      {!cache && (
-                        <div className="py-1 pl-9 pr-2 text-[11px] text-muted-foreground">
-                          {status === "connected" ? "Loading schema…" : "Connecting…"}
-                        </div>
-                      )}
-                      {cache?.schemas.length === 0 && (
-                        <div className="py-1 pl-9 pr-2 text-[11px] text-muted-foreground">
-                          No databases.
-                        </div>
-                      )}
-                      {cache?.schemas.map((s) => {
-                        const sk = `${c.id}:${s.name}`;
-                        const schemaOpen = !!openSchema[sk];
-                        const tables = cache.tables[s.name] ?? [];
-                        const visibleTables = needle
-                          ? tables.filter((t) =>
-                              t.name.toLowerCase().includes(needle),
-                            )
-                          : tables;
-                        // While filtering, hide schemas with no matching tables.
-                        if (needle && visibleTables.length === 0) return null;
-                        const expanded = schemaOpen || needle.length > 0;
-
-                        return (
-                          <div key={sk}>
+                          >
                             <button
-                              onClick={() =>
-                                setOpenSchema((o) => ({ ...o, [sk]: !o[sk] }))
-                              }
+                              onClick={() => toggleConn(c)}
                               className={cn(
-                                "flex w-full items-center gap-1.5 py-1 pl-7 pr-2 hover:bg-accent",
+                                "flex min-w-0 flex-1 items-center gap-1.5 text-left",
                                 NAV_BTN_FOCUS,
                               )}
                             >
-                              {expanded ? (
-                                <ChevronDown className="size-3 text-muted-foreground" />
+                              {isOpen ? (
+                                <ChevronDown
+                                  className={cn(
+                                    "size-3 shrink-0",
+                                    isActive
+                                      ? "text-accent-foreground/80"
+                                      : "text-muted-foreground",
+                                  )}
+                                />
                               ) : (
-                                <ChevronRight className="size-3 text-muted-foreground" />
+                                <ChevronRight
+                                  className={cn(
+                                    "size-3 shrink-0",
+                                    isActive
+                                      ? "text-accent-foreground/80"
+                                      : "text-muted-foreground",
+                                  )}
+                                />
                               )}
-                              <Database className="size-3.5 text-muted-foreground" />
-                              <span className="truncate text-[13px]">{s.name}</span>
+                              <span
+                                className={cn("size-2 shrink-0 rounded-full", meta.dot)}
+                              />
+                              <Icon
+                                className={cn(
+                                  "size-4 shrink-0",
+                                  isActive
+                                    ? "text-accent-foreground/80"
+                                    : "text-muted-foreground",
+                                )}
+                              />
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-1">
+                                  <span className="min-w-0 truncate font-medium">
+                                    {c.name}
+                                  </span>
+                                  <Circle
+                                    className={cn(
+                                      "size-2 shrink-0",
+                                      STATUS_COLOR[status],
+                                    )}
+                                  />
+                                  {c.isDefault && (
+                                    <Star className="size-3 shrink-0 fill-amber-400 text-amber-400" />
+                                  )}
+                                </div>
+                                <div
+                                  className={cn(
+                                    "truncate text-[11px]",
+                                    isActive
+                                      ? "text-accent-foreground/70"
+                                      : "text-muted-foreground",
+                                  )}
+                                >
+                                  {meta.label}
+                                  {c.filePath
+                                    ? ` · ${c.filePath}`
+                                    : c.url
+                                      ? ` · ${c.url}`
+                                      : ""}
+                                </div>
+                              </div>
                             </button>
 
-                            {expanded &&
-                              visibleTables.map((t) => {
-                                const tk = `${c.id}:${s.name}.${t.name}`;
-                                const tableOpen = !!openTable[tk];
-                                const colKey = `${s.name}.${t.name}`;
-                                const cols = cache.columns[colKey];
-                                return (
-                                  <div key={tk}>
-                                    <div className="flex w-full items-center gap-1.5 py-1 pl-11 pr-2 hover:bg-accent">
-                                      <button
-                                        onClick={() => {
-                                          setOpenTable((o) => ({
-                                            ...o,
-                                            [tk]: !o[tk],
-                                          }));
-                                          if (!cols) {
-                                            void expandTable(c.id, s.name, t.name);
-                                          }
-                                        }}
-                                        className={cn("shrink-0", NAV_BTN_FOCUS)}
-                                        title={
-                                          tableOpen
-                                            ? "Collapse columns"
-                                            : "Expand columns"
-                                        }
-                                      >
-                                        {tableOpen ? (
-                                          <ChevronDown className="size-3 text-muted-foreground" />
-                                        ) : (
-                                          <ChevronRight className="size-3 text-muted-foreground" />
-                                        )}
-                                      </button>
-                                      <button
-                                        onClick={() =>
-                                          openTableQuery(c.id, s.name, t.name)
-                                        }
-                                        className={cn(
-                                          "flex min-w-0 flex-1 items-center gap-1.5 text-left",
-                                          NAV_BTN_FOCUS,
-                                        )}
-                                        title={`Open a query for ${t.name}`}
-                                      >
-                                        <Table2 className="size-3.5 shrink-0 text-muted-foreground" />
-                                        <span className="truncate">{t.name}</span>
-                                        <span className="ml-auto text-[10px] capitalize text-muted-foreground">
-                                          {t.type}
-                                        </span>
-                                      </button>
-                                    </div>
-                                    {tableOpen &&
-                                      (cols ?? []).map((col) => (
-                                        <div
-                                          key={col.name}
-                                          className="flex items-center gap-1.5 py-0.5 pl-[68px] pr-2 text-xs hover:bg-accent"
-                                        >
-                                          <span className="truncate">{col.name}</span>
-                                          <span className="ml-auto font-mono text-[10px] text-muted-foreground">
-                                            {col.type}
-                                          </span>
-                                        </div>
-                                      ))}
-                                  </div>
-                                );
-                              })}
+                            {!dndDisabled && (
+                              <DragHandle
+                                attributes={attributes}
+                                listeners={listeners}
+                                className="absolute right-8 top-1/2 -translate-y-1/2"
+                              />
+                            )}
+
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="absolute right-1.5 top-1/2 size-6 -translate-y-1/2 opacity-0 group-hover:opacity-100 data-[state=open]:opacity-100"
+                                  title="Connection actions"
+                                >
+                                  <MoreVertical className="size-3.5" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-48">
+                                {connActions(c, DropdownMenuItem, DropdownMenuSeparator)}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </div>
-                        );
-                      })}
+                        </ContextMenuTrigger>
+                        <ContextMenuContent className="w-52">
+                          {connActions(c, ContextMenuItem, ContextMenuSeparator)}
+                        </ContextMenuContent>
+                      </ContextMenu>
+
+                      {/* Schema → table → column subtree */}
+                      {isOpen && (
+                        <div>
+                          {!cache && (
+                            <div className="py-1 pl-9 pr-2 text-[11px] text-muted-foreground">
+                              {status === "connected" ? "Loading schema…" : "Connecting…"}
+                            </div>
+                          )}
+                          {cache?.schemas.length === 0 && (
+                            <div className="py-1 pl-9 pr-2 text-[11px] text-muted-foreground">
+                              No databases.
+                            </div>
+                          )}
+                          {cache?.schemas.map((s) => {
+                            const sk = `${c.id}:${s.name}`;
+                            const schemaOpen = !!openSchema[sk];
+                            const tables = cache.tables[s.name] ?? [];
+                            const visibleTables = needle
+                              ? tables.filter((t) =>
+                                  t.name.toLowerCase().includes(needle),
+                                )
+                              : tables;
+                            // While filtering, hide schemas with no matching tables.
+                            if (needle && visibleTables.length === 0) return null;
+                            const expanded = schemaOpen || needle.length > 0;
+
+                            return (
+                              <div key={sk}>
+                                <button
+                                  onClick={() =>
+                                    setOpenSchema((o) => ({ ...o, [sk]: !o[sk] }))
+                                  }
+                                  className={cn(
+                                    "flex w-full items-center gap-1.5 py-1 pl-7 pr-2 hover:bg-accent",
+                                    NAV_BTN_FOCUS,
+                                  )}
+                                >
+                                  {expanded ? (
+                                    <ChevronDown className="size-3 text-muted-foreground" />
+                                  ) : (
+                                    <ChevronRight className="size-3 text-muted-foreground" />
+                                  )}
+                                  <Database className="size-3.5 text-muted-foreground" />
+                                  <span className="truncate text-[13px]">{s.name}</span>
+                                </button>
+
+                                {expanded &&
+                                  visibleTables.map((t) => {
+                                    const tk = `${c.id}:${s.name}.${t.name}`;
+                                    const tableOpen = !!openTable[tk];
+                                    const colKey = `${s.name}.${t.name}`;
+                                    const cols = cache.columns[colKey];
+                                    return (
+                                      <div key={tk}>
+                                        <div className="flex w-full items-center gap-1.5 py-1 pl-11 pr-2 hover:bg-accent">
+                                          <button
+                                            onClick={() => {
+                                              setOpenTable((o) => ({
+                                                ...o,
+                                                [tk]: !o[tk],
+                                              }));
+                                              if (!cols) {
+                                                void expandTable(c.id, s.name, t.name);
+                                              }
+                                            }}
+                                            className={cn("shrink-0", NAV_BTN_FOCUS)}
+                                            title={
+                                              tableOpen
+                                                ? "Collapse columns"
+                                                : "Expand columns"
+                                            }
+                                          >
+                                            {tableOpen ? (
+                                              <ChevronDown className="size-3 text-muted-foreground" />
+                                            ) : (
+                                              <ChevronRight className="size-3 text-muted-foreground" />
+                                            )}
+                                          </button>
+                                          <button
+                                            onClick={() =>
+                                              openTableQuery(c.id, s.name, t.name)
+                                            }
+                                            className={cn(
+                                              "flex min-w-0 flex-1 items-center gap-1.5 text-left",
+                                              NAV_BTN_FOCUS,
+                                            )}
+                                            title={`Open a query for ${t.name}`}
+                                          >
+                                            <Table2 className="size-3.5 shrink-0 text-muted-foreground" />
+                                            <span className="truncate">{t.name}</span>
+                                            <span className="ml-auto text-[10px] capitalize text-muted-foreground">
+                                              {t.type}
+                                            </span>
+                                          </button>
+                                        </div>
+                                        {tableOpen &&
+                                          (cols ?? []).map((col) => (
+                                            <div
+                                              key={col.name}
+                                              className="flex items-center gap-1.5 py-0.5 pl-[68px] pr-2 text-xs hover:bg-accent"
+                                            >
+                                              <span className="truncate">{col.name}</span>
+                                              <span className="ml-auto font-mono text-[10px] text-muted-foreground">
+                                                {col.type}
+                                              </span>
+                                            </div>
+                                          ))}
+                                      </div>
+                                    );
+                                  })}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   )}
-                </div>
+                </SortableRow>
               );
             })}
 
@@ -705,6 +906,8 @@ export default function ConnectionsSection({
               </div>
             )}
           </div>
+          </SortableContext>
+          </DndContext>
         </>
       )}
 
