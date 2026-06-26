@@ -25,6 +25,12 @@ export interface SavedConnection {
   isDefault: boolean;
   /** File path for file-based engines (sqlite, duckdb) */
   filePath?: string;
+  /** Folder this connection lives in (connectionFolders.id). null/undefined = root.
+   *  Non-indexed beyond the v9 `folderId` index; added without changing callers. */
+  folderId?: string | null;
+  /** Sort position among its siblings. Folders and connections in the same
+   *  container share one sortOrder space (interleaved ordering). */
+  sortOrder?: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -32,6 +38,23 @@ export interface SavedConnection {
 // Type for creating new records (without auto-generated fields)
 export type CreateConnection = Omit<
   SavedConnection,
+  "id" | "createdAt" | "updatedAt"
+>;
+
+// Nested folder for organizing connections in the sidebar tree.
+// parentId: null = root level; a folder id = nested inside that folder.
+// sortOrder shares one space with sibling connections (interleaved ordering).
+export interface ConnectionFolder {
+  id: string;
+  name: string;
+  parentId: string | null;
+  sortOrder: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export type CreateConnectionFolder = Omit<
+  ConnectionFolder,
   "id" | "createdAt" | "updatedAt"
 >;
 

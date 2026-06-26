@@ -4,6 +4,8 @@
 import Dexie, { Table } from "dexie";
 import {
   SavedConnection,
+  ConnectionFolder,
+  CreateConnectionFolder,
   SavedQuery,
   SavedDashboard,
   SavedSearch,
@@ -12,6 +14,7 @@ import {
 
 export class DeebeeDatabase extends Dexie {
   connections!: Table<SavedConnection, string>;
+  connectionFolders!: Table<ConnectionFolder, string>;
   savedQueries!: Table<SavedQuery, string>;
   dashboards!: Table<SavedDashboard, string>;
   savedSearches!: Table<SavedSearch, string>;
@@ -93,6 +96,26 @@ export class DeebeeDatabase extends Dexie {
           if (a.connectionId === undefined) a.connectionId = null;
         });
     });
+
+    // v9: nested connection folders + per-item sortOrder.
+    //   New table: connectionFolders (id, parentId indexed for cascade/move).
+    //   connections gains folderId (indexed) + sortOrder. Existing connections
+    //   backfill to root (folderId=null) with sortOrder by current iteration
+    //   order, preserving creation order as the initial layout.
+    this.version(9).stores({
+      connections: "id, name, engine, isDefault, folderId, createdAt",
+      connectionFolders: "id, parentId, createdAt",
+    }).upgrade((tx) => {
+      let i = 0;
+      return tx
+        .table("connections")
+        .toCollection()
+        .modify((conn: any) => {
+          if (conn.folderId === undefined) conn.folderId = null;
+          if (conn.sortOrder === undefined) conn.sortOrder = i++ * 1000;
+        });
+      // connectionFolders starts empty — no backfill needed.
+    });
   }
 }
 
@@ -156,6 +179,56 @@ export async function setDefaultConnection(connectionId: string): Promise<void> 
 
 export async function getDefaultConnection(): Promise<SavedConnection | undefined> {
   return db.connections.filter((c) => c.isDefault).first();
+}
+
+// Connection folder operations (nested tree for the sidebar)
+export async function getAllConnectionFolders(): Promise<ConnectionFolder[]> {
+  return db.connectionFolders.toArray();
+}
+
+export async function createConnectionFolder(
+  input: CreateConnectionFolder
+): Promise<ConnectionFolder> {
+  const now = new Date();
+  const folder: ConnectionFolder = {
+    ...input,
+    id: generateId(),
+    createdAt: now,
+    updatedAt: now,
+  };
+  await db.connectionFolders.add(folder);
+  return folder;
+}
+
+export async function updateConnectionFolder(
+  id: string,
+  updates: Partial<Omit<ConnectionFolder, "id" | "createdAt">>
+): Promise<void> {
+  await db.connectionFolders.update(id, {
+    ...updates,
+    updatedAt: new Date(),
+  });
+}
+
+/**
+ * Delete a folder, moving its DIRECT children (sub-folders and connections) up
+ * one level to the folder's own parent. Never deletes connections. Runs in a
+ * single transaction so the sidebar never observes orphaned rows.
+ */
+export async function deleteConnectionFolder(id: string): Promise<void> {
+  await db.transaction("rw", db.connectionFolders, db.connections, async () => {
+    const folder = await db.connectionFolders.get(id);
+    const newParent = folder?.parentId ?? null;
+    await db.connectionFolders
+      .where("parentId")
+      .equals(id)
+      .modify({ parentId: newParent });
+    await db.connections
+      .where("folderId")
+      .equals(id)
+      .modify({ folderId: newParent });
+    await db.connectionFolders.delete(id);
+  });
 }
 
 // SavedQuery operations
