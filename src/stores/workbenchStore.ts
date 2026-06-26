@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import type {
   Engine,
   SavedConnection,
+  ConnectionFolder,
 } from "@/lib/db/schema";
 import { db } from "@/lib/db";
 import type {
@@ -63,6 +64,8 @@ interface AdminCache {
 
 interface WorkbenchState {
   connections: SavedConnection[];
+  /** Sidebar folders (nested tree). Kept in sync with Dexie alongside connections. */
+  connectionFolders: ConnectionFolder[];
   activeConnectionId: string | null;
   statuses: Record<string, ConnectionStatus>;
   capabilities: Record<string, AdapterCapabilities>;
@@ -181,6 +184,7 @@ const persistedSession = loadPersistedSession();
 
 const initialState: WorkbenchState = {
   connections: [],
+  connectionFolders: [],
   activeConnectionId: persistedSession?.activeConnectionId ?? null,
   statuses: {},
   capabilities: {},
@@ -408,19 +412,31 @@ function maybeAutoConnectRestoredSession(conns: SavedConnection[]): void {
 
 export async function loadConnections(): Promise<void> {
   try {
-    applyConnections(await db.connections.toArray());
+    const [conns, folders] = await Promise.all([
+      db.connections.toArray(),
+      db.connectionFolders.toArray(),
+    ]);
+    patch({ connectionFolders: folders });
+    applyConnections(conns);
   } catch (error) {
     patch({ error: `Failed to load connections: ${String(error)}` });
   }
 }
 
-// Keep the workbench connection list in sync with the shared Dexie table,
-// regardless of which store/route performs the write (the workbench "+"
-// dialog, the Settings ConnectionManager, or import). This is what makes a
-// newly added connection appear in the sidebar immediately without a reload.
+// Keep the workbench connection list + folders in sync with the shared Dexie
+// tables, regardless of which store/route performs the write (the workbench "+"
+// dialog, the Settings ConnectionManager, import, or a drag-and-drop reorder).
+// Both tables are read inside one liveQuery via Promise.all so they emit
+// atomically — a connection move and its folder never land in separate frames,
+// which would let buildTree see an orphaned item or a phantom folder.
 try {
-  liveQuery(() => db.connections.toArray()).subscribe({
-    next: (conns) => applyConnections(conns),
+  liveQuery(() =>
+    Promise.all([db.connections.toArray(), db.connectionFolders.toArray()]),
+  ).subscribe({
+    next: ([conns, folders]) => {
+      patch({ connectionFolders: folders });
+      applyConnections(conns);
+    },
     error: () => {
       /* observable errors are non-fatal; explicit loadConnections() remains */
     },
