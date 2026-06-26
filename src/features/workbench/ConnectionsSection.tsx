@@ -8,11 +8,12 @@
 // Used both standalone (workbench panel) and embedded in the global AppSidebar.
 // Pass `filter` to drive table filtering from an external (shared) input; omit
 // it to render this section's own "Filter tables…" box.
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   ChevronRight,
   ChevronDown,
   Plus,
+  FolderPlus,
   Table2,
   Circle,
   Search,
@@ -59,8 +60,20 @@ import {
 import { cn } from "@/lib/utils";
 import { ENGINES } from "./engineMeta";
 import NewConnectionDialog from "./NewConnectionDialog";
-import type { SavedConnection } from "@/lib/db/schema";
+import FolderRow from "./FolderRow";
+import {
+  buildTree,
+  flattenTree,
+  INDENT_PX,
+  type FlatItem,
+} from "./connectionTree";
+import type { SavedConnection, ConnectionFolder } from "@/lib/db/schema";
 import type { ConnectionDisplay } from "@/lib/db";
+import {
+  createConnectionFolder,
+  updateConnectionFolder,
+  deleteConnectionFolder,
+} from "@/lib/db";
 import {
   useWorkbenchStore,
   connectConnection,
@@ -96,10 +109,17 @@ export default function ConnectionsSection({
   filter?: string;
 }) {
   const connections = useWorkbenchStore((s) => s.connections);
+  const folders = useWorkbenchStore((s) => s.connectionFolders);
   const activeId = useWorkbenchStore((s) => s.activeConnectionId);
   const statuses = useWorkbenchStore((s) => s.statuses);
   const schemas = useWorkbenchStore((s) => s.schemas);
   const capabilities = useWorkbenchStore((s) => s.capabilities);
+
+  // Collapsed folder ids (UI-only; their children are hidden in the flattened
+  // tree). Kept local — folder collapse is ephemeral view state like openConn.
+  const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(
+    () => new Set(),
+  );
 
   // Section collapse (matches the other sidebar groups).
   const [sectionOpen, setSectionOpen] = useState(true);
@@ -128,6 +148,66 @@ export default function ConnectionsSection({
   const [editConn, setEditConn] = useState<SavedConnection | null>(null);
 
   const needle = q.trim().toLowerCase();
+
+  // ── Folder tree ────────────────────────────────────────────────────────────
+  // Build the nested tree from the two DB arrays, then flatten to rows. While
+  // filtering, ignore folder collapse so matching tables stay reachable.
+  const flatItems = useMemo<FlatItem[]>(
+    () =>
+      flattenTree(
+        buildTree(folders, connections),
+        0,
+        needle ? new Set<string>() : collapsedFolders,
+      ),
+    [folders, connections, needle, collapsedFolders],
+  );
+  const folderById = useMemo(
+    () => new Map(folders.map((f) => [f.id, f] as const)),
+    [folders],
+  );
+  const connById = useMemo(
+    () => new Map(connections.map((c) => [c.id, c] as const)),
+    [connections],
+  );
+
+  function toggleFolder(id: string) {
+    setCollapsedFolders((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  // Sort key that appends a new item at the end of its container.
+  function nextSortOrder(parentId: string | null): number {
+    const orders = [
+      ...folders
+        .filter((f) => (f.parentId ?? null) === parentId)
+        .map((f) => f.sortOrder ?? 0),
+      ...connections
+        .filter((c) => (c.folderId ?? null) === parentId)
+        .map((c) => c.sortOrder ?? 0),
+    ];
+    return (orders.length ? Math.max(...orders) : 0) + 1000;
+  }
+
+  async function addFolder(parentId: string | null) {
+    await createConnectionFolder({
+      name: "New folder",
+      parentId,
+      sortOrder: nextSortOrder(parentId),
+    });
+    if (parentId) {
+      // Make sure a freshly created subfolder is visible.
+      setCollapsedFolders((prev) => {
+        if (!prev.has(parentId)) return prev;
+        const next = new Set(prev);
+        next.delete(parentId);
+        return next;
+      });
+    }
+  }
 
   function openAdd() {
     setEditConn(null);
@@ -295,6 +375,15 @@ export default function ConnectionsSection({
           size="icon"
           variant="ghost"
           className="size-6"
+          onClick={() => void addFolder(null)}
+          title="New folder"
+        >
+          <FolderPlus className="size-4" />
+        </Button>
+        <Button
+          size="icon"
+          variant="ghost"
+          className="size-6"
           onClick={openAdd}
           title="Add connection"
         >
@@ -347,7 +436,28 @@ export default function ConnectionsSection({
           )}
 
           <div className="pb-1 text-sm">
-            {connections.map((c) => {
+            {flatItems.map((item) => {
+              if (item.kind === "folder") {
+                const f = folderById.get(item.id);
+                if (!f) return null;
+                return (
+                  <FolderRow
+                    key={f.id}
+                    folder={f}
+                    depth={item.depth}
+                    collapsed={collapsedFolders.has(f.id)}
+                    onToggle={() => toggleFolder(f.id)}
+                    onRename={(name) =>
+                      void updateConnectionFolder(f.id, { name })
+                    }
+                    onNewSubfolder={() => void addFolder(f.id)}
+                    onDelete={() => void deleteConnectionFolder(f.id)}
+                  />
+                );
+              }
+
+              const c = connById.get(item.id);
+              if (!c) return null;
               const meta = ENGINES[c.engine];
               const Icon = meta.icon;
               const status = statuses[c.id] ?? "disconnected";
@@ -356,7 +466,10 @@ export default function ConnectionsSection({
               const isActive = c.id === activeId;
 
               return (
-                <div key={c.id}>
+                <div
+                  key={c.id}
+                  style={{ paddingLeft: item.depth * INDENT_PX }}
+                >
                   {/* Connection row (right-click opens the context menu) */}
                   <ContextMenu>
                     <ContextMenuTrigger asChild>
@@ -579,7 +692,7 @@ export default function ConnectionsSection({
               );
             })}
 
-            {!connections.length && (
+            {!flatItems.length && (
               <div className="px-3 py-4 text-center text-xs text-muted-foreground space-y-2">
                 <div>No connections yet.</div>
                 <Button
