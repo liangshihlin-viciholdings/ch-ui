@@ -59,18 +59,28 @@ export default function FolderRow({
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(folder.name);
   const inputRef = useRef<HTMLInputElement>(null);
+  // Guards the commit so Escape discards and the blur fired by unmounting the
+  // input can't commit a second time after Enter/Escape already handled it.
+  const committingRef = useRef(false);
 
   useEffect(() => {
     if (editing) inputRef.current?.select();
   }, [editing]);
 
   function startRename() {
+    committingRef.current = false;
     setDraft(folder.name);
     setEditing(true);
   }
   function commit() {
+    if (committingRef.current) return;
+    committingRef.current = true;
     const name = draft.trim();
     if (name && name !== folder.name) onRename(name);
+    setEditing(false);
+  }
+  function cancelRename() {
+    committingRef.current = true; // suppress the commit the unmount blur would fire
     setEditing(false);
   }
 
@@ -83,47 +93,59 @@ export default function FolderRow({
       )}
       style={{ ...style, paddingLeft: depth * INDENT_PX + 8 }}
     >
-      <button
-        onClick={onToggle}
-        className={cn("flex min-w-0 flex-1 items-center gap-1.5 text-left", NAV_BTN_FOCUS)}
-        aria-expanded={!collapsed}
-      >
-        {collapsed ? (
-          <ChevronRight className="size-3 shrink-0 text-muted-foreground" />
-        ) : (
-          <ChevronDown className="size-3 shrink-0 text-muted-foreground" />
-        )}
-        {collapsed ? (
-          <Folder className="size-4 shrink-0 text-muted-foreground" />
-        ) : (
+      {editing ? (
+        // Rename input — rendered in PLACE of the toggle button, never nested
+        // inside it (an <input> inside a <button> is invalid HTML and makes
+        // Enter activate the button, toggling the folder).
+        <div className="flex min-w-0 flex-1 items-center gap-1.5">
+          {collapsed ? (
+            <ChevronRight className="size-3 shrink-0 text-muted-foreground" />
+          ) : (
+            <ChevronDown className="size-3 shrink-0 text-muted-foreground" />
+          )}
           <FolderOpen className="size-4 shrink-0 text-muted-foreground" />
-        )}
-        {editing ? (
           <Input
             ref={inputRef}
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
-            onClick={(e) => e.stopPropagation()}
             onBlur={commit}
             onKeyDown={(e) => {
-              if (e.key === "Enter") commit();
-              else if (e.key === "Escape") setEditing(false);
+              if (e.key === "Enter") {
+                e.preventDefault();
+                commit();
+              } else if (e.key === "Escape") {
+                e.preventDefault();
+                cancelRename();
+              }
             }}
             className="h-6 px-1 py-0 text-[13px]"
             autoFocus
           />
-        ) : (
+        </div>
+      ) : (
+        <button
+          onClick={onToggle}
+          className={cn("flex min-w-0 flex-1 items-center gap-1.5 text-left", NAV_BTN_FOCUS)}
+          aria-expanded={!collapsed}
+        >
+          {collapsed ? (
+            <ChevronRight className="size-3 shrink-0 text-muted-foreground" />
+          ) : (
+            <ChevronDown className="size-3 shrink-0 text-muted-foreground" />
+          )}
+          {collapsed ? (
+            <Folder className="size-4 shrink-0 text-muted-foreground" />
+          ) : (
+            <FolderOpen className="size-4 shrink-0 text-muted-foreground" />
+          )}
           <span
             className="min-w-0 truncate text-[13px] font-medium"
-            onDoubleClick={(e) => {
-              e.stopPropagation();
-              startRename();
-            }}
+            onDoubleClick={startRename}
           >
             {folder.name}
           </span>
-        )}
-      </button>
+        </button>
+      )}
 
       {dragHandle}
 

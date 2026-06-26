@@ -305,6 +305,9 @@ export default function ConnectionsSection({
   // item set stable.
   const frozenRef = useRef<FlatItem[]>([]);
   const displayItems = activeDragId ? frozenRef.current : flatItems;
+  // Stable id array for SortableContext (it re-diffs when this prop changes by
+  // reference; the inline .map would allocate a new array every render).
+  const displayIds = useMemo(() => displayItems.map((i) => i.id), [displayItems]);
 
   function handleDragStart(e: DragStartEvent) {
     const id = String(e.active.id);
@@ -340,10 +343,15 @@ export default function ConnectionsSection({
     if (!over) return;
 
     const id = String(active.id);
-    const t = getDropTarget(items, id, String(over.id), delta.x);
+    const overId = String(over.id);
+    const t = getDropTarget(items, id, overId, delta.x);
     if (!t) return;
     const item = items.find((i) => i.id === id);
     if (!item) return;
+    // No-op: released on its own row without changing depth. Recomputing a
+    // midpoint sortOrder here would differ from the stored value and trigger a
+    // pointless write that slowly drifts the ordering.
+    if (id === overId && item.parentId === t.parentId) return;
     if (item.parentId === t.parentId && item.sortOrder === t.sortOrder) return;
 
     if (item.kind === "folder") {
@@ -599,7 +607,7 @@ export default function ConnectionsSection({
             }}
           >
           <SortableContext
-            items={displayItems.map((i) => i.id)}
+            items={displayIds}
             strategy={verticalListSortingStrategy}
           >
           <div className="pb-1 text-sm">

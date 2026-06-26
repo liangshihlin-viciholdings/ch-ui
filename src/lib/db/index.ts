@@ -106,15 +106,16 @@ export class DeebeeDatabase extends Dexie {
       connections: "id, name, engine, isDefault, folderId, createdAt",
       connectionFolders: "id, parentId, createdAt",
     }).upgrade((tx) => {
+      // connectionFolders starts empty — no backfill needed. Iterate by
+      // createdAt (indexed) so the assigned sortOrder preserves creation order.
       let i = 0;
       return tx
         .table("connections")
-        .toCollection()
+        .orderBy("createdAt")
         .modify((conn: any) => {
           if (conn.folderId === undefined) conn.folderId = null;
           if (conn.sortOrder === undefined) conn.sortOrder = i++ * 1000;
         });
-      // connectionFolders starts empty — no backfill needed.
     });
   }
 }
@@ -136,6 +137,10 @@ export async function createConnection(
     id: generateId(),
     createdAt: now,
     updatedAt: now,
+    // Defaults for the folder tree: root level, appended after existing rows.
+    // Date.now() sorts new connections to the end (existing rows use 0,1000,...).
+    folderId: connection.folderId ?? null,
+    sortOrder: connection.sortOrder ?? Date.now(),
   };
   await db.connections.add(newConnection);
   return newConnection;
@@ -218,15 +223,26 @@ export async function updateConnectionFolder(
 export async function deleteConnectionFolder(id: string): Promise<void> {
   await db.transaction("rw", db.connectionFolders, db.connections, async () => {
     const folder = await db.connectionFolders.get(id);
-    const newParent = folder?.parentId ?? null;
+    if (!folder) return; // already gone — don't silently re-parent to root
+    const newParent = folder.parentId ?? null;
+    // Promote direct children into the folder's own slot so they stay where the
+    // folder was rather than jumping to the edge of the new container.
+    const base = folder.sortOrder ?? 0;
+    let i = 1;
     await db.connectionFolders
       .where("parentId")
       .equals(id)
-      .modify({ parentId: newParent });
+      .modify((f) => {
+        f.parentId = newParent;
+        f.sortOrder = base + i++ * 0.001;
+      });
     await db.connections
       .where("folderId")
       .equals(id)
-      .modify({ folderId: newParent });
+      .modify((c) => {
+        c.folderId = newParent;
+        c.sortOrder = base + i++ * 0.001;
+      });
     await db.connectionFolders.delete(id);
   });
 }
