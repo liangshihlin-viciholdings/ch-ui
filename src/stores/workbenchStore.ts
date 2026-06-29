@@ -25,6 +25,10 @@ import type {
 } from "@/lib/db-adapter/types";
 import { getTransport } from "@/lib/transport";
 import { getDialect } from "@/lib/db-adapter/dialects";
+import {
+  resetCompletionCaches,
+  prewarmCompletionCaches,
+} from "@/features/workspace/editor/completionSource";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -460,6 +464,13 @@ export async function connectConnection(connectionId: string): Promise<void> {
     });
     await loadSchema(connectionId);
     await loadCapabilities(connectionId);
+    // Refresh the SQL editor's autocomplete for this connection so suggestions
+    // reflect the now-connected schema. ClickHouse-only: system.completions is
+    // CH-specific and the completion source skips other engines.
+    if (conn.engine === "clickhouse") {
+      resetCompletionCaches(connectionId);
+      void prewarmCompletionCaches(connectionId);
+    }
   } catch (error) {
     toast.error(`Connection failed: ${String(error)}`);
     patch({
@@ -718,6 +729,15 @@ export function setActiveResultIndex(tabId: string, index: number): void {
 }
 
 // ─── Hook ───────────────────────────────────────────────────────────────────
+
+/**
+ * Synchronous, non-React read of the workbench store. Used by the CodeMirror
+ * completion source (which runs outside React) to resolve the active tab's
+ * connection at call-time, avoiding stale closures over a tab's connectionId.
+ */
+export function getWorkbenchState(): WorkbenchState {
+  return store.state;
+}
 
 export function useWorkbenchStore<T>(selector: (s: WorkbenchState) => T): T {
   return useStore(store, selector);

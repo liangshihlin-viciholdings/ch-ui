@@ -8,10 +8,10 @@ import type {
   Completion,
   CompletionContext,
   CompletionResult,
-  CompletionSource,
 } from "@codemirror/autocomplete";
 
 import useAppStore from "@/stores/workspaceStore";
+import { getTransport } from "@/lib/transport";
 import { appQueries } from "./appQueries";
 import { DDL_OBJECTS, getAllEngines } from "./clickhouseConstants";
 import {
@@ -32,21 +32,47 @@ interface CompletionRow {
   belongs: string | null;
 }
 
+/**
+ * Identifies which connection's schema the completion should reflect. Supplied
+ * by the multi-connection workbench (per active tab). When omitted, the source
+ * falls back to the legacy single-connection workspaceStore client, preserving
+ * the original behaviour for any caller that does not pass context.
+ */
+export interface CompletionConnectionContext {
+  connectionId?: string;
+  engine?: string;
+  selectedDatabase?: string;
+}
+
 // ─── Cache ──────────────────────────────────────────────────────────────────
 
-let completionsCache: CompletionRow[] | null = null;
+// Keyed per connection so multiple workbench connections (each potentially a
+// different ClickHouse cluster) never serve each other's stale completions.
+// The legacy single-connection editor uses the "default" key.
+const completionsCache = new Map<string, CompletionRow[]>();
 let usageTracker: AutocompleteUsageTracker | null = null;
 
-export function resetCompletionCaches(): void {
-  completionsCache = null;
+function cacheKeyFor(connectionId?: string): string {
+  return connectionId || "default";
 }
 
-export async function prewarmCompletionCaches(): Promise<void> {
-  await getAllCompletions();
+export function resetCompletionCaches(connectionId?: string): void {
+  if (connectionId) completionsCache.delete(cacheKeyFor(connectionId));
+  else completionsCache.clear();
 }
 
-function getTracker(): AutocompleteUsageTracker {
-  const connectionId = useAppStore.getState().credential?.url || "default";
+export async function prewarmCompletionCaches(
+  connectionId?: string,
+): Promise<void> {
+  await getAllCompletions(connectionId);
+}
+
+/**
+ * Point the (singleton) usage tracker at a connection before suggestions are
+ * built. Called once per completion request; the synchronous suggestion
+ * builders then read the already-positioned tracker via getTracker().
+ */
+function ensureTracker(connectionId: string): AutocompleteUsageTracker {
   if (!usageTracker) {
     usageTracker = new AutocompleteUsageTracker(connectionId);
   } else {
@@ -55,7 +81,31 @@ function getTracker(): AutocompleteUsageTracker {
   return usageTracker;
 }
 
-async function runIntrospection(query: string): Promise<unknown[]> {
+function getTracker(): AutocompleteUsageTracker {
+  if (!usageTracker) {
+    usageTracker = new AutocompleteUsageTracker("default");
+  }
+  return usageTracker;
+}
+
+async function runIntrospection(
+  query: string,
+  connectionId?: string,
+): Promise<unknown[]> {
+  // Workbench path: route through the active connection's transport (IPC on
+  // desktop, in-process ClickHouse adapter on web) so completions reflect the
+  // connection the editor tab actually targets — not the legacy singleton.
+  if (connectionId) {
+    try {
+      const result = await getTransport(connectionId).query(query);
+      return (result?.data ?? []) as unknown[];
+    } catch (err) {
+      console.error("Autocomplete introspection failed (transport):", err);
+      return [];
+    }
+  }
+
+  // Legacy path: the single-connection workspaceStore ClickHouse client.
   const client = useAppStore.getState().clickHouseClient;
   if (!client) return [];
   try {
@@ -67,12 +117,20 @@ async function runIntrospection(query: string): Promise<unknown[]> {
   }
 }
 
-async function getAllCompletions(): Promise<CompletionRow[]> {
-  if (completionsCache) return completionsCache;
-  completionsCache = (await runIntrospection(
+async function getAllCompletions(
+  connectionId?: string,
+): Promise<CompletionRow[]> {
+  const key = cacheKeyFor(connectionId);
+  const cached = completionsCache.get(key);
+  if (cached) return cached;
+  const rows = (await runIntrospection(
     appQueries.getCompletions.query,
+    connectionId,
   )) as CompletionRow[];
-  return completionsCache;
+  // Don't cache empty results: a connection that isn't ready yet would
+  // otherwise be pinned to "no completions" until an explicit reset.
+  if (rows.length > 0) completionsCache.set(key, rows);
+  return rows;
 }
 
 // ─── Completion helpers ────────────────────────────────────────────────────
@@ -369,9 +427,16 @@ function getSuggestionsForContext(
 const IDENTIFIER_BEFORE = /[\w.]+/;
 const IDENTIFIER_VALID = /^[\w.]*$/;
 
-export const clickhouseCompletionSource: CompletionSource = async (
+export async function clickhouseCompletionSource(
   context: CompletionContext,
-): Promise<CompletionResult | null> => {
+  conn?: CompletionConnectionContext,
+): Promise<CompletionResult | null> {
+  // Engine guard: system.completions is ClickHouse-specific. Non-ClickHouse
+  // workbench tabs (postgres/mysql/sqlite/duckdb) get no completions for now
+  // rather than a doomed ClickHouse query (engine-aware completions tracked
+  // as a separate follow-up).
+  if (conn?.engine && conn.engine !== "clickhouse") return null;
+
   const prefix = context.matchBefore(IDENTIFIER_BEFORE);
 
   const charBefore =
@@ -382,7 +447,14 @@ export const clickhouseCompletionSource: CompletionSource = async (
 
   if (!prefix && !context.explicit && !triggerAfterParen) return null;
 
-  const selectedDatabase = useAppStore.getState().selectedDatabase;
+  // Position the usage tracker on this connection before the synchronous
+  // suggestion builders read it via getTracker().
+  ensureTracker(
+    conn?.connectionId || useAppStore.getState().credential?.url || "default",
+  );
+
+  const selectedDatabase =
+    conn?.selectedDatabase ?? useAppStore.getState().selectedDatabase;
   const sqlContext = parseSQLContext(
     context.state.doc.toString(),
     context.pos,
@@ -395,10 +467,10 @@ export const clickhouseCompletionSource: CompletionSource = async (
       : (prefix?.from ?? context.pos);
   const to = context.pos;
 
-  const rows = await getAllCompletions();
+  const rows = await getAllCompletions(conn?.connectionId);
   if (context.aborted) return null;
 
   const options = getSuggestionsForContext(sqlContext, rows);
 
   return { from, to, options, validFor: IDENTIFIER_VALID };
-};
+}
