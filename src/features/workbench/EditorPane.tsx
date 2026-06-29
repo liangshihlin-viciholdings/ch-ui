@@ -411,6 +411,13 @@ function WorkbenchEditor({
   const runRef = useRef<() => void>(() => {});
   const runAllRef = useRef<() => void>(() => {});
 
+  // A single WorkbenchEditor instance is reused across tabs (no key on the
+  // mount), so tabId changes on this instance when the active tab switches.
+  // The memoized completion-context closure reads tabId via this ref so it
+  // always sees the current tab without rebuilding the extension array.
+  const tabIdRef = useRef(tabId);
+  tabIdRef.current = tabId;
+
   const tab = useWorkbenchStore((s) => s.tabs.find((t) => t.id === tabId));
 
   // The statement under the caret (or the active selection). Falls back to the
@@ -563,7 +570,7 @@ function WorkbenchEditor({
         // after a connection switch — without rebuilding the extension array.
         getCompletionContext: () => {
           const s = getWorkbenchState();
-          const t = s.tabs.find((x) => x.id === tabId);
+          const t = s.tabs.find((x) => x.id === tabIdRef.current);
           if (!t) return undefined;
           const c = s.connections.find((x) => x.id === t.connectionId);
           return {

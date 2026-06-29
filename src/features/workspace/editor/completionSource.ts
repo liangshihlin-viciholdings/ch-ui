@@ -50,6 +50,10 @@ export interface CompletionConnectionContext {
 // different ClickHouse cluster) never serve each other's stale completions.
 // The legacy single-connection editor uses the "default" key.
 const completionsCache = new Map<string, CompletionRow[]>();
+// Coalesce concurrent fetches per connection so rapid keystrokes (or a
+// not-yet-connected connection that returns []) don't fan out into many
+// identical system.completions queries. Shared promise, cleared on settle.
+const inFlightCompletions = new Map<string, Promise<CompletionRow[]>>();
 let usageTracker: AutocompleteUsageTracker | null = null;
 
 function cacheKeyFor(connectionId?: string): string {
@@ -57,8 +61,14 @@ function cacheKeyFor(connectionId?: string): string {
 }
 
 export function resetCompletionCaches(connectionId?: string): void {
-  if (connectionId) completionsCache.delete(cacheKeyFor(connectionId));
-  else completionsCache.clear();
+  if (connectionId) {
+    const key = cacheKeyFor(connectionId);
+    completionsCache.delete(key);
+    inFlightCompletions.delete(key);
+  } else {
+    completionsCache.clear();
+    inFlightCompletions.clear();
+  }
 }
 
 export async function prewarmCompletionCaches(
@@ -123,14 +133,24 @@ async function getAllCompletions(
   const key = cacheKeyFor(connectionId);
   const cached = completionsCache.get(key);
   if (cached) return cached;
-  const rows = (await runIntrospection(
-    appQueries.getCompletions.query,
-    connectionId,
-  )) as CompletionRow[];
-  // Don't cache empty results: a connection that isn't ready yet would
-  // otherwise be pinned to "no completions" until an explicit reset.
-  if (rows.length > 0) completionsCache.set(key, rows);
-  return rows;
+  const existing = inFlightCompletions.get(key);
+  if (existing) return existing;
+  const fetchPromise = (async () => {
+    const rows = (await runIntrospection(
+      appQueries.getCompletions.query,
+      connectionId,
+    )) as CompletionRow[];
+    // Don't cache empty results: a connection that isn't ready yet would
+    // otherwise be pinned to "no completions" until an explicit reset.
+    if (rows.length > 0) completionsCache.set(key, rows);
+    return rows;
+  })();
+  inFlightCompletions.set(key, fetchPromise);
+  try {
+    return await fetchPromise;
+  } finally {
+    inFlightCompletions.delete(key);
+  }
 }
 
 // ─── Completion helpers ────────────────────────────────────────────────────
@@ -447,11 +467,8 @@ export async function clickhouseCompletionSource(
 
   if (!prefix && !context.explicit && !triggerAfterParen) return null;
 
-  // Position the usage tracker on this connection before the synchronous
-  // suggestion builders read it via getTracker().
-  ensureTracker(
-    conn?.connectionId || useAppStore.getState().credential?.url || "default",
-  );
+  const trackerId =
+    conn?.connectionId || useAppStore.getState().credential?.url || "default";
 
   const selectedDatabase =
     conn?.selectedDatabase ?? useAppStore.getState().selectedDatabase;
@@ -470,6 +487,11 @@ export async function clickhouseCompletionSource(
   const rows = await getAllCompletions(conn?.connectionId);
   if (context.aborted) return null;
 
+  // Re-assert the tracker connection AFTER the await: getSuggestionsForContext
+  // is fully synchronous, so positioning the (singleton) tracker here keeps it
+  // correct for the whole build even if another editor's completion ran during
+  // the await (e.g. split panes on different connections).
+  ensureTracker(trackerId);
   const options = getSuggestionsForContext(sqlContext, rows);
 
   return { from, to, options, validFor: IDENTIFIER_VALID };
