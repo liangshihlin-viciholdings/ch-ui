@@ -9,13 +9,16 @@
 // The builder accepts callbacks so the SqlEditor component can wire its
 // own state without coupling this module to React.
 
-import { acceptCompletion, autocompletion, closeCompletion, completionStatus } from "@codemirror/autocomplete";
+import { acceptCompletion, autocompletion, closeCompletion, completionStatus, type CompletionSource } from "@codemirror/autocomplete";
 import { type SQLConfig, SQLDialect, sql } from "@codemirror/lang-sql";
 import { Prec, type Extension } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
 import { clickhouse as clickhouseFormatter } from "sql-formatter";
 
-import { clickhouseCompletionSource } from "./completionSource";
+import {
+	clickhouseCompletionSource,
+	type CompletionConnectionContext,
+} from "./completionSource";
 import { vimExtension } from "./vimMode";
 
 // ─── ClickHouse dialect for @codemirror/lang-sql ───────────────────────────
@@ -79,6 +82,15 @@ export interface SqlExtensionOptions {
 	 * identical vim / completion / keymap stack.
 	 */
 	languageSupport?: Extension;
+	/**
+	 * Per-tab connection context for the multi-connection workbench. When
+	 * provided, completions are fetched through the active connection's
+	 * transport, so desktop/IPC connections get suggestions too. It is invoked
+	 * at completion time (not when the extension is built), so a stable closure
+	 * over a tab id stays correct across connection switches. Omitted by the
+	 * legacy single-connection editor, which keeps the legacy client path.
+	 */
+	getCompletionContext?: () => CompletionConnectionContext | undefined;
 }
 
 /**
@@ -88,6 +100,13 @@ export interface SqlExtensionOptions {
  */
 export function createSqlExtensions(options: SqlExtensionOptions): Extension[] {
 	const extensions: Extension[] = [];
+
+	// Legacy editors pass the bare source (→ legacy workspaceStore client).
+	// The workbench passes getCompletionContext so the source resolves the
+	// active tab's connection at call-time and queries via its transport.
+	const completionOverride: CompletionSource = options.getCompletionContext
+		? (ctx) => clickhouseCompletionSource(ctx, options.getCompletionContext!())
+		: clickhouseCompletionSource;
 
 	// Vim extension MUST come before other keymaps per @replit/codemirror-vim
 	// documentation. It intercepts DOM keydown events and needs priority.
@@ -137,7 +156,7 @@ export function createSqlExtensions(options: SqlExtensionOptions): Extension[] {
 			: []),
 		options.languageSupport ?? clickhouseSql(),
 		autocompletion({
-			override: [clickhouseCompletionSource],
+			override: [completionOverride],
 			activateOnTyping: true,
 			interactionDelay: 75,
 			maxRenderedOptions: 30,

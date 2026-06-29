@@ -61,6 +61,7 @@ import { ENGINES } from "./engineMeta";
 import SaveQueryDialog from "./SaveQueryDialog";
 import {
   useWorkbenchStore,
+  getWorkbenchState,
   useDialectForTab,
   openTab,
   closeTab,
@@ -557,6 +558,20 @@ function WorkbenchEditor({
         onRunAll: () => runAllRef.current?.(),
         onSave: () => saveRef.current?.(),
         languageSupport: dialect.languageSupport(),
+        // Resolve this tab's connection live at completion time (closure over
+        // the stable tabId), so suggestions follow the active connection — even
+        // after a connection switch — without rebuilding the extension array.
+        getCompletionContext: () => {
+          const s = getWorkbenchState();
+          const t = s.tabs.find((x) => x.id === tabId);
+          if (!t) return undefined;
+          const c = s.connections.find((x) => x.id === t.connectionId);
+          return {
+            connectionId: t.connectionId,
+            engine: c?.engine,
+            selectedDatabase: c?.database,
+          };
+        },
       }),
       highlightField,
       highlightTheme,
