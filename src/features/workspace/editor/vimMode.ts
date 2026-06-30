@@ -4,7 +4,7 @@
 // here allows tree-shaking when vim mode is disabled and gives us a single
 // seam to extend if we need to customize vim commands in the future.
 
-import { vim, Vim, type CodeMirrorV } from "@replit/codemirror-vim";
+import { vim, Vim, getCM, type CodeMirrorV } from "@replit/codemirror-vim";
 import { EditorView } from "@codemirror/view";
 import { Prec } from "@codemirror/state";
 import type { Extension } from "@codemirror/state";
@@ -62,12 +62,46 @@ function vimScrollExtension(): Extension {
   );
 }
 
+// ─── Enter / Backspace in normal & visual mode ─────────────────────────────
+// Vim maps <CR> → j^ and <BS> → h (motions, not edits), but the vim plugin
+// handles keys at default precedence. basicSetup's defaultKeymap binds Enter →
+// insertNewline and Backspace → deleteCharBackward at the same level, so it
+// ties/wins and mutates the buffer in normal mode. We intercept these two keys
+// at Prec.highest when NOT in insert mode and forward them to vim (which does
+// the mode-correct motion in both normal and visual mode); insert mode falls
+// through to CM's default editing. Same approach as vimScrollExtension above.
+function vimNonInsertEditKeyFix(): Extension {
+  return Prec.highest(
+    EditorView.domEventHandlers({
+      keydown(event, view) {
+        if (event.ctrlKey || event.altKey || event.metaKey || event.shiftKey)
+          return false;
+        const vimKey =
+          event.key === "Enter"
+            ? "<CR>"
+            : event.key === "Backspace"
+              ? "<BS>"
+              : null;
+        if (!vimKey) return false;
+        const cm = getCM(view);
+        const vimState = (cm?.state as { vim?: { insertMode?: boolean } } | undefined)
+          ?.vim;
+        if (!cm || !vimState || vimState.insertMode) return false;
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        Vim.handleKey(cm, vimKey, "user");
+        return true;
+      },
+    }),
+  );
+}
+
 /**
  * Build the vim-mode Extension. Pass the returned extension to the editor
  * in its `extensions` array when vim mode is enabled.
  */
 export function vimExtension(): Extension {
-  return [vim({ status: true }), vimScrollExtension()];
+  return [vim({ status: true }), vimScrollExtension(), vimNonInsertEditKeyFix()];
 }
 
 /**
@@ -79,7 +113,34 @@ export function registerVimExCommands(options: {
   onSave: () => void;
   onRun: () => void;
   onRunAll: () => void;
+  // Tab navigation/closing is store-specific: the legacy editor uses
+  // workspaceStore, the multi-engine workbench uses workbenchStore. Vim commands
+  // are global (one Vim singleton), so each editor passes its own store's
+  // handlers and the most-recently-mounted editor wins. When omitted, these
+  // fall back to the legacy workspaceStore.
+  onNextTab?: () => void;
+  onPrevTab?: () => void;
+  onCloseTab?: () => void;
+  onCloseAllTabs?: () => void;
 }): void {
+  const nextTab =
+    options.onNextTab ??
+    (() => {
+      const { tabs, activeTab } = workspaceStore.state;
+      const idx = tabs.findIndex((t) => t.id === activeTab);
+      if (idx >= 0) setActiveTab(tabs[(idx + 1) % tabs.length].id);
+    });
+  const prevTab =
+    options.onPrevTab ??
+    (() => {
+      const { tabs, activeTab } = workspaceStore.state;
+      const idx = tabs.findIndex((t) => t.id === activeTab);
+      if (idx >= 0) setActiveTab(tabs[(idx - 1 + tabs.length) % tabs.length].id);
+    });
+  const closeCurrentTab =
+    options.onCloseTab ?? (() => removeTab(workspaceStore.state.activeTab));
+  const closeAll = options.onCloseAllTabs ?? (() => closeAllTabs());
+
   Vim.defineEx("w", "w", () => {
     options.onSave();
   });
@@ -90,31 +151,23 @@ export function registerVimExCommands(options: {
     options.onRunAll();
   });
   Vim.defineEx("q", "q", () => {
-    removeTab(workspaceStore.state.activeTab);
+    closeCurrentTab();
   });
   Vim.defineEx("qa", "qa", () => {
-    closeAllTabs();
+    closeAll();
   });
   Vim.defineEx("wq", "wq", () => {
     options.onSave();
-    removeTab(workspaceStore.state.activeTab);
+    closeCurrentTab();
   });
   Vim.defineEx("x", "x", () => {
     options.onSave();
-    removeTab(workspaceStore.state.activeTab);
+    closeCurrentTab();
   });
-  Vim.defineAction("vimNextTab", () => {
-    const { tabs, activeTab } = workspaceStore.state;
-    const idx = tabs.findIndex((t) => t.id === activeTab);
-    if (idx >= 0) setActiveTab(tabs[(idx + 1) % tabs.length].id);
-  });
+  Vim.defineAction("vimNextTab", () => nextTab());
   Vim.mapCommand("gt", "action", "vimNextTab", {}, {});
 
-  Vim.defineAction("vimPrevTab", () => {
-    const { tabs, activeTab } = workspaceStore.state;
-    const idx = tabs.findIndex((t) => t.id === activeTab);
-    if (idx >= 0) setActiveTab(tabs[(idx - 1 + tabs.length) % tabs.length].id);
-  });
+  Vim.defineAction("vimPrevTab", () => prevTab());
   Vim.mapCommand("gT", "action", "vimPrevTab", {}, {});
 
   // ── Comment toggling (gc{motion}, gcc, visual gc) ───────────────────────────

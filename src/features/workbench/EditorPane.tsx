@@ -473,10 +473,32 @@ function WorkbenchEditor({
 
   useEffect(() => {
     if (!vimMode) return;
+    // Drive gt/gT/:q/:qa against the workbench store (not the legacy
+    // workspaceStore the vim module defaults to), so tab navigation works here.
     registerVimExCommands({
       onSave: () => saveRef.current?.(),
       onRun: () => runRef.current?.(),
       onRunAll: () => runAllRef.current?.(),
+      onNextTab: () => {
+        const { tabs, activeTabId } = getWorkbenchState();
+        const idx = tabs.findIndex((t) => t.id === activeTabId);
+        if (idx >= 0) setActiveTab(tabs[(idx + 1) % tabs.length].id);
+      },
+      onPrevTab: () => {
+        const { tabs, activeTabId } = getWorkbenchState();
+        const idx = tabs.findIndex((t) => t.id === activeTabId);
+        if (idx >= 0)
+          setActiveTab(tabs[(idx - 1 + tabs.length) % tabs.length].id);
+      },
+      onCloseTab: () => {
+        const { activeTabId } = getWorkbenchState();
+        if (activeTabId) closeTab(activeTabId);
+      },
+      onCloseAllTabs: () => {
+        getWorkbenchState()
+          .tabs.map((t) => t.id)
+          .forEach((id) => closeTab(id));
+      },
     });
   }, [vimMode]);
 
