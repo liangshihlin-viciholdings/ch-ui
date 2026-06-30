@@ -42,11 +42,19 @@ export class InProcessTransport implements AdapterTransport {
     params?: Record<string, string>,
     cancelToken?: string,
   ) {
-    return this.adapter.query(sql, params, getSignal(cancelToken));
+    try {
+      return await this.adapter.query(sql, params, getSignal(cancelToken));
+    } finally {
+      if (cancelToken) abortControllers.delete(cancelToken);
+    }
   }
 
   async command(sql: string, cancelToken?: string): Promise<void> {
-    return this.adapter.command(sql, getSignal(cancelToken));
+    try {
+      return await this.adapter.command(sql, getSignal(cancelToken));
+    } finally {
+      if (cancelToken) abortControllers.delete(cancelToken);
+    }
   }
 
   async cancel(cancelToken: string): Promise<void> {

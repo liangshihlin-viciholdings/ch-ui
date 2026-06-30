@@ -30,7 +30,7 @@ import { foldGutter, indentOnInput, bracketMatching } from "@codemirror/language
 import { closeBrackets, closeBracketsKeymap, completionKeymap } from "@codemirror/autocomplete";
 import { defaultKeymap, historyKeymap, indentWithTab } from "@codemirror/commands";
 import { searchKeymap, highlightSelectionMatches } from "@codemirror/search";
-import { Check, ChevronDown, Play, Save, X, Plus, Power, Circle } from "lucide-react";
+import { Check, ChevronDown, Play, Save, X, Plus, Power, Circle, Square } from "lucide-react";
 import {
   ResizableHandle,
   ResizablePanel,
@@ -71,6 +71,7 @@ import {
   updateTabSql,
   runQuery,
   runAllQueries,
+  cancelQuery,
   setActiveResultIndex,
   type WorkbenchResultItem,
 } from "@/stores/workbenchStore";
@@ -680,6 +681,9 @@ export default function EditorPane() {
   const activeTabId = useWorkbenchStore((s) => s.activeTabId);
   const connections = useWorkbenchStore((s) => s.connections);
   const statuses = useWorkbenchStore((s) => s.statuses);
+  const executing = useWorkbenchStore((s) =>
+    activeTabId ? (s.executing[activeTabId] ?? false) : false,
+  );
   const [saving, setSaving] = useState(false);
 
   // The toolbar (Run / Run all / 1-of-N) lives here, but only the editor knows
@@ -805,19 +809,32 @@ export default function EditorPane() {
                 {(stmtInfo.index >= 0 ? stmtInfo.index : 0) + 1}/{statementCount}
               </span>
             )}
-            <Button
-              size="sm"
-              className="h-7 gap-1.5"
-              title="Run the statement under the cursor (Ctrl+Enter)"
-              onClick={() => editorApiRef.current?.runCurrent()}
-            >
-              <Play className="size-3.5" /> Run
-            </Button>
+            {executing ? (
+              <Button
+                size="sm"
+                variant="destructive"
+                className="h-7 gap-1.5"
+                title="Cancel the running query"
+                onClick={() => activeTabId && void cancelQuery(activeTabId)}
+              >
+                <Square className="size-3.5" /> Cancel
+              </Button>
+            ) : (
+              <Button
+                size="sm"
+                className="h-7 gap-1.5"
+                title="Run the statement under the cursor (Ctrl+Enter)"
+                onClick={() => editorApiRef.current?.runCurrent()}
+              >
+                <Play className="size-3.5" /> Run
+              </Button>
+            )}
             {statementCount > 1 && (
               <Button
                 size="sm"
                 variant="secondary"
                 className="h-7 gap-1.5"
+                disabled={executing}
                 title="Run all statements; one result tab each (Ctrl+Shift+Enter)"
                 onClick={() => editorApiRef.current?.runAll()}
               >

@@ -655,6 +655,12 @@ function errorResult(error: unknown): AdapterQueryResult {
   };
 }
 
+// In-flight cancel tokens, keyed by tabId. The transport turns a token into an
+// AbortController (in-process) or an IPC cancel (desktop). Kept outside the
+// store: it is imperative runtime state, not rendered.
+const queryCancelTokens = new Map<string, string>();
+let cancelTokenSeq = 0;
+
 /**
  * Run a single statement (the statement under the cursor for Ctrl+Enter, or a
  * selection). When `sql` is omitted the whole tab buffer is used. The result
@@ -665,6 +671,8 @@ export async function runQuery(tabId: string, sql?: string): Promise<void> {
   if (!tab) return;
   const queryText = (sql ?? tab.sql).trim();
   const transport = getTransport(tab.connectionId);
+  const cancelToken = `wb-${tabId}-${++cancelTokenSeq}`;
+  queryCancelTokens.set(tabId, cancelToken);
 
   patch({
     executing: { ...store.state.executing, [tabId]: true },
@@ -672,10 +680,14 @@ export async function runQuery(tabId: string, sql?: string): Promise<void> {
 
   let item: WorkbenchResultItem;
   try {
-    const result = await transport.query(queryText);
+    const result = await transport.query(queryText, undefined, cancelToken);
     item = { queryText, result };
   } catch (error) {
     item = { queryText, result: errorResult(error) };
+  } finally {
+    if (queryCancelTokens.get(tabId) === cancelToken) {
+      queryCancelTokens.delete(tabId);
+    }
   }
   patch({
     results: { ...store.state.results, [tabId]: [item] },
@@ -697,20 +709,30 @@ export async function runAllQueries(
   const tab = store.state.tabs.find((t) => t.id === tabId);
   if (!tab) return;
   const transport = getTransport(tab.connectionId);
+  const cancelToken = `wb-${tabId}-${++cancelTokenSeq}`;
+  queryCancelTokens.set(tabId, cancelToken);
 
   patch({
     executing: { ...store.state.executing, [tabId]: true },
   });
 
   const items: WorkbenchResultItem[] = [];
-  for (const raw of queries) {
-    const queryText = raw.trim();
-    if (!queryText) continue;
-    try {
-      const result = await transport.query(queryText);
-      items.push({ queryText, result });
-    } catch (error) {
-      items.push({ queryText, result: errorResult(error) });
+  try {
+    for (const raw of queries) {
+      // Stop between statements if the run was cancelled (token cleared).
+      if (queryCancelTokens.get(tabId) !== cancelToken) break;
+      const queryText = raw.trim();
+      if (!queryText) continue;
+      try {
+        const result = await transport.query(queryText, undefined, cancelToken);
+        items.push({ queryText, result });
+      } catch (error) {
+        items.push({ queryText, result: errorResult(error) });
+      }
+    }
+  } finally {
+    if (queryCancelTokens.get(tabId) === cancelToken) {
+      queryCancelTokens.delete(tabId);
     }
   }
 
@@ -719,6 +741,27 @@ export async function runAllQueries(
     activeResultIndex: { ...store.state.activeResultIndex, [tabId]: 0 },
     executing: { ...store.state.executing, [tabId]: false },
   });
+}
+
+/**
+ * Abort the in-flight query (or multi-statement run) for a tab. Clears the
+ * tab's cancel token so a Run-all loop stops between statements, and tells the
+ * transport to cancel the statement currently executing (AbortController
+ * in-process; IPC cancel on desktop). Best-effort: a failed cancel is ignored.
+ */
+export async function cancelQuery(tabId: string): Promise<void> {
+  const token = queryCancelTokens.get(tabId);
+  if (!token) return;
+  queryCancelTokens.delete(tabId);
+  const tab = store.state.tabs.find((t) => t.id === tabId);
+  if (tab) {
+    try {
+      await getTransport(tab.connectionId).cancel(token);
+    } catch {
+      // best-effort — the run's own catch will record any resulting error
+    }
+  }
+  patch({ executing: { ...store.state.executing, [tabId]: false } });
 }
 
 /** Select which statement's result is shown in the results panel. */
