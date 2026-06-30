@@ -17,7 +17,8 @@ import {
   FileCode,
   Hash,
   Copy,
-  Download
+  Download,
+  Pencil
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -41,6 +42,7 @@ import { toast } from "sonner";
 import useAppStore from "@/stores/workspaceStore";
 import { useTreeExpansion } from "@/features/explorer/context/TreeExpansionContext";
 import { formatBytes } from "@/lib/utils";
+import { buildColumnEditDDL, buildViewEditDDL } from "@/lib/schema-ddl/clickhouse";
 
 export interface TreeNodeData {
   name: string;
@@ -168,6 +170,70 @@ const TreeNode: React.FC<TreeNodeProps> = ({
         content: ddl,
       });
     },
+    [addTab, getTabById, setActiveTab, runQuery]
+  );
+
+  // Open an editable ALTER TABLE scaffold (built from the live column list) in a
+  // SQL tab. The user reviews and runs it — we never auto-run generated DDL.
+  const handleEditSchema = useCallback(
+    (database: string, table: string) => async () => {
+      const result = await runQuery(`DESCRIBE \`${database}\`.\`${table}\``);
+      if (result.error) {
+        toast.error(result.error);
+        return;
+      }
+      const columns = (result.data ?? []).map((r) => {
+        const row = r as Record<string, unknown>;
+        return { name: String(row.name ?? ""), type: String(row.type ?? "") };
+      });
+      const tabId = `edit-schema-${database}-${table}`;
+      const existingTab = getTabById(tabId);
+      if (existingTab) {
+        setActiveTab(existingTab.id);
+        return;
+      }
+      await addTab({
+        id: tabId,
+        type: "sql",
+        title: `Edit - ${table}`,
+        content: buildColumnEditDDL(database, table, columns),
+      });
+    },
+    [addTab, getTabById, setActiveTab, runQuery]
+  );
+
+  // Open an editable view / materialized-view definition in a SQL tab.
+  const handleEditView = useCallback(
+    (database: string, name: string, kind: "view" | "materialized_view") =>
+      async () => {
+        const result = await runQuery(
+          `SHOW CREATE TABLE \`${database}\`.\`${name}\``
+        );
+        if (result.error) {
+          toast.error(result.error);
+          return;
+        }
+        const row = result.data?.[0] as Record<string, unknown> | undefined;
+        const statement =
+          (row?.statement as string) ??
+          (row ? String(Object.values(row)[0] ?? "") : "");
+        if (!statement) {
+          toast.error(`Could not retrieve definition for ${name}`);
+          return;
+        }
+        const tabId = `edit-view-${database}-${name}`;
+        const existingTab = getTabById(tabId);
+        if (existingTab) {
+          setActiveTab(existingTab.id);
+          return;
+        }
+        await addTab({
+          id: tabId,
+          type: "sql",
+          title: `Edit - ${name}`,
+          content: buildViewEditDDL(database, name, statement, kind),
+        });
+      },
     [addTab, getTabById, setActiveTab, runQuery]
   );
 
@@ -334,11 +400,31 @@ const TreeNode: React.FC<TreeNodeProps> = ({
           ? fn(parentDatabaseName, node.name)
           : void toast.error("Parent database name is undefined.");
 
+    const editSchemaEntry: MenuOption = {
+      label: "Edit Schema",
+      icon: <Pencil className="w-4 h-4 mr-2" />,
+      action: needsParent((db, name) => handleEditSchema(db, name)()),
+    };
+    const editViewEntry: MenuOption = {
+      label: "Edit View",
+      icon: <Pencil className="w-4 h-4 mr-2" />,
+      action: needsParent((db, name) => handleEditView(db, name, "view")()),
+    };
+    const editMaterializedViewEntry: MenuOption = {
+      label: "Edit Materialized View",
+      icon: <Pencil className="w-4 h-4 mr-2" />,
+      action: needsParent((db, name) =>
+        handleEditView(db, name, "materialized_view")()
+      ),
+    };
+
     // Shared menu for queryable leaf nodes (table / view / mv / dictionary).
-    // Only the destructive Delete action varies by node type.
+    // Only the destructive Delete action varies by node type. The optional edit
+    // entry sits under "View DDL" (tables get column edits, views get the body).
     const leafMenu = (
       deleteLabel: string,
-      deleteAction: (db: string, name: string) => void
+      deleteAction: (db: string, name: string) => void,
+      editEntry?: MenuOption
     ): MenuOption[] => [
       {
         label: "View Info",
@@ -351,6 +437,7 @@ const TreeNode: React.FC<TreeNodeProps> = ({
         action: needsParent((db, name) => handleViewDDL(db, name)()),
         separatorBefore: true,
       },
+      ...(editEntry ? [editEntry] : []),
       {
         label: "Count Rows",
         icon: <Hash className="w-4 h-4 mr-2" />,
@@ -413,18 +500,21 @@ const TreeNode: React.FC<TreeNodeProps> = ({
           separatorBefore: true,
         },
       ] as MenuOption[],
-      table: leafMenu("Delete", actionDropTable),
-      view: leafMenu("Delete", actionDropView),
+      table: leafMenu("Delete", actionDropTable, editSchemaEntry),
+      view: leafMenu("Delete", actionDropView, editViewEntry),
       dictionary: leafMenu("Delete Dictionary", actionDropDictionary),
       materialized_view: leafMenu(
         "Delete Materialized View",
-        actionDropMaterializedView
+        actionDropMaterializedView,
+        editMaterializedViewEntry
       ),
     };
   }, [
     parentDatabaseName,
     node.name,
     handleViewDDL,
+    handleEditSchema,
+    handleEditView,
     handleCountRows,
     handleCopy,
     actionDropDatabase,
@@ -433,6 +523,13 @@ const TreeNode: React.FC<TreeNodeProps> = ({
     actionDropDictionary,
     actionDropMaterializedView,
   ]);
+
+  // On-disk size shown next to the node. Leaves hide a 0/unknown size; group
+  // nodes (database, Tables/Views/Dictionaries folders) show a dash instead so
+  // empty groups read clearly, matching ClickHouse Cloud's sidebar.
+  const sizeBytes = Number(node.total_bytes) || 0;
+  const sizeLabel =
+    sizeBytes > 0 ? formatBytes(sizeBytes) : node.children ? "—" : null;
 
   return (
     <>
@@ -473,9 +570,9 @@ const TreeNode: React.FC<TreeNodeProps> = ({
                 className="text-xs flex items-center gap-1"
               >
                 <p className="truncate">{node.name}</p>
-                {node.total_bytes !== undefined && node.total_bytes > 0 && (
+                {sizeLabel && (
                   <span className="text-muted-foreground text-[10px] shrink-0">
-                    ({formatBytes(node.total_bytes)})
+                    ({sizeLabel})
                   </span>
                 )}
               </div>
