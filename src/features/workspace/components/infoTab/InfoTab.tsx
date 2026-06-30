@@ -282,6 +282,8 @@ const InfoTab: React.FC<InfoTabProps> = ({ database, tableName }) => {
           </TabsContent>
           <TabsContent value="constraints">
             <ConstraintsSection
+              database={database}
+              tableName={tableName}
               createTableQuery={(data as TableData).create_table_query}
             />
           </TabsContent>

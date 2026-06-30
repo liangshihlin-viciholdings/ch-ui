@@ -1,10 +1,11 @@
 import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Loader2, RefreshCcw } from "lucide-react";
+import { Loader2, RefreshCcw, Pencil } from "lucide-react";
 import useAppStore from "@/stores/workspaceStore";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/common/DataTable";
+import { buildIndexEditDDL } from "@/lib/schema-ddl/clickhouse";
 
 interface IndicesSectionProps {
   database: string;
@@ -28,7 +29,7 @@ const IndicesSection: React.FC<IndicesSectionProps> = ({
   database,
   tableName,
 }) => {
-  const { runQuery } = useAppStore();
+  const { runQuery, addTab, getTabById, setActiveTab } = useAppStore();
   const [result, setResult] = useState<QueryResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -61,6 +62,26 @@ const IndicesSection: React.FC<IndicesSectionProps> = ({
     fetchIndices();
   }, [database, tableName]);
 
+  const openEditor = async () => {
+    const indices = (result?.data ?? []).map((r: any) => ({
+      name: String(r.name ?? ""),
+      type: String(r.type_full ?? ""),
+      expr: String(r.expr ?? ""),
+    }));
+    const tabId = `edit-indices-${database}-${tableName}`;
+    const existing = getTabById(tabId);
+    if (existing) {
+      setActiveTab(existing.id);
+      return;
+    }
+    await addTab({
+      id: tabId,
+      type: "sql",
+      title: `Edit indices - ${tableName}`,
+      content: buildIndexEditDDL(database, tableName, indices),
+    });
+  };
+
   if (loading) {
     return (
       <Card>
@@ -80,15 +101,27 @@ const IndicesSection: React.FC<IndicesSectionProps> = ({
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0">
         <CardTitle>Data-skipping indices</CardTitle>
-        <Button
-          onClick={() => fetchIndices(true)}
-          variant="ghost"
-          className="flex items-center space-x-2 text-sm"
-          disabled={isRefreshing}
-        >
-          <RefreshCcw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
-          <span>Refresh</span>
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button
+            onClick={openEditor}
+            variant="ghost"
+            className="flex items-center space-x-2 text-sm"
+          >
+            <Pencil className="h-4 w-4" />
+            <span>Edit</span>
+          </Button>
+          <Button
+            onClick={() => fetchIndices(true)}
+            variant="ghost"
+            className="flex items-center space-x-2 text-sm"
+            disabled={isRefreshing}
+          >
+            <RefreshCcw
+              className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`}
+            />
+            <span>Refresh</span>
+          </Button>
+        </div>
       </CardHeader>
       <CardContent className="max-h-[500px] overflow-auto">
         {error ? (

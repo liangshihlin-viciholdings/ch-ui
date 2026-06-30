@@ -1,9 +1,17 @@
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { parseClickHouseConstraints } from "@/lib/schema-ddl/clickhouse";
+import { Button } from "@/components/ui/button";
+import { Pencil } from "lucide-react";
+import useAppStore from "@/stores/workspaceStore";
+import {
+  parseClickHouseConstraints,
+  buildConstraintEditDDL,
+} from "@/lib/schema-ddl/clickhouse";
 
 interface ConstraintsSectionProps {
+  database: string;
+  tableName: string;
   /** The table's CREATE TABLE statement (system.tables.create_table_query). */
   createTableQuery: string;
 }
@@ -12,25 +20,51 @@ interface ConstraintsSectionProps {
 // from the table's CREATE statement (already fetched by InfoTab). Constraints
 // are validated on INSERT only — they are not enforced on existing rows.
 const ConstraintsSection: React.FC<ConstraintsSectionProps> = ({
+  database,
+  tableName,
   createTableQuery,
 }) => {
+  const { addTab, getTabById, setActiveTab } = useAppStore();
   const constraints = React.useMemo(
     () => parseClickHouseConstraints(createTableQuery ?? ""),
     [createTableQuery],
   );
 
+  const openEditor = async () => {
+    const tabId = `edit-constraints-${database}-${tableName}`;
+    const existing = getTabById(tabId);
+    if (existing) {
+      setActiveTab(existing.id);
+      return;
+    }
+    await addTab({
+      id: tabId,
+      type: "sql",
+      title: `Edit constraints - ${tableName}`,
+      content: buildConstraintEditDDL(database, tableName, constraints),
+    });
+  };
+
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0">
         <CardTitle>Constraints</CardTitle>
+        <Button
+          onClick={openEditor}
+          variant="ghost"
+          className="flex items-center space-x-2 text-sm"
+        >
+          <Pencil className="h-4 w-4" />
+          <span>Edit</span>
+        </Button>
       </CardHeader>
       <CardContent className="max-h-[500px] overflow-auto">
         {constraints.length === 0 ? (
           <Alert>
             <AlertTitle>No constraints</AlertTitle>
             <AlertDescription>
-              This table has no CHECK constraints. Use “Edit Schema” on the table
-              to add one. ClickHouse checks constraints on INSERT only.
+              This table has no CHECK constraints. Use “Edit” to add one.
+              ClickHouse checks constraints on INSERT only.
             </AlertDescription>
           </Alert>
         ) : (
