@@ -175,3 +175,23 @@ ${stmt
   .join("\n")}
 `;
 }
+
+/**
+ * Extract CHECK constraints from a ClickHouse CREATE TABLE statement. ClickHouse
+ * has no system.constraints table, so the create_table_query / SHOW CREATE
+ * output is the only source. SHOW CREATE prints one constraint per line, which
+ * is what this parses.
+ *
+ * ponytail: line-based parse — a CHECK expression that wraps across multiple
+ * lines is not handled (rare); upgrade to a paren-aware scan if it ever appears.
+ */
+export function parseClickHouseConstraints(
+  createTableQuery: string,
+): ConstraintRef[] {
+  const out: ConstraintRef[] = [];
+  for (const raw of createTableQuery.split("\n")) {
+    const m = raw.match(/^\s*CONSTRAINT\s+`?([\w$]+)`?\s+CHECK\s+(.+?),?\s*$/i);
+    if (m) out.push({ name: m[1], expr: m[2].trim() });
+  }
+  return out;
+}

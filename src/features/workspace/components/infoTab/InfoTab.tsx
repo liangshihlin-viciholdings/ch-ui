@@ -11,6 +11,8 @@ import {
   AlertCircle,
   Share,
   Share2,
+  ListTree,
+  ShieldCheck,
 } from "lucide-react";
 import useAppStore from "@/stores/workspaceStore";
 import LoadingOverlay from "./LoadingOverlay";
@@ -19,6 +21,8 @@ import DetailsContent from "./DetailsContent";
 import CreateQuerySection from "./CreateQuerySection";
 import DataSampleSection from "./DataSampleSection";
 import SchemaSection from "./SchemaSection";
+import IndicesSection from "./IndicesSection";
+import ConstraintsSection from "./ConstraintsSection";
 import { useLocation } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -202,7 +206,7 @@ const InfoTab: React.FC<InfoTabProps> = ({ database, tableName }) => {
       onValueChange={setActiveTab}
       className="w-full space-y-6"
     >
-      <TabsList className="grid w-full grid-cols-5 gap-1">
+      <TabsList className="grid w-full grid-cols-7 gap-1">
         <TabsTrigger value="overview" className="flex items-center space-x-2">
           <FileText className="w-4 h-4" />
           <span>Overview</span>
@@ -228,6 +232,17 @@ const InfoTab: React.FC<InfoTabProps> = ({ database, tableName }) => {
               <Table className="w-4 h-4" />
               <span>Schema</span>
             </TabsTrigger>
+            <TabsTrigger value="indices" className="flex items-center space-x-2">
+              <ListTree className="w-4 h-4" />
+              <span>Indices</span>
+            </TabsTrigger>
+            <TabsTrigger
+              value="constraints"
+              className="flex items-center space-x-2"
+            >
+              <ShieldCheck className="w-4 h-4" />
+              <span>Constraints</span>
+            </TabsTrigger>
           </>
         )}
       </TabsList>
@@ -251,6 +266,12 @@ const InfoTab: React.FC<InfoTabProps> = ({ database, tableName }) => {
         </TabsContent>
       )}
 
+      {tableName && (
+        <TabsContent value="indices">
+          <IndicesSection database={database} tableName={tableName} />
+        </TabsContent>
+      )}
+
       {tableName && data && (
         <>
           <TabsContent value="query">
@@ -258,6 +279,11 @@ const InfoTab: React.FC<InfoTabProps> = ({ database, tableName }) => {
           </TabsContent>
           <TabsContent value="data_sample">
             <DataSampleSection database={database} tableName={tableName} />
+          </TabsContent>
+          <TabsContent value="constraints">
+            <ConstraintsSection
+              createTableQuery={(data as TableData).create_table_query}
+            />
           </TabsContent>
         </>
       )}

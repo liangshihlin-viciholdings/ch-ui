@@ -4,6 +4,7 @@ import {
   buildIndexEditDDL,
   buildConstraintEditDDL,
   buildViewEditDDL,
+  parseClickHouseConstraints,
 } from "./clickhouse";
 
 describe("buildColumnEditDDL", () => {
@@ -104,5 +105,34 @@ describe("buildViewEditDDL", () => {
         expect(line.trimStart().startsWith("--")).toBe(true);
       }
     }
+  });
+});
+
+describe("parseClickHouseConstraints", () => {
+  const ddl = [
+    "CREATE TABLE db.t",
+    "(",
+    "    `a` UInt64,",
+    "    `b` String,",
+    "    CONSTRAINT c_positive CHECK a > 0,",
+    "    CONSTRAINT c_len CHECK length(b) < 100",
+    ")",
+    "ENGINE = MergeTree",
+    "ORDER BY a",
+  ].join("\n");
+
+  it("extracts each constraint name and expression", () => {
+    expect(parseClickHouseConstraints(ddl)).toEqual([
+      { name: "c_positive", expr: "a > 0" },
+      { name: "c_len", expr: "length(b) < 100" },
+    ]);
+  });
+
+  it("returns an empty array when there are no constraints", () => {
+    expect(
+      parseClickHouseConstraints(
+        "CREATE TABLE db.t (`a` UInt64) ENGINE = Memory",
+      ),
+    ).toEqual([]);
   });
 });
