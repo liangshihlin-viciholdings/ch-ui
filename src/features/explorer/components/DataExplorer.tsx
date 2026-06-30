@@ -30,6 +30,7 @@ import ExplorerTabs from "@/features/explorer/components/ExplorerTabs";
 import SavedQueriesList from "@/features/explorer/components/SavedQueriesList";
 import { TreeExpansionContext } from "@/features/explorer/context/TreeExpansionContext";
 import { collectParentPaths } from "@/features/explorer/utils/collectTreePaths";
+import { buildFolders, sumBytes } from "@/features/explorer/utils/buildFolders";
 
 const DatabaseExplorer: React.FC = () => {
   const {
@@ -61,97 +62,21 @@ const DatabaseExplorer: React.FC = () => {
     return dataBaseExplorer.filter((db) => db.name === selectedDatabase);
   }, [dataBaseExplorer, selectedDatabase]);
 
-  // Transform databases to include folder structure
+  // Transform databases into folder groups, each annotated with an aggregate
+  // disk size (sum of its tables) for a ClickHouse-Cloud-style sidebar.
   const organizedDatabases = useMemo(() => {
-    // When a specific database is selected, return folders directly (flattened)
+    // A specific database is selected: show its folders directly (flattened).
     if (selectedDatabase && filteredDatabases.length === 1) {
-      const db = filteredDatabases[0];
-      const tables = db.children
-        .filter((child) => child.type === "table")
-        .sort((a, b) => a.name.localeCompare(b.name)) as TreeNodeData[];
-      const views = db.children
-        .filter(
-          (child) =>
-            child.type === "view" || child.type === "materialized_view",
-        )
-        .sort((a, b) => a.name.localeCompare(b.name)) as TreeNodeData[];
-      const dictionaries = db.children
-        .filter((child) => child.type === "dictionary")
-        .sort((a, b) => a.name.localeCompare(b.name)) as TreeNodeData[];
-
-      const folders: TreeNodeData[] = [];
-
-      if (tables.length > 0) {
-        folders.push({
-          name: "Tables",
-          type: "table" as const,
-          children: tables,
-        });
-      }
-
-      if (views.length > 0) {
-        folders.push({
-          name: "Views",
-          type: "view" as const,
-          children: views,
-        });
-      }
-
-      if (dictionaries.length > 0) {
-        folders.push({
-          name: "Dictionaries",
-          type: "dictionary" as const,
-          children: dictionaries,
-        });
-      }
-
-      return folders;
+      return buildFolders(filteredDatabases[0].children);
     }
 
-    // When showing all databases, include database nodes
+    // All databases: keep the database node, annotated with its total size.
     return filteredDatabases.map((db) => {
-      const tables = db.children
-        .filter((child) => child.type === "table")
-        .sort((a, b) => a.name.localeCompare(b.name)) as TreeNodeData[];
-      const views = db.children
-        .filter(
-          (child) =>
-            child.type === "view" || child.type === "materialized_view",
-        )
-        .sort((a, b) => a.name.localeCompare(b.name)) as TreeNodeData[];
-      const dictionaries = db.children
-        .filter((child) => child.type === "dictionary")
-        .sort((a, b) => a.name.localeCompare(b.name)) as TreeNodeData[];
-
-      const folders: TreeNodeData[] = [];
-
-      if (tables.length > 0) {
-        folders.push({
-          name: "Tables",
-          type: "table" as const,
-          children: tables,
-        });
-      }
-
-      if (views.length > 0) {
-        folders.push({
-          name: "Views",
-          type: "view" as const,
-          children: views,
-        });
-      }
-
-      if (dictionaries.length > 0) {
-        folders.push({
-          name: "Dictionaries",
-          type: "dictionary" as const,
-          children: dictionaries,
-        });
-      }
-
+      const folders = buildFolders(db.children);
       return {
         ...db,
         children: folders,
+        total_bytes: sumBytes(folders),
       };
     });
   }, [filteredDatabases, selectedDatabase]);
