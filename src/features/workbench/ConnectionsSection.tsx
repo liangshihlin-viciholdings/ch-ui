@@ -14,6 +14,7 @@ import {
   ChevronDown,
   Plus,
   FolderPlus,
+  Folder,
   GripVertical,
   Table2,
   Circle,
@@ -90,6 +91,7 @@ import {
 } from "./connectionTree";
 import type { SavedConnection, ConnectionFolder } from "@/lib/db/schema";
 import type { ConnectionDisplay } from "@/lib/db";
+import type { TableInfo } from "@/lib/db-adapter/types";
 import {
   createConnectionFolder,
   updateConnectionFolder,
@@ -123,6 +125,12 @@ const STATUS_COLOR: Record<ConnectionStatus, string> = {
 // like a stray border).
 const NAV_BTN_FOCUS =
   "rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring";
+
+// A relation whose engine/type mentions "view" is grouped under Views — covers
+// MySQL/Postgres/SQLite/DuckDB "VIEW" and ClickHouse "View"/"MaterializedView".
+function isViewType(type: string | undefined): boolean {
+  return (type ?? "").toLowerCase().includes("view");
+}
 
 type SortableState = ReturnType<typeof useSortable>;
 
@@ -214,6 +222,8 @@ export default function ConnectionsSection({
   const [openConn, setOpenConn] = useState<Record<string, boolean>>({});
   const [openSchema, setOpenSchema] = useState<Record<string, boolean>>({});
   const [openTable, setOpenTable] = useState<Record<string, boolean>>({});
+  // Tables/Views group folders default to open (undefined → open).
+  const [openGroup, setOpenGroup] = useState<Record<string, boolean>>({});
   const [pendingDelete, setPendingDelete] = useState<SavedConnection | null>(
     null,
   );
@@ -806,6 +816,113 @@ export default function ConnectionsSection({
                             if (needle && visibleTables.length === 0) return null;
                             const expanded = schemaOpen || needle.length > 0;
 
+                            // One table/view row. Extracted so the Tables and
+                            // Views group folders can each render their subset.
+                            const renderTableRow = (t: TableInfo) => {
+                              const tk = `${c.id}:${s.name}.${t.name}`;
+                              const tableOpen = !!openTable[tk];
+                              const colKey = `${s.name}.${t.name}`;
+                              const cols = cache.columns[colKey];
+                              return (
+                                <div key={tk}>
+                                  <div className="flex w-full items-center gap-1.5 py-1 pl-11 pr-2 hover:bg-accent">
+                                    <button
+                                      onClick={() => {
+                                        setOpenTable((o) => ({ ...o, [tk]: !o[tk] }));
+                                        if (!cols) {
+                                          void expandTable(c.id, s.name, t.name);
+                                        }
+                                      }}
+                                      className={cn("shrink-0", NAV_BTN_FOCUS)}
+                                      title={
+                                        tableOpen ? "Collapse columns" : "Expand columns"
+                                      }
+                                    >
+                                      {tableOpen ? (
+                                        <ChevronDown className="size-3 text-muted-foreground" />
+                                      ) : (
+                                        <ChevronRight className="size-3 text-muted-foreground" />
+                                      )}
+                                    </button>
+                                    <button
+                                      onClick={() => openTableQuery(c.id, s.name, t.name)}
+                                      className={cn(
+                                        "flex min-w-0 flex-1 items-center gap-1.5 text-left",
+                                        NAV_BTN_FOCUS,
+                                      )}
+                                      title={`Open a query for ${t.name}`}
+                                    >
+                                      <Table2 className="size-3.5 shrink-0 text-muted-foreground" />
+                                      <span className="truncate">{t.name}</span>
+                                      <span className="ml-auto text-[10px] capitalize text-muted-foreground">
+                                        {t.type}
+                                      </span>
+                                    </button>
+                                  </div>
+                                  {tableOpen &&
+                                    (cols ?? []).map((col) => (
+                                      <div
+                                        key={col.name}
+                                        className="flex items-center gap-1.5 py-0.5 pl-[68px] pr-2 text-xs hover:bg-accent"
+                                      >
+                                        <span className="truncate">{col.name}</span>
+                                        <span className="ml-auto font-mono text-[10px] text-muted-foreground">
+                                          {col.type}
+                                        </span>
+                                      </div>
+                                    ))}
+                                </div>
+                              );
+                            };
+
+                            const tableItems = visibleTables.filter(
+                              (t) => !isViewType(t.type),
+                            );
+                            const viewItems = visibleTables.filter((t) =>
+                              isViewType(t.type),
+                            );
+
+                            // A collapsible "Tables" / "Views" folder under the
+                            // database. Rendered only when it has members.
+                            const renderGroup = (
+                              label: string,
+                              items: TableInfo[],
+                              suffix: string,
+                            ) => {
+                              if (!items.length) return null;
+                              const gk = `${sk}:${suffix}`;
+                              const groupOpen =
+                                (openGroup[gk] ?? true) || needle.length > 0;
+                              return (
+                                <div key={gk}>
+                                  <button
+                                    onClick={() =>
+                                      setOpenGroup((o) => ({
+                                        ...o,
+                                        [gk]: !(o[gk] ?? true),
+                                      }))
+                                    }
+                                    className={cn(
+                                      "flex w-full items-center gap-1.5 py-1 pl-9 pr-2 hover:bg-accent",
+                                      NAV_BTN_FOCUS,
+                                    )}
+                                  >
+                                    {groupOpen ? (
+                                      <ChevronDown className="size-3 text-muted-foreground" />
+                                    ) : (
+                                      <ChevronRight className="size-3 text-muted-foreground" />
+                                    )}
+                                    <Folder className="size-3.5 text-muted-foreground" />
+                                    <span className="truncate text-[13px]">{label}</span>
+                                    <span className="ml-auto text-[10px] text-muted-foreground">
+                                      {items.length}
+                                    </span>
+                                  </button>
+                                  {groupOpen && items.map(renderTableRow)}
+                                </div>
+                              );
+                            };
+
                             return (
                               <div key={sk}>
                                 <button
@@ -826,70 +943,12 @@ export default function ConnectionsSection({
                                   <span className="truncate text-[13px]">{s.name}</span>
                                 </button>
 
-                                {expanded &&
-                                  visibleTables.map((t) => {
-                                    const tk = `${c.id}:${s.name}.${t.name}`;
-                                    const tableOpen = !!openTable[tk];
-                                    const colKey = `${s.name}.${t.name}`;
-                                    const cols = cache.columns[colKey];
-                                    return (
-                                      <div key={tk}>
-                                        <div className="flex w-full items-center gap-1.5 py-1 pl-11 pr-2 hover:bg-accent">
-                                          <button
-                                            onClick={() => {
-                                              setOpenTable((o) => ({
-                                                ...o,
-                                                [tk]: !o[tk],
-                                              }));
-                                              if (!cols) {
-                                                void expandTable(c.id, s.name, t.name);
-                                              }
-                                            }}
-                                            className={cn("shrink-0", NAV_BTN_FOCUS)}
-                                            title={
-                                              tableOpen
-                                                ? "Collapse columns"
-                                                : "Expand columns"
-                                            }
-                                          >
-                                            {tableOpen ? (
-                                              <ChevronDown className="size-3 text-muted-foreground" />
-                                            ) : (
-                                              <ChevronRight className="size-3 text-muted-foreground" />
-                                            )}
-                                          </button>
-                                          <button
-                                            onClick={() =>
-                                              openTableQuery(c.id, s.name, t.name)
-                                            }
-                                            className={cn(
-                                              "flex min-w-0 flex-1 items-center gap-1.5 text-left",
-                                              NAV_BTN_FOCUS,
-                                            )}
-                                            title={`Open a query for ${t.name}`}
-                                          >
-                                            <Table2 className="size-3.5 shrink-0 text-muted-foreground" />
-                                            <span className="truncate">{t.name}</span>
-                                            <span className="ml-auto text-[10px] capitalize text-muted-foreground">
-                                              {t.type}
-                                            </span>
-                                          </button>
-                                        </div>
-                                        {tableOpen &&
-                                          (cols ?? []).map((col) => (
-                                            <div
-                                              key={col.name}
-                                              className="flex items-center gap-1.5 py-0.5 pl-[68px] pr-2 text-xs hover:bg-accent"
-                                            >
-                                              <span className="truncate">{col.name}</span>
-                                              <span className="ml-auto font-mono text-[10px] text-muted-foreground">
-                                                {col.type}
-                                              </span>
-                                            </div>
-                                          ))}
-                                      </div>
-                                    );
-                                  })}
+                                {expanded && (
+                                  <>
+                                    {renderGroup("Tables", tableItems, "tables")}
+                                    {renderGroup("Views", viewItems, "views")}
+                                  </>
+                                )}
                               </div>
                             );
                           })}
