@@ -853,8 +853,12 @@ export default function EditorPane() {
         </div>
       )}
       <ResizablePanelGroup orientation="vertical" className="flex-1">
-        <ResizablePanel defaultSize="55%">
-          <div className="h-full overflow-hidden">
+        <ResizablePanel defaultSize="20%">
+          <div
+            data-vim-pane="editor"
+            tabIndex={-1}
+            className="h-full overflow-hidden outline-none"
+          >
             <WorkbenchEditor
               tabId={tab.id}
               dialect={dialect}
@@ -865,8 +869,14 @@ export default function EditorPane() {
           </div>
         </ResizablePanel>
         <ResizableHandle withHandle />
-        <ResizablePanel defaultSize="45%">
-          <ResultsGrid tabId={tab.id} />
+        <ResizablePanel defaultSize="80%">
+          <div
+            data-vim-pane="results"
+            tabIndex={-1}
+            className="h-full outline-none focus:ring-2 focus:ring-inset focus:ring-ring/40"
+          >
+            <ResultsGrid tabId={tab.id} />
+          </div>
         </ResizablePanel>
       </ResizablePanelGroup>
       <SaveQueryDialog open={saving} onOpenChange={setSaving} />

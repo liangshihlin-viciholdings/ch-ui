@@ -49,6 +49,10 @@ export default function SavedQueriesSection() {
       {queries.map((q) => (
         <button
           key={q.id}
+          data-vim-row
+          data-vim-id={`saved:${q.id}`}
+          data-vim-depth={0}
+          data-vim-primary
           onClick={() => {
             selectConnection(q.connectionId);
             openTab(q.connectionId, { title: q.name, sql: q.query });

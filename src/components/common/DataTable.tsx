@@ -37,6 +37,7 @@ import type { QueryResult } from "@/types/common";
 import { Checkbox } from "../ui/checkbox";
 import { CellDetailSheet, type DetailCell } from "./CellDetailSheet";
 import { CellDetailViewer } from "./CellDetailViewer";
+import { editorStore } from "@/stores/editorStore";
 import {
 	type ColumnTypeAst,
 	isComplexType,
@@ -67,6 +68,44 @@ type SelectedCell = {
 	typeAst: ColumnTypeAst | null;
 	rawType: string;
 };
+
+export type GridNavKey = "j" | "k" | "h" | "l" | "G" | "gg";
+
+/**
+ * Pure next-cell resolver for vim grid navigation. Given the current cell
+ * (row/col indices, -1 = none selected yet), a movement key, and the grid
+ * dimensions, return the clamped target cell — or null when the grid is empty.
+ * The first move from "no selection" lands on the origin (or the last row for
+ * G). Kept pure so it can be unit-tested without a table instance.
+ */
+export function resolveGridTarget(
+	curRow: number,
+	curCol: number,
+	key: GridNavKey,
+	rowCount: number,
+	colCount: number,
+): { row: number; col: number } | null {
+	if (rowCount <= 0 || colCount <= 0) return null;
+	const clampR = (n: number) => Math.max(0, Math.min(n, rowCount - 1));
+	const clampC = (n: number) => Math.max(0, Math.min(n, colCount - 1));
+	const noSel = curRow < 0 || curCol < 0;
+	switch (key) {
+		case "gg":
+			return { row: 0, col: noSel ? 0 : curCol };
+		case "G":
+			return { row: rowCount - 1, col: noSel ? 0 : curCol };
+		case "j":
+			return noSel ? { row: 0, col: 0 } : { row: clampR(curRow + 1), col: curCol };
+		case "k":
+			return noSel ? { row: 0, col: 0 } : { row: clampR(curRow - 1), col: curCol };
+		case "h":
+			return noSel ? { row: 0, col: 0 } : { row: curRow, col: clampC(curCol - 1) };
+		case "l":
+			return noSel ? { row: 0, col: 0 } : { row: curRow, col: clampC(curCol + 1) };
+		default:
+			return null;
+	}
+}
 
 export interface DataTableProps {
 	/** Query result from workspaceStore (meta, data, statistics, …). */
@@ -265,6 +304,8 @@ function DataTableInner({
 	const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
 	const [selectedCell, setSelectedCell] = useState<SelectedCell | null>(null);
 	const [detailCell, setDetailCell] = useState<DetailCell | null>(null);
+	// Two-key `gg` sequence state for vim cell nav (below).
+	const gCellPendingRef = useRef(false);
 
 	const rows = useMemo(() => (data?.data ?? []) as RowData[], [data?.data]);
 	const meta = useMemo(
@@ -469,6 +510,109 @@ function DataTableInner({
 		virtualItems.length > 0
 			? totalSize - virtualItems[virtualItems.length - 1].end
 			: 0;
+
+	// ── Vim cell navigation ─────────────────────────────────────────────────────
+	// j/k/h/l move the selected cell, gg/G jump to the first/last row, Enter opens
+	// the detail sheet for complex cells. Gated on Vim Mode; only the DataTable
+	// whose [data-vim-pane] currently has focus responds, so multiple mounted
+	// grids don't all fire. Skips typing fields and defers Ctrl-chords to the
+	// global pane layer.
+	useEffect(() => {
+		const onKey = (e: KeyboardEvent) => {
+			if (!editorStore.state.vimMode) return;
+			const pane = containerRef.current?.closest("[data-vim-pane]");
+			const activePane = document.activeElement?.closest("[data-vim-pane]");
+			if (!pane || pane !== activePane) return;
+			const ae = document.activeElement as HTMLElement | null;
+			if (
+				ae &&
+				(/^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName) || ae.isContentEditable)
+			)
+				return;
+			if (e.ctrlKey || e.metaKey || e.altKey) return;
+
+			const dataCols = table
+				.getVisibleLeafColumns()
+				.map((c) => c.id)
+				.filter((id) => id !== SELECT_COLUMN_ID && id !== ROW_NUM_COLUMN_ID);
+			const model = table.getRowModel().rows;
+			if (!dataCols.length || !model.length) return;
+
+			const curRow = selectedCell
+				? model.findIndex((r) => r.id === selectedCell.rowId)
+				: -1;
+			const curCol = selectedCell
+				? dataCols.indexOf(selectedCell.columnId)
+				: -1;
+			const selectAt = (ri: number, ci: number) => {
+				const r = model[ri];
+				const colId = dataCols[ci];
+				if (!r || colId == null) return;
+				setSelectedCell({
+					rowId: r.id,
+					columnId: colId,
+					value: r.original[colId],
+					typeAst: typeAstMap[colId] ?? null,
+					rawType: typeRawMap[colId] ?? "",
+				});
+				rowVirtualizer.scrollToIndex(ri, { align: "auto" });
+			};
+			const move = (key: GridNavKey) => {
+				const t = resolveGridTarget(
+					curRow,
+					curCol,
+					key,
+					model.length,
+					dataCols.length,
+				);
+				if (t) selectAt(t.row, t.col);
+			};
+
+			// gg → first row (two-key). A lone g arms; any other key disarms.
+			if (e.key === "g") {
+				if (gCellPendingRef.current) {
+					gCellPendingRef.current = false;
+					e.preventDefault();
+					move("gg");
+				} else {
+					gCellPendingRef.current = true;
+					setTimeout(() => {
+						gCellPendingRef.current = false;
+					}, 600);
+				}
+				return;
+			}
+			gCellPendingRef.current = false;
+
+			const MOVE: Record<string, GridNavKey> = {
+				j: "j",
+				ArrowDown: "j",
+				k: "k",
+				ArrowUp: "k",
+				h: "h",
+				ArrowLeft: "h",
+				l: "l",
+				ArrowRight: "l",
+				G: "G",
+			};
+			if (MOVE[e.key]) {
+				e.preventDefault();
+				move(MOVE[e.key]);
+			} else if (e.key === "Enter") {
+				if (selectedCell?.typeAst && isComplexType(selectedCell.typeAst)) {
+					e.preventDefault();
+					setDetailCell({
+						columnId: selectedCell.columnId,
+						rawType: selectedCell.rawType,
+						typeAst: selectedCell.typeAst,
+						value: selectedCell.value,
+					});
+				}
+			}
+		};
+		document.addEventListener("keydown", onKey);
+		return () => document.removeEventListener("keydown", onKey);
+	}, [selectedCell, table, typeAstMap, typeRawMap, rowVirtualizer]);
 
 	// "100%" fills parent via Tailwind h-full; everything else uses an inline style.
 	const outerStyle =

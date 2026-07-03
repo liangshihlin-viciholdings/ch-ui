@@ -42,6 +42,7 @@ import { Logo } from "@/components/common/Logo";
 import { cn } from "@/lib/utils";
 import useAppStore from "@/stores/workspaceStore";
 import { useWorkbenchStore } from "@/stores/workbenchStore";
+import { editorStore } from "@/stores/editorStore";
 import ConnectionsSection from "@/features/workbench/ConnectionsSection";
 import SavedQueriesSection from "./SavedQueriesSection";
 import CommandPalette, { type PaletteDest } from "./CommandPalette";
@@ -131,6 +132,10 @@ function NavRow({ dest, active }: { dest: PaletteDest; active: boolean }) {
   return (
     <Link
       to={dest.to}
+      data-vim-row
+      data-vim-id={`nav:${dest.to}`}
+      data-vim-depth={0}
+      data-vim-primary
       className={cn(
         "flex items-center gap-2 rounded-md px-2 py-1.5 text-[13px]",
         active
@@ -164,6 +169,126 @@ export default function AppSidebar() {
 
   const draggingRef = useRef(false);
 
+  // ── Vim sidebar roving cursor ──────────────────────────────────────────────
+  // A single DOM-driven cursor over every visible sidebar row (nav links +
+  // connection tree + saved queries). Rows self-describe via data-vim-* so this
+  // handler stays generic and ConnectionsSection/FolderRow/SavedQueries only add
+  // inert attributes. Active only when Vim Mode is on; ignores typing fields so
+  // the filter inputs keep working.
+  const focusedVimIdRef = useRef<string | null>(null);
+  const pendingGRef = useRef(false);
+
+  const handleSidebarVimKey = useCallback(
+    (e: React.KeyboardEvent<HTMLElement>) => {
+      if (!editorStore.state.vimMode) return;
+      const target = e.target as HTMLElement;
+      if (
+        /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName) ||
+        target.isContentEditable
+      )
+        return;
+      // Let the global layer own Ctrl-chord pane moves.
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+
+      const aside = e.currentTarget;
+      const rows = Array.from(
+        aside.querySelectorAll<HTMLElement>("[data-vim-row]"),
+      );
+      if (!rows.length) return;
+      const idx = rows.findIndex(
+        (r) => r.dataset.vimId === focusedVimIdRef.current,
+      );
+
+      const focusRow = (i: number) => {
+        const el = rows[i];
+        if (!el) return;
+        focusedVimIdRef.current = el.dataset.vimId ?? null;
+        rows.forEach((r) => r.removeAttribute("data-vim-active"));
+        el.setAttribute("data-vim-active", "true");
+        el.scrollIntoView({ block: "nearest" });
+      };
+      // The clickable may be the row element itself (nav link, saved query) or a
+      // descendant (tree rows). querySelector only searches descendants, so check
+      // the row first.
+      const pick = (row: HTMLElement, sel: string): HTMLElement | null =>
+        row.matches(sel) ? row : row.querySelector<HTMLElement>(sel);
+
+      // gg → top (two-key). A lone g arms; any other key disarms below.
+      if (e.key === "g") {
+        if (pendingGRef.current) {
+          pendingGRef.current = false;
+          e.preventDefault();
+          focusRow(0);
+        } else {
+          pendingGRef.current = true;
+          setTimeout(() => {
+            pendingGRef.current = false;
+          }, 600);
+        }
+        return;
+      }
+      pendingGRef.current = false;
+
+      switch (e.key) {
+        case "j":
+        case "ArrowDown":
+          e.preventDefault();
+          focusRow(idx < 0 ? 0 : Math.min(idx + 1, rows.length - 1));
+          break;
+        case "k":
+        case "ArrowUp":
+          e.preventDefault();
+          focusRow(idx < 0 ? 0 : Math.max(idx - 1, 0));
+          break;
+        case "G":
+          e.preventDefault();
+          focusRow(rows.length - 1);
+          break;
+        case "l":
+        case "ArrowRight":
+        case "Enter": {
+          e.preventDefault();
+          if (idx < 0) {
+            focusRow(0);
+            break;
+          }
+          const row = rows[idx];
+          const expandable = row.hasAttribute("data-vim-expandable");
+          const open = row.dataset.vimOpen === "1";
+          if ((e.key === "l" || e.key === "ArrowRight") && expandable && !open) {
+            pick(row, "[data-vim-toggle]")?.click();
+          } else {
+            (
+              pick(row, "[data-vim-primary]") ?? pick(row, "[data-vim-toggle]")
+            )?.click();
+          }
+          break;
+        }
+        case "h":
+        case "ArrowLeft": {
+          if (idx < 0) break;
+          e.preventDefault();
+          const row = rows[idx];
+          const expandable = row.hasAttribute("data-vim-expandable");
+          const open = row.dataset.vimOpen === "1";
+          if (expandable && open) {
+            pick(row, "[data-vim-toggle]")?.click();
+          } else {
+            const depth = Number(row.dataset.vimDepth ?? "0");
+            for (let i = idx - 1; i >= 0; i--) {
+              if (Number(rows[i].dataset.vimDepth ?? "0") < depth) {
+                focusRow(i);
+                break;
+              }
+            }
+          }
+          break;
+        }
+      }
+    },
+    [],
+  );
+
   // Persist width / collapsed.
   useEffect(() => {
     try {
@@ -180,14 +305,20 @@ export default function AppSidebar() {
     }
   }, [collapsed]);
 
-  // ⌘/Ctrl+B collapse, ⌘/Ctrl+K palette.
+  // ⌘/Ctrl+B collapse; command palette on ⌘/Ctrl+K — except when Vim Mode is on,
+  // where Ctrl+K is reassigned to pane navigation, so the palette answers to
+  // Ctrl+P instead (⌘K still works on Mac).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "b") {
         e.preventDefault();
         setCollapsed((v) => !v);
       }
-      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+      const vimOn = editorStore.state.vimMode;
+      const paletteChord =
+        (e.metaKey && e.key === "k") ||
+        (!e.metaKey && e.ctrlKey && (vimOn ? e.key === "p" : e.key === "k"));
+      if (paletteChord) {
         e.preventDefault();
         setPaletteOpen((v) => !v);
       }
@@ -231,7 +362,22 @@ export default function AppSidebar() {
     <>
       {collapsed ? (
         // Collapsed: a slim reveal strip.
-        <div className="flex h-screen w-7 shrink-0 flex-col items-center border-r border-border bg-card py-2">
+        <div
+          data-vim-pane="sidebar"
+          tabIndex={-1}
+          onKeyDown={(e) => {
+            // Vim: l / Enter / → expands the collapsed sidebar so there's
+            // something to navigate into.
+            if (
+              editorStore.state.vimMode &&
+              (e.key === "l" || e.key === "Enter" || e.key === "ArrowRight")
+            ) {
+              e.preventDefault();
+              setCollapsed(false);
+            }
+          }}
+          className="flex h-screen w-7 shrink-0 flex-col items-center border-r border-border bg-card py-2 outline-none"
+        >
           <Button
             size="icon"
             variant="ghost"
@@ -244,7 +390,10 @@ export default function AppSidebar() {
         </div>
       ) : (
         <aside
-          className="relative flex h-screen shrink-0 flex-col border-r border-border bg-card"
+          data-vim-pane="sidebar"
+          tabIndex={-1}
+          onKeyDown={handleSidebarVimKey}
+          className="relative flex h-screen shrink-0 flex-col border-r border-border bg-card outline-none focus:ring-2 focus:ring-inset focus:ring-ring/40"
           style={{ width }}
         >
         {/* Brand header */}
@@ -350,11 +499,26 @@ export default function AppSidebar() {
                 </div>
                 <div className="flex items-center justify-between">
                   <span>Command palette</span>
-                  <CommandShortcut>⌘/Ctrl + K</CommandShortcut>
+                  <CommandShortcut>⌘K / Ctrl+K</CommandShortcut>
                 </div>
                 <div className="flex items-center justify-between">
                   <span>Run query</span>
                   <CommandShortcut>⌘/Ctrl + Enter</CommandShortcut>
+                </div>
+                <div className="mt-3 mb-1 text-[11px] font-medium uppercase tracking-wider text-muted-foreground/70">
+                  Vim mode
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>Move between panes</span>
+                  <CommandShortcut>Ctrl + h/j/k/l</CommandShortcut>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>Next / prev query tab</span>
+                  <CommandShortcut>gt / gT</CommandShortcut>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>Command palette (vim)</span>
+                  <CommandShortcut>Ctrl+P / ⌘K</CommandShortcut>
                 </div>
               </div>
             </SheetContent>

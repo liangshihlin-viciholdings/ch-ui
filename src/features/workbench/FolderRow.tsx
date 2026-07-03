@@ -87,6 +87,11 @@ export default function FolderRow({
   return (
     <div
       ref={innerRef}
+      data-vim-row
+      data-vim-id={`folder:${folder.id}`}
+      data-vim-depth={depth}
+      data-vim-expandable
+      data-vim-open={collapsed ? "0" : "1"}
       className={cn(
         "group relative flex w-full items-center gap-1.5 py-1.5 pr-2 hover:bg-accent/50",
         isDragging && "opacity-40",
@@ -124,6 +129,8 @@ export default function FolderRow({
         </div>
       ) : (
         <button
+          data-vim-primary
+          data-vim-toggle
           onClick={onToggle}
           className={cn("flex min-w-0 flex-1 items-center gap-1.5 text-left", NAV_BTN_FOCUS)}
           aria-expanded={!collapsed}

@@ -1066,3 +1066,13 @@
 .react-grid-item.react-draggable-dragging .dashboard-tile-drag-handle {
   cursor: grabbing !important;
 }
+
+/* Vim sidebar roving cursor. Styled via a data attribute (not a class) so it
+   survives React re-renders — React never manages data-vim-active, so it isn't
+   wiped when a row re-renders. */
+[data-vim-active="true"] {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: -2px;
+  border-radius: 6px;
+  background-color: hsl(var(--accent));
+}

@@ -683,6 +683,11 @@ export default function ConnectionsSection({
                       <ContextMenu>
                         <ContextMenuTrigger asChild>
                           <div
+                            data-vim-row
+                            data-vim-id={`conn:${c.id}`}
+                            data-vim-depth={depth}
+                            data-vim-expandable
+                            data-vim-open={isOpen ? "1" : "0"}
                             className={cn(
                               "group relative flex w-full items-center gap-1.5 px-2 py-1.5",
                               isActive
@@ -691,6 +696,8 @@ export default function ConnectionsSection({
                             )}
                           >
                             <button
+                              data-vim-primary
+                              data-vim-toggle
                               onClick={() => toggleConn(c)}
                               className={cn(
                                 "flex min-w-0 flex-1 items-center gap-1.5 text-left",
@@ -825,8 +832,16 @@ export default function ConnectionsSection({
                               const cols = cache.columns[colKey];
                               return (
                                 <div key={tk}>
-                                  <div className="flex w-full items-center gap-1.5 py-1 pl-11 pr-2 hover:bg-accent">
+                                  <div
+                                    data-vim-row
+                                    data-vim-id={`table:${tk}`}
+                                    data-vim-depth={depth + 3}
+                                    data-vim-expandable
+                                    data-vim-open={tableOpen ? "1" : "0"}
+                                    className="flex w-full items-center gap-1.5 py-1 pl-11 pr-2 hover:bg-accent"
+                                  >
                                     <button
+                                      data-vim-toggle
                                       onClick={() => {
                                         setOpenTable((o) => ({ ...o, [tk]: !o[tk] }));
                                         if (!cols) {
@@ -845,6 +860,7 @@ export default function ConnectionsSection({
                                       )}
                                     </button>
                                     <button
+                                      data-vim-primary
                                       onClick={() => openTableQuery(c.id, s.name, t.name)}
                                       className={cn(
                                         "flex min-w-0 flex-1 items-center gap-1.5 text-left",
@@ -863,6 +879,9 @@ export default function ConnectionsSection({
                                     (cols ?? []).map((col) => (
                                       <div
                                         key={col.name}
+                                        data-vim-row
+                                        data-vim-id={`col:${tk}:${col.name}`}
+                                        data-vim-depth={depth + 4}
                                         className="flex items-center gap-1.5 py-0.5 pl-[68px] pr-2 text-xs hover:bg-accent"
                                       >
                                         <span className="truncate">{col.name}</span>
@@ -896,6 +915,13 @@ export default function ConnectionsSection({
                               return (
                                 <div key={gk}>
                                   <button
+                                    data-vim-row
+                                    data-vim-id={`group:${gk}`}
+                                    data-vim-depth={depth + 2}
+                                    data-vim-expandable
+                                    data-vim-open={groupOpen ? "1" : "0"}
+                                    data-vim-primary
+                                    data-vim-toggle
                                     onClick={() =>
                                       setOpenGroup((o) => ({
                                         ...o,
@@ -926,6 +952,13 @@ export default function ConnectionsSection({
                             return (
                               <div key={sk}>
                                 <button
+                                  data-vim-row
+                                  data-vim-id={`schema:${sk}`}
+                                  data-vim-depth={depth + 1}
+                                  data-vim-expandable
+                                  data-vim-open={expanded ? "1" : "0"}
+                                  data-vim-primary
+                                  data-vim-toggle
                                   onClick={() =>
                                     setOpenSchema((o) => ({ ...o, [sk]: !o[sk] }))
                                   }
