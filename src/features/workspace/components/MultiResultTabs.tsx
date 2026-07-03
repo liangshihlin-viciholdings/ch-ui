@@ -72,7 +72,7 @@ const MultiResultTabs: React.FC<MultiResultTabsProps> = ({
 
     return (
       <div className="h-full flex flex-col">
-        <DataTable data={result} height="100%" />
+        <DataTable data={result} height="100%" enableTranspose />
       </div>
     );
   };
