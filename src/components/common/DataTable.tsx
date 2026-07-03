@@ -116,6 +116,12 @@ export interface DataTableProps {
 	enablePagination?: boolean;
 	/** Initial page size when pagination is enabled. */
 	pageSize?: number;
+	/**
+	 * When true, pressing Tab while the results pane is focused transposes the
+	 * grid (columns become rows, DBeaver-style). Only enabled for workbench
+	 * query results.
+	 */
+	enableTranspose?: boolean;
 }
 
 function formatCellValue(value: unknown): string {
@@ -286,8 +292,11 @@ function DataTableInner({
 	height = "350px",
 	enablePagination = true,
 	pageSize: initialPageSize = 100,
+	enableTranspose = false,
 }: DataTableProps) {
 	const containerRef = useRef<HTMLDivElement>(null);
+	const rootRef = useRef<HTMLDivElement>(null);
+	const [transposed, setTransposed] = useState(false);
 	const contextMenuCellRef = useRef<{
 		value: unknown;
 		typeAst: ColumnTypeAst | null;
@@ -332,6 +341,38 @@ function DataTableInner({
 		document.addEventListener("keydown", handler);
 		return () => document.removeEventListener("keydown", handler);
 	}, [selectedCell]);
+
+	// Tab transposes the grid (columns↔rows) when the results pane is focused,
+	// DBeaver-style. Pane-scoped like the vim nav below so only the focused
+	// results table responds; skips typing fields so Tab keeps working there.
+	useEffect(() => {
+		if (!enableTranspose) return;
+		const onKey = (e: KeyboardEvent) => {
+			if (
+				e.key !== "Tab" ||
+				e.shiftKey ||
+				e.ctrlKey ||
+				e.metaKey ||
+				e.altKey
+			)
+				return;
+			const pane = rootRef.current?.closest("[data-vim-pane]");
+			const activePane = document.activeElement?.closest("[data-vim-pane]");
+			if (!pane || pane !== activePane) return;
+			const ae = document.activeElement as HTMLElement | null;
+			if (
+				ae &&
+				(/^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName) || ae.isContentEditable)
+			)
+				return;
+			e.preventDefault();
+			setSelectedCell(null);
+			setRowSelection({});
+			setTransposed((t) => !t);
+		};
+		document.addEventListener("keydown", onKey);
+		return () => document.removeEventListener("keydown", onKey);
+	}, [enableTranspose]);
 
 	const handleCellClick = useCallback(
 		(
@@ -659,6 +700,7 @@ function DataTableInner({
 
 	return (
 		<div
+			ref={rootRef}
 			className={`flex flex-col min-h-0 w-full ${outerHeightClass}`}
 			style={outerStyle}
 		>
@@ -736,7 +778,77 @@ function DataTableInner({
 				</div>
 			)}
 
-			{/* Scroll container — needs min-h-0 so flex-1 actually constrains height */}
+			{transposed ? (
+				/* Transposed view: each column becomes a row, each row a column.
+				   Reuses the sorted/paginated tableRows so it mirrors what the
+				   normal grid shows. Complex-type hover/detail is skipped here —
+				   ponytail: cell types are heterogeneous per column when transposed. */
+				<div className="flex-1 min-h-0 max-h-full max-w-full overflow-scroll border border-border rounded-md bg-background">
+					<table className="text-sm border-collapse">
+						<thead className="sticky top-0 z-20 bg-muted">
+							<TableRow className="border-b border-border hover:bg-transparent">
+								<th className="sticky left-0 z-30 bg-muted px-3 py-2 text-left font-medium text-muted-foreground border-r border-border whitespace-nowrap">
+									Column
+								</th>
+								{tableRows.map((r) => (
+									<th
+										key={r.id}
+										className="px-3 py-2 text-left font-medium text-muted-foreground whitespace-nowrap"
+									>
+										{(enablePagination
+											? pagination.pageIndex * pagination.pageSize
+											: 0) +
+											r.index +
+											1}
+									</th>
+								))}
+							</TableRow>
+						</thead>
+						<TableBody>
+							{meta
+								.filter((m): m is { name: string; type?: string } =>
+									typeof m.name === "string",
+								)
+								.map((m) => (
+									<TableRow
+										key={m.name}
+										className="border-b border-border/50"
+									>
+										<th className="sticky left-0 z-10 bg-background px-3 py-1.5 text-left align-top border-r border-border">
+											<div className="flex flex-col leading-tight">
+												<span className="font-medium text-foreground">
+													{m.name}
+												</span>
+												{m.type && (
+													<span className="text-[10px] text-muted-foreground/70">
+														{m.type}
+													</span>
+												)}
+											</div>
+										</th>
+										{tableRows.map((r) => {
+											const formatted = formatCellValue(r.original[m.name]);
+											return (
+												<TableCell
+													key={r.id}
+													className="border-b border-border/50 px-3 py-1.5 text-foreground"
+												>
+													<span
+														className="block max-w-100 truncate"
+														title={formatted}
+													>
+														{formatted}
+													</span>
+												</TableCell>
+											);
+										})}
+									</TableRow>
+								))}
+						</TableBody>
+					</table>
+				</div>
+			) : (
+			/* Scroll container — needs min-h-0 so flex-1 actually constrains height */
 			<div
 				ref={containerRef}
 				className="flex-1 min-h-0 max-h-full max-w-full overflow-scroll border border-border rounded-md bg-background"
@@ -858,6 +970,7 @@ function DataTableInner({
 					</ContextMenu>
 				</table>
 			</div>
+			)}
 			{enablePagination && (
 				<TablePagination
 					table={table}
