@@ -304,6 +304,7 @@ function DataTableInner({
 	const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
 	const [selectedCell, setSelectedCell] = useState<SelectedCell | null>(null);
 	const [detailCell, setDetailCell] = useState<DetailCell | null>(null);
+	const [goToPageOpen, setGoToPageOpen] = useState(false);
 	// Two-key `gg` sequence state for vim cell nav (below).
 	const gCellPendingRef = useRef(false);
 
@@ -513,10 +514,11 @@ function DataTableInner({
 
 	// ── Vim cell navigation ─────────────────────────────────────────────────────
 	// j/k/h/l move the selected cell, gg/G jump to the first/last row, Enter opens
-	// the detail sheet for complex cells. Gated on Vim Mode; only the DataTable
-	// whose [data-vim-pane] currently has focus responds, so multiple mounted
-	// grids don't all fire. Skips typing fields and defers Ctrl-chords to the
-	// global pane layer.
+	// the detail sheet for complex cells. [ / ] flip to the prev/next page and gp
+	// opens the "go to page" dialog. Gated on Vim Mode; only the DataTable whose
+	// [data-vim-pane] currently has focus responds, so multiple mounted grids
+	// don't all fire. Skips typing fields and defers Ctrl-chords to the global
+	// pane layer.
 	useEffect(() => {
 		const onKey = (e: KeyboardEvent) => {
 			if (!editorStore.state.vimMode) return;
@@ -530,6 +532,15 @@ function DataTableInner({
 			)
 				return;
 			if (e.ctrlKey || e.metaKey || e.altKey) return;
+
+			// [ / ] page navigation (independent of cell selection).
+			if (enablePagination && (e.key === "[" || e.key === "]")) {
+				e.preventDefault();
+				gCellPendingRef.current = false;
+				if (e.key === "[") table.previousPage();
+				else table.nextPage();
+				return;
+			}
 
 			const dataCols = table
 				.getVisibleLeafColumns()
@@ -587,7 +598,8 @@ function DataTableInner({
 				if (t) selectAt(t.row, t.col);
 			};
 
-			// gg → first row (two-key). A lone g arms; any other key disarms.
+			// gg → first row, gp → go-to-page dialog (two-key). A lone g arms; any
+			// other key disarms.
 			if (e.key === "g") {
 				if (gCellPendingRef.current) {
 					gCellPendingRef.current = false;
@@ -599,6 +611,12 @@ function DataTableInner({
 						gCellPendingRef.current = false;
 					}, 600);
 				}
+				return;
+			}
+			if (gCellPendingRef.current && e.key === "p" && enablePagination) {
+				gCellPendingRef.current = false;
+				e.preventDefault();
+				setGoToPageOpen(true);
 				return;
 			}
 			gCellPendingRef.current = false;
@@ -631,7 +649,14 @@ function DataTableInner({
 		};
 		document.addEventListener("keydown", onKey);
 		return () => document.removeEventListener("keydown", onKey);
-	}, [selectedCell, table, typeAstMap, typeRawMap, rowVirtualizer]);
+	}, [
+		selectedCell,
+		table,
+		typeAstMap,
+		typeRawMap,
+		rowVirtualizer,
+		enablePagination,
+	]);
 
 	// "100%" fills parent via Tailwind h-full; everything else uses an inline style.
 	const outerStyle =
@@ -883,6 +908,8 @@ function DataTableInner({
 					statistics={
 						(data?.statistics as TablePaginationStatistics | undefined) ?? null
 					}
+					goToPageOpen={goToPageOpen}
+					onGoToPageOpenChange={setGoToPageOpen}
 				/>
 			)}
 			<CellDetailSheet cell={detailCell} onClose={() => setDetailCell(null)} />
