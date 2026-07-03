@@ -556,6 +556,25 @@ function DataTableInner({
 					rawType: typeRawMap[colId] ?? "",
 				});
 				rowVirtualizer.scrollToIndex(ri, { align: "auto" });
+				// Follow the cursor horizontally: no columns are sticky, so a leaf
+				// column's left edge is just the sum of preceding column widths.
+				const el = containerRef.current;
+				if (el) {
+					const leaf = table.getVisibleLeafColumns();
+					let left = 0;
+					let width = 0;
+					for (const c of leaf) {
+						if (c.id === colId) {
+							width = c.getSize();
+							break;
+						}
+						left += c.getSize();
+					}
+					const right = left + width;
+					if (left < el.scrollLeft) el.scrollLeft = left;
+					else if (right > el.scrollLeft + el.clientWidth)
+						el.scrollLeft = right - el.clientWidth;
+				}
 			};
 			const move = (key: GridNavKey) => {
 				const t = resolveGridTarget(
