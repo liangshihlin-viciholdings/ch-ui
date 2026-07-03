@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Table } from "@tanstack/react-table";
 import {
   ChevronsLeft,
@@ -18,6 +18,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { formatBytes, formatDuration, formatNumber } from "@/lib/formatters";
 
 export interface TablePaginationStatistics {
@@ -29,6 +37,9 @@ export interface TablePaginationStatistics {
 interface TablePaginationProps<TData> {
   table: Table<TData>;
   statistics?: TablePaginationStatistics | null;
+  /** Controlled open state for the "go to page" dialog (opened via Vim `gp`). */
+  goToPageOpen?: boolean;
+  onGoToPageOpenChange?: (open: boolean) => void;
 }
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
@@ -41,9 +52,12 @@ const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 export function TablePagination<TData>({
   table,
   statistics,
+  goToPageOpen = false,
+  onGoToPageOpenChange,
 }: TablePaginationProps<TData>) {
   const inputRef = useRef<HTMLInputElement>(null);
   const wheelDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [gotoValue, setGotoValue] = useState("");
 
   const pageIndex = table.getState().pagination.pageIndex;
   const pageSize = table.getState().pagination.pageSize;
@@ -54,6 +68,17 @@ export function TablePagination<TData>({
   const goToPage = (page: number) => {
     const clamped = Math.max(1, Math.min(page, totalPages));
     table.setPageIndex(clamped - 1);
+  };
+
+  // Seed the dialog input with the current page each time it opens.
+  useEffect(() => {
+    if (goToPageOpen) setGotoValue(String(currentPage));
+  }, [goToPageOpen, currentPage]);
+
+  const submitGoToPage = () => {
+    const page = parseInt(gotoValue, 10);
+    if (!Number.isNaN(page)) goToPage(page);
+    onGoToPageOpenChange?.(false);
   };
 
   const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -102,6 +127,7 @@ export function TablePagination<TData>({
   };
 
   return (
+    <>
     <div className="flex items-center justify-between border-t bg-background px-2 py-1">
       {/* Left: statistics */}
       <div className="flex items-center gap-3 sm:gap-4">
@@ -220,5 +246,45 @@ export function TablePagination<TData>({
         </div>
       )}
     </div>
+
+    <Dialog open={goToPageOpen} onOpenChange={onGoToPageOpenChange}>
+      <DialogContent className="max-w-xs">
+        <DialogHeader>
+          <DialogTitle>Go to page</DialogTitle>
+          <DialogDescription>
+            Enter a page number (1–{totalPages}).
+          </DialogDescription>
+        </DialogHeader>
+        <Input
+          autoFocus
+          type="number"
+          min={1}
+          max={totalPages}
+          value={gotoValue}
+          onChange={(e) => setGotoValue(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              submitGoToPage();
+            }
+          }}
+          className="h-8 text-sm"
+          aria-label="Page number"
+        />
+        <DialogFooter>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onGoToPageOpenChange?.(false)}
+          >
+            Cancel
+          </Button>
+          <Button size="sm" onClick={submitGoToPage}>
+            Go
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
