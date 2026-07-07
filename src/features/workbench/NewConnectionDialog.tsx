@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils";
 import { ENGINES } from "./engineMeta";
 import type { Engine, SavedConnection } from "@/lib/db/schema";
 import { saveConnection, updateConnectionById } from "@/stores/connectionStore";
+import { disconnectConnection } from "@/stores/workbenchStore";
 
 /** Split a stored connection URL into host (scheme kept) + port. */
 function parseUrl(url: string): { host: string; port: string } {
@@ -42,6 +43,7 @@ export default function NewConnectionDialog({
   const [port, setPort] = useState("");
   const [user, setUser] = useState("");
   const [pass, setPass] = useState("");
+  const [database, setDatabase] = useState("");
   const [filePath, setFilePath] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const meta = ENGINES[engine];
@@ -56,6 +58,7 @@ export default function NewConnectionDialog({
     setPort(p);
     setUser(editing.username ?? "");
     setPass(editing.password ?? "");
+    setDatabase(editing.database ?? "");
     setFilePath(editing.filePath ?? "");
   }, [open, editing]);
 
@@ -66,6 +69,7 @@ export default function NewConnectionDialog({
     setPort("");
     setUser("");
     setPass("");
+    setDatabase("");
     setFilePath("");
   }
 
@@ -111,12 +115,17 @@ export default function NewConnectionDialog({
         url,
         username: user.trim(),
         password: pass,
+        database: isServer ? database.trim() : "",
         filePath: isServer ? undefined : resolvedFile,
       };
 
       if (editing) {
         const ok = await updateConnectionById(editing.id, payload);
         if (ok) {
+          // Drop the pooled adapter — it was opened with the old config and
+          // would otherwise keep serving it (e.g. the old database) until the
+          // idle timeout. Reconnect picks up the new settings.
+          void disconnectConnection(editing.id);
           toast.success(`Connection "${payload.name}" updated`);
           handleOpenChange(false);
         } else {
@@ -220,6 +229,21 @@ export default function NewConnectionDialog({
                   />
                 </div>
               </div>
+              {engine !== "clickhouse" && (
+                <div className="space-y-1.5">
+                  <Label htmlFor="db">Database</Label>
+                  <Input
+                    id="db"
+                    placeholder={engine === "postgres" ? "postgres" : "mysql"}
+                    value={database}
+                    onChange={(e) => setDatabase(e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Database to connect to. Leave empty to use the driver
+                    default — your tables may live in a different database.
+                  </p>
+                </div>
+              )}
             </>
           ) : (
             <div className="space-y-1.5">
