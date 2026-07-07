@@ -45,6 +45,12 @@ import { useWorkbenchStore } from "@/stores/workbenchStore";
 import { editorStore } from "@/stores/editorStore";
 import ConnectionsSection from "@/features/workbench/ConnectionsSection";
 import SavedQueriesSection from "./SavedQueriesSection";
+import {
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
+} from "@/components/ui/tabs";
 import CommandPalette, { type PaletteDest } from "./CommandPalette";
 
 // ─── Navigation destinations ──────────────────────────────────────────────
@@ -165,7 +171,6 @@ export default function AppSidebar() {
   const [paletteOpen, setPaletteOpen] = useState(false);
 
   const [navOpen, setNavOpen] = useState(true);
-  const [savedOpen, setSavedOpen] = useState(true);
 
   const draggingRef = useRef(false);
 
@@ -435,36 +440,46 @@ export default function AppSidebar() {
             {/* CONNECTIONS + SAVED QUERIES */}
             <>
               <div className="mx-3 my-1.5 border-t border-border/40" />
-              {/* Shared filter — sits above the connection tree it filters */}
-              <div className="px-2 pb-1">
-                <div className="flex items-center gap-1.5 rounded-md border border-border bg-muted/30 px-2.5 py-1.5">
-                  <Search className="size-3.5 shrink-0 text-muted-foreground/50" />
-                  <input
-                    type="text"
-                    placeholder="Filter tables…"
-                    value={filter}
-                    onChange={(e) => setFilter(e.target.value)}
-                    className="min-w-0 flex-1 bg-transparent text-[12px] text-foreground outline-none placeholder:text-muted-foreground/50"
-                  />
-                  {filter && (
-                    <button
-                      onClick={() => setFilter("")}
-                      className="shrink-0 text-[11px] text-muted-foreground/40 hover:text-muted-foreground"
-                    >
-                      ×
-                    </button>
-                  )}
-                </div>
-              </div>
-              <ConnectionsSection filter={filter} />
-              <div className="mx-3 my-1.5 border-t border-border/40" />
-              <SectionGroup
-                label="Saved Queries"
-                open={savedOpen}
-                onToggle={() => setSavedOpen((v) => !v)}
-              >
-                <SavedQueriesSection />
-              </SectionGroup>
+              <Tabs defaultValue="connections">
+                <TabsList className="mx-2 grid h-7 w-auto grid-cols-2 p-0.5">
+                  <TabsTrigger
+                    value="connections"
+                    className="h-6 px-2 text-[11px]"
+                  >
+                    Connections
+                  </TabsTrigger>
+                  <TabsTrigger value="saved" className="h-6 px-2 text-[11px]">
+                    Saved Queries
+                  </TabsTrigger>
+                </TabsList>
+                <TabsContent value="connections" className="mt-1.5">
+                  {/* Filter — sits above the connection tree it filters */}
+                  <div className="px-2 pb-1">
+                    <div className="flex items-center gap-1.5 rounded-md border border-border bg-muted/30 px-2.5 py-1.5">
+                      <Search className="size-3.5 shrink-0 text-muted-foreground/50" />
+                      <input
+                        type="text"
+                        placeholder="Filter tables…"
+                        value={filter}
+                        onChange={(e) => setFilter(e.target.value)}
+                        className="min-w-0 flex-1 bg-transparent text-[12px] text-foreground outline-none placeholder:text-muted-foreground/50"
+                      />
+                      {filter && (
+                        <button
+                          onClick={() => setFilter("")}
+                          className="shrink-0 text-[11px] text-muted-foreground/40 hover:text-muted-foreground"
+                        >
+                          ×
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <ConnectionsSection filter={filter} />
+                </TabsContent>
+                <TabsContent value="saved" className="mt-1.5">
+                  <SavedQueriesSection />
+                </TabsContent>
+              </Tabs>
             </>
           </div>
         </ScrollArea>

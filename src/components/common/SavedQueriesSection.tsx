@@ -7,7 +7,8 @@ import {
   openTab,
   selectConnection,
 } from "@/stores/workbenchStore";
-import { getSavedQueriesByConnectionId } from "@/lib/db";
+import { Trash2 } from "lucide-react";
+import { getSavedQueriesByConnectionId, deleteSavedQuery } from "@/lib/db";
 import type { SavedQuery } from "@/lib/db/schema";
 
 export default function SavedQueriesSection() {
@@ -47,28 +48,36 @@ export default function SavedQueriesSection() {
   return (
     <div className="px-1">
       {queries.map((q) => (
-        <button
-          key={q.id}
-          data-vim-row
-          data-vim-id={`saved:${q.id}`}
-          data-vim-depth={0}
-          data-vim-primary
-          onClick={() => {
-            selectConnection(q.connectionId);
-            openTab(q.connectionId, { title: q.name, sql: q.query });
-          }}
-          className="flex w-full flex-col rounded-md px-2 py-1.5 text-left hover:bg-accent/50"
-          title={q.name}
-        >
-          <span className="truncate text-[13px] text-foreground/85">
-            {q.name}
-          </span>
-          {q.databaseName && (
-            <span className="truncate text-[11px] text-muted-foreground/60">
-              {q.databaseName}
+        <div key={q.id} className="group relative">
+          <button
+            data-vim-row
+            data-vim-id={`saved:${q.id}`}
+            data-vim-depth={0}
+            data-vim-primary
+            onClick={() => {
+              selectConnection(q.connectionId);
+              openTab(q.connectionId, { title: q.name, sql: q.query });
+            }}
+            className="flex w-full flex-col rounded-md px-2 py-1.5 pr-7 text-left hover:bg-accent/50"
+            title={q.name}
+          >
+            <span className="truncate text-[13px] text-foreground/85">
+              {q.name}
             </span>
-          )}
-        </button>
+            {q.databaseName && (
+              <span className="truncate text-[11px] text-muted-foreground/60">
+                {q.databaseName}
+              </span>
+            )}
+          </button>
+          <button
+            onClick={() => deleteSavedQuery(q.id)}
+            className="absolute right-1.5 top-1/2 hidden -translate-y-1/2 rounded p-0.5 text-muted-foreground/50 hover:text-destructive group-hover:block"
+            title="Delete saved query"
+          >
+            <Trash2 className="size-3.5" />
+          </button>
+        </div>
       ))}
     </div>
   );
