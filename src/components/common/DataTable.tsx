@@ -397,7 +397,10 @@ function TableRowComponent({
 						}
 						onContextMenu={
 							isMetaCol
-								? undefined
+								? // Meta cells must not open the body-level context menu: the
+									// ref would still point at the previously right-clicked cell
+									// and row actions would target the wrong row.
+									(e) => e.stopPropagation()
 								: () =>
 										onCellContextMenu(
 											row.original[cell.column.id],
@@ -503,12 +506,16 @@ function DataTableInner({
 	const baseRows = useMemo(() => (data?.data ?? []) as RowData[], [data?.data]);
 	// New result set → drop local edits and start from page 1 (autoResetPageIndex
 	// is disabled below so local edits don't bounce the grid back to page 1).
-	useEffect(() => {
+	// Adjusted during render (not in an effect) so a stale scratchpad never
+	// flashes for one frame over the new result.
+	const [prevBaseRows, setPrevBaseRows] = useState(baseRows);
+	if (prevBaseRows !== baseRows) {
+		setPrevBaseRows(baseRows);
 		setLocalRows(null);
 		setEditingCell(null);
 		setDragState(null);
 		setPagination((p) => (p.pageIndex === 0 ? p : { ...p, pageIndex: 0 }));
-	}, [baseRows]);
+	}
 	const rows = enableEditing && localRows ? localRows : baseRows;
 	const meta = useMemo(
 		() => (data?.meta ?? []) as Array<{ name?: string; type?: string }>,
