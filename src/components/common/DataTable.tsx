@@ -501,11 +501,13 @@ function DataTableInner({
 	} | null>(null);
 
 	const baseRows = useMemo(() => (data?.data ?? []) as RowData[], [data?.data]);
-	// New result set → drop local edits.
+	// New result set → drop local edits and start from page 1 (autoResetPageIndex
+	// is disabled below so local edits don't bounce the grid back to page 1).
 	useEffect(() => {
 		setLocalRows(null);
 		setEditingCell(null);
 		setDragState(null);
+		setPagination((p) => (p.pageIndex === 0 ? p : { ...p, pageIndex: 0 }));
 	}, [baseRows]);
 	const rows = enableEditing && localRows ? localRows : baseRows;
 	const meta = useMemo(
@@ -632,11 +634,24 @@ function DataTableInner({
 	// ── Scratchpad mutations (enableEditing) ────────────────────────────────
 	// Copy-on-write from the pristine result on first use. Structural ops
 	// clear selection/editing since row ids are index-based and would drift.
+	// Reading `rows` from the closure is safe: any rows change recreates the
+	// row-model objects, so memoized rows re-render and get fresh callbacks.
 	const mutateRows = useCallback(
 		(fn: (next: RowData[]) => RowData[]) => {
-			setLocalRows((prev) => fn((prev ?? baseRows).slice()));
+			const next = fn(rows.slice());
+			setLocalRows(next);
+			// Keep the current page in range after structural changes.
+			if (enablePagination) {
+				setPagination((p) => ({
+					...p,
+					pageIndex: Math.min(
+						p.pageIndex,
+						Math.max(0, Math.ceil(next.length / p.pageSize) - 1),
+					),
+				}));
+			}
 		},
-		[baseRows],
+		[rows, enablePagination],
 	);
 
 	const clearTransientState = useCallback(() => {
@@ -868,6 +883,9 @@ function DataTableInner({
 			: {}),
 		columnResizeMode: "onChange",
 		enableColumnResizing: true,
+		// Local scratchpad edits change data identity; don't yank the user back
+		// to page 1 on every edit. New result sets reset the page explicitly.
+		autoResetPageIndex: false,
 	});
 
 	const { rows: tableRows } = table.getRowModel();
