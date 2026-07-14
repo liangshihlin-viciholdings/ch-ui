@@ -71,6 +71,12 @@ const DEFAULT_COLUMN_WIDTH = 180;
 const DEFAULT_ROW_HEIGHT = 32;
 
 type RowData = Record<string, unknown>;
+
+// Scratchpad edits keyed by the result's data-array identity. A single
+// DataTable instance is reused across the workbench's multi-statement result
+// tabs (only the `data` prop changes), so edits must survive tab flips;
+// re-running a query produces new arrays and naturally starts pristine.
+const scratchpadCache = new WeakMap<object, RowData[]>();
 type SelectedCell = {
 	rowId: string;
 	columnId: string;
@@ -514,7 +520,9 @@ function DataTableInner({
 	const [prevBaseRows, setPrevBaseRows] = useState(baseRows);
 	if (prevBaseRows !== baseRows) {
 		setPrevBaseRows(baseRows);
-		setLocalRows(null);
+		// Restore this result's scratchpad if we've edited it before (result-tab
+		// switch); otherwise pristine (new query result).
+		setLocalRows(enableEditing ? (scratchpadCache.get(baseRows) ?? null) : null);
 		setEditingCell(null);
 		setDragState(null);
 		setPagination((p) => (p.pageIndex === 0 ? p : { ...p, pageIndex: 0 }));
@@ -650,6 +658,7 @@ function DataTableInner({
 		(fn: (next: RowData[]) => RowData[]) => {
 			const next = fn(rows.slice());
 			setLocalRows(next);
+			scratchpadCache.set(baseRows, next);
 			// Keep the current page in range after structural changes.
 			if (enablePagination) {
 				setPagination((p) => ({
@@ -661,7 +670,7 @@ function DataTableInner({
 				}));
 			}
 		},
-		[rows, enablePagination],
+		[rows, baseRows, enablePagination],
 	);
 
 	const clearTransientState = useCallback(() => {
@@ -1227,6 +1236,7 @@ function DataTableInner({
 					<button
 						onClick={() => {
 							setLocalRows(null);
+							scratchpadCache.delete(baseRows);
 							clearTransientState();
 						}}
 						className="ml-auto flex items-center gap-1 px-2 py-0.5 rounded hover:bg-muted hover:text-foreground"
