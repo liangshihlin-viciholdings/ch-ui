@@ -286,7 +286,6 @@ const MemoizedTableRow = memo(TableRowComponent, (prev, next) => {
  * Cells read CSS variables via Tailwind classes so it inherits the app
  * theme automatically.
  */
-// DEBUG: render counter
 function DataTableInner({
 	data,
 	height = "350px",
