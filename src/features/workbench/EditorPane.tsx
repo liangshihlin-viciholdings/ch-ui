@@ -204,7 +204,13 @@ function ResultBody({ result }: { result: AdapterQueryResult }) {
   // read, bytes read). AdapterQueryResult is structurally a QueryResult.
   return (
     <div className="h-full overflow-hidden bg-background p-2">
-      <DataTable data={result} height="100%" enablePagination pageSize={100} />
+      <DataTable
+        data={result}
+        height="100%"
+        enablePagination
+        pageSize={100}
+        enableTranspose
+      />
     </div>
   );
 }
