@@ -465,12 +465,9 @@ export async function connectConnection(connectionId: string): Promise<void> {
     await loadSchema(connectionId);
     await loadCapabilities(connectionId);
     // Refresh the SQL editor's autocomplete for this connection so suggestions
-    // reflect the now-connected schema. ClickHouse-only: system.completions is
-    // CH-specific and the completion source skips other engines.
-    if (conn.engine === "clickhouse") {
-      resetCompletionCaches(connectionId);
-      void prewarmCompletionCaches(connectionId);
-    }
+    // reflect the now-connected schema (engine-aware introspection query).
+    resetCompletionCaches(connectionId);
+    void prewarmCompletionCaches(connectionId, conn.engine);
   } catch (error) {
     toast.error(`Connection failed: ${String(error)}`);
     patch({

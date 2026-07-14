@@ -1,8 +1,9 @@
 // completionSource.ts
-// ClickHouse-aware CodeMirror CompletionSource backed by system.completions.
-// A single query returns all databases/tables/columns/functions/keywords; rows
-// are filtered at suggestion time based on the parsed SQL context so suggestions
-// always reflect what the user has already typed (database prefix, FROM tables, etc.).
+// Engine-aware CodeMirror CompletionSource. A single per-engine introspection
+// query (see engineCompletions.ts) returns all databases/tables/columns/
+// functions/keywords; rows are filtered at suggestion time based on the parsed
+// SQL context so suggestions always reflect what the user has already typed
+// (database prefix, FROM tables, etc.).
 
 import type {
   Completion,
@@ -12,8 +13,15 @@ import type {
 
 import useAppStore from "@/stores/workspaceStore";
 import { getTransport } from "@/lib/transport";
-import { appQueries } from "./appQueries";
-import { DDL_OBJECTS, getAllEngines } from "./clickhouseConstants";
+import type { Engine } from "@/lib/db-adapter/types";
+import {
+  type CompletionRow,
+  COMPLETION_QUERIES,
+  STATIC_COMPLETION_ROWS,
+  DDL_OBJECTS_BY_ENGINE,
+  WHERE_OPERATORS_BY_ENGINE,
+  TABLE_ENGINES_BY_ENGINE,
+} from "./engineCompletions";
 import {
   parseSQLContext,
   type SQLContext,
@@ -26,12 +34,6 @@ import {
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
-interface CompletionRow {
-  word: string;
-  context: string;
-  belongs: string | null;
-}
-
 /**
  * Identifies which connection's schema the completion should reflect. Supplied
  * by the multi-connection workbench (per active tab). When omitted, the source
@@ -40,7 +42,7 @@ interface CompletionRow {
  */
 export interface CompletionConnectionContext {
   connectionId?: string;
-  engine?: string;
+  engine?: Engine;
   selectedDatabase?: string;
 }
 
@@ -56,15 +58,21 @@ const completionsCache = new Map<string, CompletionRow[]>();
 const inFlightCompletions = new Map<string, Promise<CompletionRow[]>>();
 let usageTracker: AutocompleteUsageTracker | null = null;
 
-function cacheKeyFor(connectionId?: string): string {
-  return connectionId || "default";
+// The engine is part of the key: editing a connection to a different engine
+// (same connectionId) must never serve the old engine's cached rows.
+function cacheKeyFor(connectionId: string | undefined, engine: Engine): string {
+  return `${connectionId || "default"}\x00${engine}`;
 }
 
 export function resetCompletionCaches(connectionId?: string): void {
   if (connectionId) {
-    const key = cacheKeyFor(connectionId);
-    completionsCache.delete(key);
-    inFlightCompletions.delete(key);
+    const prefix = `${connectionId}\x00`;
+    for (const key of [...completionsCache.keys()]) {
+      if (key.startsWith(prefix)) completionsCache.delete(key);
+    }
+    for (const key of [...inFlightCompletions.keys()]) {
+      if (key.startsWith(prefix)) inFlightCompletions.delete(key);
+    }
   } else {
     completionsCache.clear();
     inFlightCompletions.clear();
@@ -73,8 +81,9 @@ export function resetCompletionCaches(connectionId?: string): void {
 
 export async function prewarmCompletionCaches(
   connectionId?: string,
+  engine: Engine = "clickhouse",
 ): Promise<void> {
-  await getAllCompletions(connectionId);
+  await getAllCompletions(connectionId, engine);
 }
 
 /**
@@ -128,21 +137,26 @@ async function runIntrospection(
 }
 
 async function getAllCompletions(
-  connectionId?: string,
+  connectionId: string | undefined,
+  engine: Engine,
 ): Promise<CompletionRow[]> {
-  const key = cacheKeyFor(connectionId);
+  const key = cacheKeyFor(connectionId, engine);
   const cached = completionsCache.get(key);
   if (cached) return cached;
   const existing = inFlightCompletions.get(key);
   if (existing) return existing;
   const fetchPromise = (async () => {
-    const rows = (await runIntrospection(
-      appQueries.getCompletions.query,
+    const fetched = (await runIntrospection(
+      COMPLETION_QUERIES[engine],
       connectionId,
     )) as CompletionRow[];
-    // Don't cache empty results: a connection that isn't ready yet would
-    // otherwise be pinned to "no completions" until an explicit reset.
-    if (rows.length > 0) completionsCache.set(key, rows);
+    const statics = STATIC_COMPLETION_ROWS[engine] ?? [];
+    // Don't cache empty introspection results: a connection that isn't ready
+    // yet would otherwise be pinned to "no completions" until an explicit
+    // reset. Static rows still surface so keywords work while disconnected.
+    if (fetched.length === 0) return statics;
+    const rows = fetched.concat(statics);
+    completionsCache.set(key, rows);
     return rows;
   })();
   inFlightCompletions.set(key, fetchPromise);
@@ -294,6 +308,7 @@ function allKeywords(rows: CompletionRow[]): Completion[] {
 function getSuggestionsForContext(
   context: SQLContext,
   rows: CompletionRow[],
+  engine: Engine,
 ): Completion[] {
   const out: Completion[] = [];
 
@@ -343,10 +358,7 @@ function getSuggestionsForContext(
         context.clauseType === "HAVING" ||
         context.clauseType === "PREWHERE"
       ) {
-        for (const op of [
-          "AND", "OR", "NOT", "IN", "LIKE", "BETWEEN",
-          "GLOBAL IN", "GLOBAL NOT IN", "ANY", "ALL", "ILIKE",
-        ]) {
+        for (const op of WHERE_OPERATORS_BY_ENGINE[engine]) {
           out.push(makeCompletion(op, "keyword", "operator", `operator:${op}`));
         }
       }
@@ -376,6 +388,9 @@ function getSuggestionsForContext(
     }
 
     case "FORMAT": {
+      // FORMAT is a ClickHouse-only output clause; on other engines the parser
+      // only lands here if the user typed the bare word, so suggest nothing.
+      if (engine !== "clickhouse") break;
       for (const fmt of [
         "TabSeparated", "TabSeparatedWithNames", "TabSeparatedWithNamesAndTypes",
         "CSV", "CSVWithNames", "CSVWithNamesAndTypes",
@@ -395,7 +410,7 @@ function getSuggestionsForContext(
     case "CREATE":
     case "ALTER":
     case "DROP": {
-      for (const obj of DDL_OBJECTS) {
+      for (const obj of DDL_OBJECTS_BY_ENGINE[engine]) {
         out.push(
           makeCompletion(obj, "keyword", "keyword", `keyword:${obj}`, {
             detail: "DDL object type",
@@ -407,9 +422,10 @@ function getSuggestionsForContext(
     }
 
     case "ENGINE": {
-      for (const engine of getAllEngines()) {
+      // Only ClickHouse and MySQL have an ENGINE = … clause.
+      for (const tableEngine of TABLE_ENGINES_BY_ENGINE[engine] ?? []) {
         out.push(
-          makeCompletion(engine, "class", "keyword", `keyword:${engine}`, {
+          makeCompletion(tableEngine, "class", "keyword", `keyword:${tableEngine}`, {
             detail: "Table engine",
           }),
         );
@@ -447,15 +463,15 @@ function getSuggestionsForContext(
 const IDENTIFIER_BEFORE = /[\w.]+/;
 const IDENTIFIER_VALID = /^[\w.]*$/;
 
-export async function clickhouseCompletionSource(
+export async function sqlCompletionSource(
   context: CompletionContext,
   conn?: CompletionConnectionContext,
 ): Promise<CompletionResult | null> {
-  // Engine guard: system.completions is ClickHouse-specific. Non-ClickHouse
-  // workbench tabs (postgres/mysql/sqlite/duckdb) get no completions for now
-  // rather than a doomed ClickHouse query (engine-aware completions tracked
-  // as a separate follow-up).
-  if (conn?.engine && conn.engine !== "clickhouse") return null;
+  // A workbench context whose connection lookup missed (stale tab) has a
+  // connectionId but no engine — suggest nothing rather than guessing.
+  if (conn?.connectionId && !conn.engine) return null;
+  // Legacy single-connection callers pass no context and are always ClickHouse.
+  const engine: Engine = conn?.engine ?? "clickhouse";
 
   const prefix = context.matchBefore(IDENTIFIER_BEFORE);
 
@@ -484,7 +500,7 @@ export async function clickhouseCompletionSource(
       : (prefix?.from ?? context.pos);
   const to = context.pos;
 
-  const rows = await getAllCompletions(conn?.connectionId);
+  const rows = await getAllCompletions(conn?.connectionId, engine);
   if (context.aborted) return null;
 
   // Re-assert the tracker connection AFTER the await: getSuggestionsForContext
@@ -492,7 +508,7 @@ export async function clickhouseCompletionSource(
   // correct for the whole build even if another editor's completion ran during
   // the await (e.g. split panes on different connections).
   ensureTracker(trackerId);
-  const options = getSuggestionsForContext(sqlContext, rows);
+  const options = getSuggestionsForContext(sqlContext, rows, engine);
 
   return { from, to, options, validFor: IDENTIFIER_VALID };
 }

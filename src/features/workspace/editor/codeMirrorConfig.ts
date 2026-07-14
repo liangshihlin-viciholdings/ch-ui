@@ -16,7 +16,7 @@ import { EditorView, keymap } from "@codemirror/view";
 import { clickhouse as clickhouseFormatter } from "sql-formatter";
 
 import {
-	clickhouseCompletionSource,
+	sqlCompletionSource,
 	type CompletionConnectionContext,
 } from "./completionSource";
 import { vimExtension } from "./vimMode";
@@ -105,8 +105,8 @@ export function createSqlExtensions(options: SqlExtensionOptions): Extension[] {
 	// The workbench passes getCompletionContext so the source resolves the
 	// active tab's connection at call-time and queries via its transport.
 	const completionOverride: CompletionSource = options.getCompletionContext
-		? (ctx) => clickhouseCompletionSource(ctx, options.getCompletionContext!())
-		: clickhouseCompletionSource;
+		? (ctx) => sqlCompletionSource(ctx, options.getCompletionContext!())
+		: sqlCompletionSource;
 
 	// Vim extension MUST come before other keymaps per @replit/codemirror-vim
 	// documentation. It intercepts DOM keydown events and needs priority.
