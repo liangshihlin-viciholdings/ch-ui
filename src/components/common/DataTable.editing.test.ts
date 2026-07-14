@@ -50,4 +50,13 @@ describe("coerceCellEdit", () => {
 			"{oops",
 		);
 	});
+	it("parses JSON into null cells of complex-typed columns", () => {
+		expect(coerceCellEdit('{"a":1}', "Map(String, UInt8)", null, true)).toEqual(
+			{ a: 1 },
+		);
+		expect(coerceCellEdit("[1,2]", "Array(UInt8)", null, true)).toEqual([1, 2]);
+	});
+	it("does not JSON-parse scalar columns even when input looks like JSON", () => {
+		expect(coerceCellEdit('{"a":1}', "String", "x")).toBe('{"a":1}');
+	});
 });

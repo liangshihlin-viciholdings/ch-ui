@@ -170,6 +170,7 @@ export function coerceCellEdit(
 	raw: string,
 	rawType: string,
 	prev: unknown,
+	complexType = false,
 ): unknown {
 	const nullable = rawType.includes("Nullable(");
 	if (raw === "" && (nullable || prev === null || prev === undefined))
@@ -179,7 +180,9 @@ export function coerceCellEdit(
 		const n = Number(raw);
 		if (raw.trim() !== "" && Number.isFinite(n)) return n;
 	}
-	if (typeof prev === "object" && prev !== null) {
+	// Parse JSON for object cells AND for complex-typed columns whose current
+	// value is null (e.g. blank inserted rows) so Map/Array cells stay typed.
+	if (complexType || (typeof prev === "object" && prev !== null)) {
 		try {
 			return JSON.parse(raw);
 		} catch {
@@ -676,10 +679,19 @@ function DataTableInner({
 
 	const commitEdit = useCallback(
 		(rowIndex: number, columnId: string, raw: string) => {
+			const prevVal = rows[rowIndex]?.[columnId];
+			// No-op edits (open editor, blur) must not flip the grid into
+			// scratchpad mode.
+			if (raw === editableCellText(prevVal)) {
+				setEditingCell(null);
+				return;
+			}
+			const ast = typeAstMap[columnId];
 			const coerced = coerceCellEdit(
 				raw,
 				typeRawMap[columnId] ?? "",
-				rows[rowIndex]?.[columnId],
+				prevVal,
+				ast ? isComplexType(ast) : false,
 			);
 			mutateRows((next) => {
 				next[rowIndex] = { ...next[rowIndex], [columnId]: coerced };
@@ -693,7 +705,7 @@ function DataTableInner({
 					: s,
 			);
 		},
-		[rows, typeRawMap, mutateRows],
+		[rows, typeRawMap, typeAstMap, mutateRows],
 	);
 
 	const emptyRow = useCallback(
@@ -719,6 +731,10 @@ function DataTableInner({
 				next.splice(rowIndex + 1, 0, emptyRow());
 				return next;
 			});
+			// An active sort would fling the blank row wherever nulls sort,
+			// away from the clicked row — drop back to data order so the new
+			// row is visibly below where the user asked for it.
+			setSorting([]);
 			clearTransientState();
 		},
 		[mutateRows, clearTransientState, emptyRow],
@@ -729,6 +745,7 @@ function DataTableInner({
 			next.push(emptyRow());
 			return next;
 		});
+		setSorting([]); // same reason as insertRowBelow: keep the new row visible at the end
 		clearTransientState();
 	}, [mutateRows, clearTransientState, emptyRow]);
 
