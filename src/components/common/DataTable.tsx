@@ -12,13 +12,23 @@ import {
 	useReactTable,
 } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { Copy, Expand, X } from "lucide-react";
+import {
+	Copy,
+	CopyPlus,
+	Expand,
+	Pencil,
+	Plus,
+	RotateCcw,
+	Trash2,
+	X,
+} from "lucide-react";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
 	ContextMenu,
 	ContextMenuContent,
 	ContextMenuItem,
+	ContextMenuSeparator,
 	ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import {
@@ -122,6 +132,13 @@ export interface DataTableProps {
 	 * query results.
 	 */
 	enableTranspose?: boolean;
+	/**
+	 * When true, the grid becomes a local scratchpad: double-click edits a
+	 * cell, rows can be duplicated / inserted / deleted / drag-reordered.
+	 * Edits affect copy/export but are NEVER persisted to the database;
+	 * a Reset bar restores the original query result.
+	 */
+	enableEditing?: boolean;
 }
 
 function formatCellValue(value: unknown): string {
@@ -134,6 +151,42 @@ function formatCellValue(value: unknown): string {
 		}
 	}
 	return String(value);
+}
+
+/** Initial text shown in the inline cell editor (null → empty, objects → JSON). */
+export function editableCellText(value: unknown): string {
+	if (value === null || value === undefined) return "";
+	return formatCellValue(value);
+}
+
+/**
+ * Coerce the inline editor's raw string back into a cell value.
+ * ponytail: pragmatic coercion, not a full ClickHouse type mapper — numbers
+ * for numeric columns, JSON for object/array cells, null for cleared
+ * Nullable cells, everything else stays a string. Edits are local-only so a
+ * wrong guess is harmless and visible.
+ */
+export function coerceCellEdit(
+	raw: string,
+	rawType: string,
+	prev: unknown,
+): unknown {
+	const nullable = rawType.includes("Nullable(");
+	if (raw === "" && (nullable || prev === null || prev === undefined))
+		return null;
+	const inner = rawType.replace(/^(?:Nullable|LowCardinality)\((.*)\)$/, "$1");
+	if (/^(?:Nullable\()?(?:U?Int|Float|Decimal)/.test(inner)) {
+		const n = Number(raw);
+		if (raw.trim() !== "" && Number.isFinite(n)) return n;
+	}
+	if (typeof prev === "object" && prev !== null) {
+		try {
+			return JSON.parse(raw);
+		} catch {
+			/* keep as string */
+		}
+	}
+	return raw;
 }
 
 function CellContent({
@@ -175,6 +228,41 @@ function CellContent({
 }
 const MemoizedCellContent = memo(CellContent);
 
+/**
+ * Inline cell editor. Commits on Enter/blur, cancels on Escape. Keeps its own
+ * text state so parent re-renders don't clobber typing.
+ */
+function CellEditInput({
+	initial,
+	onCommit,
+	onCancel,
+}: {
+	initial: string;
+	onCommit: (raw: string) => void;
+	onCancel: () => void;
+}) {
+	const [text, setText] = useState(initial);
+	return (
+		<input
+			// eslint-disable-next-line jsx-a11y/no-autofocus -- editor opened by explicit user action
+			autoFocus
+			value={text}
+			onChange={(e) => setText(e.target.value)}
+			onFocus={(e) => e.target.select()}
+			onBlur={() => onCommit(text)}
+			onKeyDown={(e) => {
+				// Keep grid-level handlers (Escape-clears-selection, vim nav) out.
+				e.stopPropagation();
+				if (e.key === "Enter") onCommit(text);
+				else if (e.key === "Escape") onCancel();
+			}}
+			onClick={(e) => e.stopPropagation()}
+			onDoubleClick={(e) => e.stopPropagation()}
+			className="w-full h-6 px-1 -mx-1 bg-background text-foreground text-sm border border-primary rounded-sm outline-none"
+		/>
+	);
+}
+
 interface MemoizedRowProps {
 	row: TRow<RowData>;
 	isRowSelected: boolean;
@@ -195,7 +283,19 @@ interface MemoizedRowProps {
 		typeAst: ColumnTypeAst | null,
 		rawType: string,
 		columnId: string,
+		rowIndex: number,
 	) => void;
+	/** Column id currently being edited in THIS row, or null. */
+	editingColId: string | null;
+	enableEditing: boolean;
+	onStartEdit: (rowIndex: number, columnId: string) => void;
+	onCommitEdit: (rowIndex: number, columnId: string, raw: string) => void;
+	onCancelEdit: () => void;
+	dragState: { from: number; over: number } | null;
+	onRowDragStart: (rowIndex: number) => void;
+	onRowDragOver: (rowIndex: number) => void;
+	onRowDrop: (rowIndex: number) => void;
+	canReorder: boolean;
 }
 
 function TableRowComponent({
@@ -208,13 +308,43 @@ function TableRowComponent({
 	typeRawMap,
 	onCellClick,
 	onCellContextMenu,
+	editingColId,
+	enableEditing,
+	onStartEdit,
+	onCommitEdit,
+	onCancelEdit,
+	dragState,
+	onRowDragStart,
+	onRowDragOver,
+	onRowDrop,
+	canReorder,
 }: MemoizedRowProps) {
+	const isDragOver = dragState !== null && dragState.over === row.index;
+	const isDragSource = dragState !== null && dragState.from === row.index;
 	return (
 		<TableRow
 			data-index={row.index}
 			data-state={isRowSelected ? "selected" : undefined}
-			className={`${!isLargeDataset ? "transition-colors" : ""}`}
+			className={`${!isLargeDataset ? "transition-colors" : ""} ${
+				isDragOver ? "outline outline-1 -outline-offset-1 outline-primary" : ""
+			} ${isDragSource ? "opacity-50" : ""}`}
 			style={{ height: `${DEFAULT_ROW_HEIGHT}px` }}
+			onDragOver={
+				canReorder
+					? (e) => {
+							e.preventDefault();
+							onRowDragOver(row.index);
+						}
+					: undefined
+			}
+			onDrop={
+				canReorder
+					? (e) => {
+							e.preventDefault();
+							onRowDrop(row.index);
+						}
+					: undefined
+			}
 		>
 			{row.getVisibleCells().map((cell) => {
 				const isCellSelected =
@@ -222,17 +352,32 @@ function TableRowComponent({
 				const isMetaCol =
 					cell.column.id === SELECT_COLUMN_ID ||
 					cell.column.id === ROW_NUM_COLUMN_ID;
+				const isEditingCell =
+					!isMetaCol && editingColId !== null && editingColId === cell.column.id;
 				const colTypeAst = isMetaCol
 					? null
 					: (typeAstMap[cell.column.id] ?? null);
 				const colRawType = isMetaCol ? "" : (typeRawMap[cell.column.id] ?? "");
+				const isRowNumCol = cell.column.id === ROW_NUM_COLUMN_ID;
 				return (
 					<TableCell
 						key={cell.id}
 						className={`border-b border-border/50 px-3 py-1.5 text-foreground overflow-hidden ${
 							isCellSelected ? "ring-1 ring-inset ring-primary" : ""
-						}`}
+						} ${isRowNumCol && canReorder ? "cursor-grab select-none" : ""}`}
 						style={{ width: cell.column.getSize() }}
+						draggable={isRowNumCol && canReorder ? true : undefined}
+						onDragStart={
+							isRowNumCol && canReorder
+								? (e) => {
+										e.dataTransfer.effectAllowed = "move";
+										onRowDragStart(row.index);
+									}
+								: undefined
+						}
+						title={
+							isRowNumCol && canReorder ? "Drag to reorder row" : undefined
+						}
 						onClick={
 							isMetaCol
 								? undefined
@@ -245,6 +390,11 @@ function TableRowComponent({
 											colRawType,
 										)
 						}
+						onDoubleClick={
+							isMetaCol || !enableEditing
+								? undefined
+								: () => onStartEdit(row.index, cell.column.id)
+						}
 						onContextMenu={
 							isMetaCol
 								? undefined
@@ -254,10 +404,19 @@ function TableRowComponent({
 											colTypeAst,
 											colRawType,
 											cell.column.id,
+											row.index,
 										)
 						}
 					>
-						{flexRender(cell.column.columnDef.cell, cell.getContext())}
+						{isEditingCell ? (
+							<CellEditInput
+								initial={editableCellText(row.original[cell.column.id])}
+								onCommit={(raw) => onCommitEdit(row.index, cell.column.id, raw)}
+								onCancel={onCancelEdit}
+							/>
+						) : (
+							flexRender(cell.column.columnDef.cell, cell.getContext())
+						)}
 					</TableCell>
 				);
 			})}
@@ -268,6 +427,11 @@ function TableRowComponent({
 const MemoizedTableRow = memo(TableRowComponent, (prev, next) => {
 	const wasThisRowCellSelected = prev.selectedCellRowId === prev.row.id;
 	const isThisRowCellSelected = next.selectedCellRowId === next.row.id;
+	// Drag visuals only depend on whether THIS row is the source / hover target.
+	const wasDragOver = prev.dragState?.over === prev.row.index;
+	const isDragOver = next.dragState?.over === next.row.index;
+	const wasDragSource = prev.dragState?.from === prev.row.index;
+	const isDragSource = next.dragState?.from === next.row.index;
 	return (
 		prev.row === next.row &&
 		prev.isRowSelected === next.isRowSelected &&
@@ -276,7 +440,12 @@ const MemoizedTableRow = memo(TableRowComponent, (prev, next) => {
 			prev.selectedCellColId === next.selectedCellColId) &&
 		prev.isLargeDataset === next.isLargeDataset &&
 		prev.typeAstMap === next.typeAstMap &&
-		prev.typeRawMap === next.typeRawMap
+		prev.typeRawMap === next.typeRawMap &&
+		prev.editingColId === next.editingColId &&
+		prev.enableEditing === next.enableEditing &&
+		prev.canReorder === next.canReorder &&
+		wasDragOver === isDragOver &&
+		wasDragSource === isDragSource
 	);
 });
 
@@ -292,6 +461,7 @@ function DataTableInner({
 	enablePagination = true,
 	pageSize: initialPageSize = 100,
 	enableTranspose = false,
+	enableEditing = false,
 }: DataTableProps) {
 	const containerRef = useRef<HTMLDivElement>(null);
 	const rootRef = useRef<HTMLDivElement>(null);
@@ -301,6 +471,7 @@ function DataTableInner({
 		typeAst: ColumnTypeAst | null;
 		rawType: string;
 		columnId: string;
+		rowIndex: number;
 	} | null>(null);
 	const [sorting, setSorting] = useState<SortingState>([]);
 	const [columnPinning, setColumnPinning] = useState<ColumnPinningState>({});
@@ -316,7 +487,27 @@ function DataTableInner({
 	// Two-key `gg` sequence state for vim cell nav (below).
 	const gCellPendingRef = useRef(false);
 
-	const rows = useMemo(() => (data?.data ?? []) as RowData[], [data?.data]);
+	// ── Local scratchpad editing state (enableEditing) ──────────────────────
+	// localRows === null → pristine, render the query result as-is. First edit
+	// copies the result; Reset drops back to null. Never persisted to the DB.
+	const [localRows, setLocalRows] = useState<RowData[] | null>(null);
+	const [editingCell, setEditingCell] = useState<{
+		rowIndex: number;
+		columnId: string;
+	} | null>(null);
+	const [dragState, setDragState] = useState<{
+		from: number;
+		over: number;
+	} | null>(null);
+
+	const baseRows = useMemo(() => (data?.data ?? []) as RowData[], [data?.data]);
+	// New result set → drop local edits.
+	useEffect(() => {
+		setLocalRows(null);
+		setEditingCell(null);
+		setDragState(null);
+	}, [baseRows]);
+	const rows = enableEditing && localRows ? localRows : baseRows;
 	const meta = useMemo(
 		() => (data?.meta ?? []) as Array<{ name?: string; type?: string }>,
 		[data?.meta],
@@ -327,9 +518,16 @@ function DataTableInner({
 	const selectedCellRowId = selectedCell?.rowId ?? null;
 	const selectedCellColId = selectedCell?.columnId ?? null;
 
-	// Escape clears selection; Ctrl+C copies selected cell.
+	// Escape clears selection; Ctrl+C copies selected cell. Skips typing
+	// fields so the inline cell editor (and dialogs) keep native behavior.
 	useEffect(() => {
 		const handler = (e: KeyboardEvent) => {
+			const ae = document.activeElement as HTMLElement | null;
+			if (
+				ae &&
+				(/^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName) || ae.isContentEditable)
+			)
+				return;
 			if (e.key === "Escape") {
 				setRowSelection({});
 				setSelectedCell(null);
@@ -368,6 +566,8 @@ function DataTableInner({
 			e.preventDefault();
 			setSelectedCell(null);
 			setRowSelection({});
+			setEditingCell(null);
+			setDragState(null);
 			setTransposed((t) => !t);
 		};
 		document.addEventListener("keydown", onKey);
@@ -393,8 +593,9 @@ function DataTableInner({
 			typeAst: ColumnTypeAst | null,
 			rawType: string,
 			columnId: string,
+			rowIndex: number,
 		) => {
-			contextMenuCellRef.current = { value, typeAst, rawType, columnId };
+			contextMenuCellRef.current = { value, typeAst, rawType, columnId, rowIndex };
 		},
 		[],
 	);
@@ -427,6 +628,140 @@ function DataTableInner({
 			.map((m) => m.name)
 			.filter((n): n is string => typeof n === "string");
 	}, [meta]);
+
+	// ── Scratchpad mutations (enableEditing) ────────────────────────────────
+	// Copy-on-write from the pristine result on first use. Structural ops
+	// clear selection/editing since row ids are index-based and would drift.
+	const mutateRows = useCallback(
+		(fn: (next: RowData[]) => RowData[]) => {
+			setLocalRows((prev) => fn((prev ?? baseRows).slice()));
+		},
+		[baseRows],
+	);
+
+	const clearTransientState = useCallback(() => {
+		setSelectedCell(null);
+		setRowSelection({});
+		setEditingCell(null);
+		setDragState(null);
+	}, []);
+
+	const startEdit = useCallback((rowIndex: number, columnId: string) => {
+		setEditingCell({ rowIndex, columnId });
+	}, []);
+
+	const cancelEdit = useCallback(() => setEditingCell(null), []);
+
+	const commitEdit = useCallback(
+		(rowIndex: number, columnId: string, raw: string) => {
+			const coerced = coerceCellEdit(
+				raw,
+				typeRawMap[columnId] ?? "",
+				rows[rowIndex]?.[columnId],
+			);
+			mutateRows((next) => {
+				next[rowIndex] = { ...next[rowIndex], [columnId]: coerced };
+				return next;
+			});
+			setEditingCell(null);
+			// Keep the selection-bar value in sync if it points at this cell.
+			setSelectedCell((s) =>
+				s && s.columnId === columnId && s.rowId === String(rowIndex)
+					? { ...s, value: coerced }
+					: s,
+			);
+		},
+		[rows, typeRawMap, mutateRows],
+	);
+
+	const emptyRow = useCallback(
+		(): RowData => Object.fromEntries(columnKeys.map((k) => [k, null])),
+		[columnKeys],
+	);
+
+	const duplicateRow = useCallback(
+		(rowIndex: number) => {
+			mutateRows((next) => {
+				const src = next[rowIndex];
+				if (src) next.splice(rowIndex + 1, 0, { ...src });
+				return next;
+			});
+			clearTransientState();
+		},
+		[mutateRows, clearTransientState],
+	);
+
+	const insertRowBelow = useCallback(
+		(rowIndex: number) => {
+			mutateRows((next) => {
+				next.splice(rowIndex + 1, 0, emptyRow());
+				return next;
+			});
+			clearTransientState();
+		},
+		[mutateRows, clearTransientState, emptyRow],
+	);
+
+	const appendRow = useCallback(() => {
+		mutateRows((next) => {
+			next.push(emptyRow());
+			return next;
+		});
+		clearTransientState();
+	}, [mutateRows, clearTransientState, emptyRow]);
+
+	const deleteRows = useCallback(
+		(rowIndexes: number[]) => {
+			const drop = new Set(rowIndexes);
+			mutateRows((next) => next.filter((_, i) => !drop.has(i)));
+			clearTransientState();
+		},
+		[mutateRows, clearTransientState],
+	);
+
+	// ── Row drag-reorder (native HTML5 DnD on the # cell) ───────────────────
+	// The drag source lives in a ref: rows rendered before the drag started
+	// hold stale dragState closures, so drop must not read from state.
+	const dragFromRef = useRef<number | null>(null);
+	const onRowDragStart = useCallback((rowIndex: number) => {
+		dragFromRef.current = rowIndex;
+		setDragState({ from: rowIndex, over: rowIndex });
+	}, []);
+	const onRowDragOver = useCallback((rowIndex: number) => {
+		setDragState((s) =>
+			s && s.over !== rowIndex ? { ...s, over: rowIndex } : s,
+		);
+	}, []);
+	const onRowDrop = useCallback(
+		(rowIndex: number) => {
+			const from = dragFromRef.current;
+			dragFromRef.current = null;
+			setDragState(null);
+			if (from === null || from === rowIndex) return;
+			mutateRows((next) => {
+				const [moved] = next.splice(from, 1);
+				next.splice(rowIndex, 0, moved);
+				return next;
+			});
+			clearTransientState();
+		},
+		[mutateRows, clearTransientState],
+	);
+	// Cancelled drags (drop outside the grid) leave visuals behind — clean up
+	// on the global dragend that always fires on the source element.
+	useEffect(() => {
+		if (!dragState) return;
+		const end = () => {
+			dragFromRef.current = null;
+			setDragState(null);
+		};
+		document.addEventListener("dragend", end);
+		return () => document.removeEventListener("dragend", end);
+	}, [dragState]);
+
+	// Reordering by drag only makes sense in data order: sorting would
+	// immediately re-sort the moved row somewhere else.
+	const canReorder = enableEditing && !transposed && sorting.length === 0;
 
 	const columns = useMemo<ColumnDef<RowData>[]>(() => {
 		// No columns if no meta info
@@ -708,7 +1043,9 @@ function DataTableInner({
 			: undefined;
 	const outerHeightClass = height === "100%" ? "h-full" : "";
 
-	if (!rows.length) {
+	// Keep rendering an empty grid while local edits exist (all rows deleted)
+	// so the Reset / Add-row bar stays reachable.
+	if (!rows.length && !(enableEditing && localRows)) {
 		return null;
 	}
 
@@ -765,6 +1102,16 @@ function DataTableInner({
 								Copy TSV
 							</button>
 							<DownloadDialog data={selectedRows.map((r) => r.original)} />
+							{enableEditing && (
+								<button
+									onClick={() => deleteRows(selectedRows.map((r) => r.index))}
+									className="flex items-center gap-1 px-2 py-0.5 rounded hover:bg-muted text-muted-foreground hover:text-destructive"
+									title="Delete selected rows (local only)"
+								>
+									<Trash2 className="h-3.5 w-3.5" />
+									Delete
+								</button>
+							)}
 						</>
 					)}
 					{selectedCell && (
@@ -817,6 +1164,34 @@ function DataTableInner({
 						title="Clear selection (Esc)"
 					>
 						<X className="h-3.5 w-3.5" />
+					</button>
+				</div>
+			)}
+
+			{/* Local-edits bar: appears once the scratchpad diverges from the
+			    query result; Reset restores the pristine result. */}
+			{enableEditing && localRows && (
+				<div className="flex items-center gap-2 px-3 py-1 bg-amber-500/10 border-b border-border text-xs text-muted-foreground shrink-0">
+					<Pencil className="h-3 w-3 shrink-0" />
+					<span>Local edits — not written to the database</span>
+					<button
+						onClick={appendRow}
+						className="flex items-center gap-1 px-2 py-0.5 rounded hover:bg-muted hover:text-foreground"
+						title="Append an empty row"
+					>
+						<Plus className="h-3 w-3" />
+						Add row
+					</button>
+					<button
+						onClick={() => {
+							setLocalRows(null);
+							clearTransientState();
+						}}
+						className="ml-auto flex items-center gap-1 px-2 py-0.5 rounded hover:bg-muted hover:text-foreground"
+						title="Discard local edits and restore query results"
+					>
+						<RotateCcw className="h-3 w-3" />
+						Reset
 					</button>
 				</div>
 			)}
@@ -965,6 +1340,20 @@ function DataTableInner({
 											typeRawMap={typeRawMap}
 											onCellClick={handleCellClick}
 											onCellContextMenu={handleCellContextMenu}
+											editingColId={
+												editingCell && editingCell.rowIndex === row.index
+													? editingCell.columnId
+													: null
+											}
+											enableEditing={enableEditing}
+											onStartEdit={startEdit}
+											onCommitEdit={commitEdit}
+											onCancelEdit={cancelEdit}
+											dragState={dragState}
+											onRowDragStart={onRowDragStart}
+											onRowDragOver={onRowDragOver}
+											onRowDrop={onRowDrop}
+											canReorder={canReorder}
 										/>
 									);
 								})}
@@ -1009,6 +1398,48 @@ function DataTableInner({
 								<Expand className="mr-2 h-4 w-4" />
 								View Details
 							</ContextMenuItem>
+							{enableEditing && (
+								<>
+									<ContextMenuSeparator />
+									<ContextMenuItem
+										onClick={() => {
+											const cell = contextMenuCellRef.current;
+											if (cell) startEdit(cell.rowIndex, cell.columnId);
+										}}
+									>
+										<Pencil className="mr-2 h-4 w-4" />
+										Edit Cell
+									</ContextMenuItem>
+									<ContextMenuItem
+										onClick={() => {
+											const cell = contextMenuCellRef.current;
+											if (cell) duplicateRow(cell.rowIndex);
+										}}
+									>
+										<CopyPlus className="mr-2 h-4 w-4" />
+										Duplicate Row
+									</ContextMenuItem>
+									<ContextMenuItem
+										onClick={() => {
+											const cell = contextMenuCellRef.current;
+											if (cell) insertRowBelow(cell.rowIndex);
+										}}
+									>
+										<Plus className="mr-2 h-4 w-4" />
+										Insert Row Below
+									</ContextMenuItem>
+									<ContextMenuItem
+										className="text-destructive focus:text-destructive"
+										onClick={() => {
+											const cell = contextMenuCellRef.current;
+											if (cell) deleteRows([cell.rowIndex]);
+										}}
+									>
+										<Trash2 className="mr-2 h-4 w-4" />
+										Delete Row
+									</ContextMenuItem>
+								</>
+							)}
 						</ContextMenuContent>
 					</ContextMenu>
 				</table>

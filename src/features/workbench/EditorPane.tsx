@@ -210,6 +210,7 @@ function ResultBody({ result }: { result: AdapterQueryResult }) {
         enablePagination
         pageSize={100}
         enableTranspose
+        enableEditing
       />
     </div>
   );
