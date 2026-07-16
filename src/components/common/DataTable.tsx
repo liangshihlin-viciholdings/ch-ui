@@ -48,6 +48,7 @@ import { Checkbox } from "../ui/checkbox";
 import { CellDetailSheet, type DetailCell } from "./CellDetailSheet";
 import { CellDetailViewer } from "./CellDetailViewer";
 import { editorStore } from "@/stores/editorStore";
+import { computeResultDiff } from "@/lib/resultDiff";
 import {
 	type ColumnTypeAst,
 	isComplexType,
@@ -77,6 +78,14 @@ type RowData = Record<string, unknown>;
 // tabs (only the `data` prop changes), so edits must survive tab flips;
 // re-running a query produces new arrays and naturally starts pristine.
 const scratchpadCache = new WeakMap<object, RowData[]>();
+
+// Provenance of staged rows: which base-row index a (re-created) local row
+// descends from. Untouched rows keep object identity with the base array, so
+// they resolve via the per-result index map instead; rows absent from both
+// were created in the grid (inserts / duplicates). Keys are unique row
+// objects, so a module-level WeakMap is safe and survives tab flips together
+// with scratchpadCache.
+const rowProvenance = new WeakMap<RowData, number>();
 type SelectedCell = {
 	rowId: string;
 	columnId: string;
@@ -296,6 +305,10 @@ interface MemoizedRowProps {
 	) => void;
 	/** Column id currently being edited in THIS row, or null. */
 	editingColId: string | null;
+	/** Columns of THIS row staged as changed (updates), or null. */
+	changedCols: Set<string> | null;
+	/** True when THIS row was created in the grid (staged INSERT). */
+	isInsertedRow: boolean;
 	enableEditing: boolean;
 	onStartEdit: (rowIndex: number, columnId: string) => void;
 	onCommitEdit: (rowIndex: number, columnId: string, raw: string) => void;
@@ -318,6 +331,8 @@ function TableRowComponent({
 	onCellClick,
 	onCellContextMenu,
 	editingColId,
+	changedCols,
+	isInsertedRow,
 	enableEditing,
 	onStartEdit,
 	onCommitEdit,
@@ -336,7 +351,9 @@ function TableRowComponent({
 			data-state={isRowSelected ? "selected" : undefined}
 			className={`${!isLargeDataset ? "transition-colors" : ""} ${
 				isDragOver ? "outline outline-1 -outline-offset-1 outline-primary" : ""
-			} ${isDragSource ? "opacity-50" : ""}`}
+			} ${isDragSource ? "opacity-50" : ""} ${
+				isInsertedRow ? "bg-emerald-500/10" : ""
+			}`}
 			style={{ height: `${DEFAULT_ROW_HEIGHT}px` }}
 			onDragOver={
 				canReorder
@@ -368,12 +385,16 @@ function TableRowComponent({
 					: (typeAstMap[cell.column.id] ?? null);
 				const colRawType = isMetaCol ? "" : (typeRawMap[cell.column.id] ?? "");
 				const isRowNumCol = cell.column.id === ROW_NUM_COLUMN_ID;
+				const isStagedCell =
+					!isMetaCol && changedCols !== null && changedCols.has(cell.column.id);
 				return (
 					<TableCell
 						key={cell.id}
 						className={`border-b border-border/50 px-3 py-1.5 text-foreground overflow-hidden ${
 							isCellSelected ? "ring-1 ring-inset ring-primary" : ""
-						} ${isRowNumCol && canReorder ? "cursor-grab select-none" : ""}`}
+						} ${isRowNumCol && canReorder ? "cursor-grab select-none" : ""} ${
+							isStagedCell ? "bg-amber-500/15" : ""
+						}`}
 						style={{ width: cell.column.getSize() }}
 						draggable={isRowNumCol && canReorder ? true : undefined}
 						onDragStart={
@@ -454,6 +475,8 @@ const MemoizedTableRow = memo(TableRowComponent, (prev, next) => {
 		prev.typeAstMap === next.typeAstMap &&
 		prev.typeRawMap === next.typeRawMap &&
 		prev.editingColId === next.editingColId &&
+		prev.changedCols === next.changedCols &&
+		prev.isInsertedRow === next.isInsertedRow &&
 		prev.enableEditing === next.enableEditing &&
 		prev.canReorder === next.canReorder &&
 		wasDragOver === isDragOver &&
@@ -528,6 +551,18 @@ function DataTableInner({
 		setPagination((p) => (p.pageIndex === 0 ? p : { ...p, pageIndex: 0 }));
 	}
 	const rows = enableEditing && localRows ? localRows : baseRows;
+
+	// Row provenance resolution (see rowProvenance above): explicit entry for
+	// re-created rows, object identity against the base array for untouched
+	// ones, undefined for grid-created rows.
+	const baseIndexMap = useMemo(
+		() => new Map(baseRows.map((r, i) => [r, i] as const)),
+		[baseRows],
+	);
+	const baseIndexOf = useCallback(
+		(row: RowData) => rowProvenance.get(row) ?? baseIndexMap.get(row),
+		[baseIndexMap],
+	);
 	const meta = useMemo(
 		() => (data?.meta ?? []) as Array<{ name?: string; type?: string }>,
 		[data?.meta],
@@ -649,6 +684,28 @@ function DataTableInner({
 			.filter((n): n is string => typeof n === "string");
 	}, [meta]);
 
+	// Staged diff vs the pristine result (null while the grid is pristine).
+	// Reorders don't appear: row order has no database meaning.
+	const stagedDiff = useMemo(
+		() =>
+			enableEditing && localRows
+				? computeResultDiff(baseRows, localRows, columnKeys, baseIndexOf)
+				: null,
+		[enableEditing, localRows, baseRows, columnKeys, baseIndexOf],
+	);
+	// Per-row staging visuals: changed columns per updated row, and the set
+	// of grid-created (insert) rows.
+	const changedColsByRow = useMemo(() => {
+		const m = new Map<RowData, Set<string>>();
+		if (stagedDiff)
+			for (const u of stagedDiff.updates) m.set(u.row, new Set(u.changedCols));
+		return m;
+	}, [stagedDiff]);
+	const insertedRowSet = useMemo(
+		() => new Set(stagedDiff?.inserts ?? []),
+		[stagedDiff],
+	);
+
 	// ── Scratchpad mutations (enableEditing) ────────────────────────────────
 	// Copy-on-write from the pristine result on first use. Structural ops
 	// clear selection/editing since row ids are index-based and would drift.
@@ -703,7 +760,13 @@ function DataTableInner({
 				ast ? isComplexType(ast) : false,
 			);
 			mutateRows((next) => {
-				next[rowIndex] = { ...next[rowIndex], [columnId]: coerced };
+				const oldRow = next[rowIndex];
+				const newRow = { ...oldRow, [columnId]: coerced };
+				// Carry provenance so the edit stages as an UPDATE of its base
+				// row; rows created in the grid stay INSERTs even when edited.
+				const bi = baseIndexOf(oldRow);
+				if (bi !== undefined) rowProvenance.set(newRow, bi);
+				next[rowIndex] = newRow;
 				return next;
 			});
 			setEditingCell(null);
@@ -714,7 +777,7 @@ function DataTableInner({
 					: s,
 			);
 		},
-		[rows, typeRawMap, typeAstMap, mutateRows],
+		[rows, typeRawMap, typeAstMap, mutateRows, baseIndexOf],
 	);
 
 	const emptyRow = useCallback(
@@ -1219,12 +1282,31 @@ function DataTableInner({
 				</div>
 			)}
 
-			{/* Local-edits bar: appears once the scratchpad diverges from the
-			    query result; Reset restores the pristine result. */}
-			{enableEditing && localRows && (
+			{/* Staging bar: appears once edits are staged; shows the pending
+			    update/insert/delete counts; Discard restores the pristine result. */}
+			{enableEditing && localRows && stagedDiff && (
 				<div className="flex items-center gap-2 px-3 py-1 bg-amber-500/10 border-b border-border text-xs text-muted-foreground shrink-0">
 					<Pencil className="h-3 w-3 shrink-0" />
-					<span>Local edits — not written to the database</span>
+					<span>
+						{stagedDiff.updates.length ||
+						stagedDiff.inserts.length ||
+						stagedDiff.deletes.length ? (
+							<>
+								Staged:{" "}
+								<span className="text-foreground">
+									{stagedDiff.updates.length} update
+									{stagedDiff.updates.length !== 1 ? "s" : ""} ·{" "}
+									{stagedDiff.inserts.length} insert
+									{stagedDiff.inserts.length !== 1 ? "s" : ""} ·{" "}
+									{stagedDiff.deletes.length} delete
+									{stagedDiff.deletes.length !== 1 ? "s" : ""}
+								</span>{" "}
+								— not yet saved to the database
+							</>
+						) : (
+							"No staged changes (row order is display-only)"
+						)}
+					</span>
 					<button
 						onClick={appendRow}
 						className="flex items-center gap-1 px-2 py-0.5 rounded hover:bg-muted hover:text-foreground"
@@ -1240,10 +1322,10 @@ function DataTableInner({
 							clearTransientState();
 						}}
 						className="ml-auto flex items-center gap-1 px-2 py-0.5 rounded hover:bg-muted hover:text-foreground"
-						title="Discard local edits and restore query results"
+						title="Discard staged changes and restore query results"
 					>
 						<RotateCcw className="h-3 w-3" />
-						Reset
+						Discard
 					</button>
 				</div>
 			)}
@@ -1397,6 +1479,8 @@ function DataTableInner({
 													? editingCell.columnId
 													: null
 											}
+											changedCols={changedColsByRow.get(row.original) ?? null}
+											isInsertedRow={insertedRowSet.has(row.original)}
 											enableEditing={enableEditing}
 											onStartEdit={startEdit}
 											onCommitEdit={commitEdit}
