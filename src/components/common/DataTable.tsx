@@ -19,6 +19,7 @@ import {
 	Pencil,
 	Plus,
 	RotateCcw,
+	Save,
 	Trash2,
 	X,
 } from "lucide-react";
@@ -48,7 +49,11 @@ import { Checkbox } from "../ui/checkbox";
 import { CellDetailSheet, type DetailCell } from "./CellDetailSheet";
 import { CellDetailViewer } from "./CellDetailViewer";
 import { editorStore } from "@/stores/editorStore";
-import { computeResultDiff } from "@/lib/resultDiff";
+import {
+	computeResultDiff,
+	diffIsEmpty,
+	type ResultDiff,
+} from "@/lib/resultDiff";
 import {
 	type ColumnTypeAst,
 	isComplexType,
@@ -148,12 +153,19 @@ export interface DataTableProps {
 	 */
 	enableTranspose?: boolean;
 	/**
-	 * When true, the grid becomes a local scratchpad: double-click edits a
-	 * cell, rows can be duplicated / inserted / deleted / drag-reordered.
-	 * Edits affect copy/export but are NEVER persisted to the database;
-	 * a Reset bar restores the original query result.
+	 * When true, the grid becomes an editable staging area: double-click edits
+	 * a cell, rows can be duplicated / inserted / deleted / drag-reordered.
+	 * Changes are STAGED locally (never sent to the database by the grid
+	 * itself) and diffed against the pristine result; Discard restores it.
 	 */
 	enableEditing?: boolean;
+	/**
+	 * When provided (and enableEditing is on), the staging bar shows a Save
+	 * button that hands the staged diff to the parent — which owns the
+	 * review-diff-and-commit-to-database flow. Without it, staging stays a
+	 * pure local scratchpad.
+	 */
+	onSaveStaged?: (diff: ResultDiff) => void;
 }
 
 function formatCellValue(value: unknown): string {
@@ -497,6 +509,7 @@ function DataTableInner({
 	pageSize: initialPageSize = 100,
 	enableTranspose = false,
 	enableEditing = false,
+	onSaveStaged,
 }: DataTableProps) {
 	const containerRef = useRef<HTMLDivElement>(null);
 	const rootRef = useRef<HTMLDivElement>(null);
@@ -1315,6 +1328,17 @@ function DataTableInner({
 						<Plus className="h-3 w-3" />
 						Add row
 					</button>
+					{onSaveStaged && (
+						<button
+							onClick={() => onSaveStaged(stagedDiff)}
+							disabled={diffIsEmpty(stagedDiff)}
+							className="flex items-center gap-1 px-2 py-0.5 rounded text-foreground hover:bg-muted disabled:pointer-events-none disabled:opacity-50"
+							title="Review staged changes and save them to the database"
+						>
+							<Save className="h-3 w-3" />
+							Save…
+						</button>
+					)}
 					<button
 						onClick={() => {
 							setLocalRows(null);

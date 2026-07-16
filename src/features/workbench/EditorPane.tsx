@@ -59,6 +59,8 @@ import { registerVimExCommands } from "@/features/workspace/editor/vimMode";
 import { vimSurroundExtension } from "@/features/workspace/editor/vimSurround";
 import { ENGINES } from "./engineMeta";
 import SaveQueryDialog from "./SaveQueryDialog";
+import SaveChangesDialog, { type SaveContext } from "./SaveChangesDialog";
+import type { ResultDiff } from "@/lib/resultDiff";
 import {
   useWorkbenchStore,
   getWorkbenchState,
@@ -171,7 +173,16 @@ function resultLabel(queryText: string, index: number): string {
 // ─── Result rendering ──────────────────────────────────────────────────────
 
 /** Render one statement's result: error, empty, or the data grid. */
-function ResultBody({ result }: { result: AdapterQueryResult }) {
+function ResultBody({
+	result,
+	saveContext,
+}: {
+	result: AdapterQueryResult;
+	saveContext?: SaveContext;
+}) {
+	// Staged diff handed up by DataTable's Save button; non-null opens the
+	// review-and-commit dialog.
+	const [pendingDiff, setPendingDiff] = useState<ResultDiff | null>(null);
   if (result.error) {
     return (
       <div className="flex h-full flex-col bg-background">
@@ -211,7 +222,19 @@ function ResultBody({ result }: { result: AdapterQueryResult }) {
         pageSize={100}
         enableTranspose
         enableEditing
+        onSaveStaged={saveContext ? setPendingDiff : undefined}
       />
+      {saveContext && (
+        <SaveChangesDialog
+          open={pendingDiff !== null}
+          onOpenChange={(o) => {
+            if (!o) setPendingDiff(null);
+          }}
+          diff={pendingDiff}
+          meta={result.meta}
+          context={saveContext}
+        />
+      )}
     </div>
   );
 }
@@ -264,6 +287,12 @@ function ResultsGrid({ tabId }: { tabId: string }) {
   const items = useWorkbenchStore((s) => s.results[tabId] ?? EMPTY_RESULTS);
   const executing = useWorkbenchStore((s) => s.executing[tabId] ?? false);
   const activeIndex = useWorkbenchStore((s) => s.activeResultIndex[tabId] ?? 0);
+  const connectionId = useWorkbenchStore(
+    (s) => s.tabs.find((t) => t.id === tabId)?.connectionId,
+  );
+  const engine = useWorkbenchStore(
+    (s) => s.connections.find((c) => c.id === connectionId)?.engine,
+  );
 
   if (executing) {
     return (
@@ -295,7 +324,20 @@ function ResultsGrid({ tabId }: { tabId: string }) {
         <ResultTabBar items={items} activeIndex={safeIndex} tabId={tabId} />
       )}
       <div className="min-h-0 flex-1 overflow-hidden">
-        <ResultBody result={active.result} />
+        <ResultBody
+          result={active.result}
+          saveContext={
+            connectionId && engine
+              ? {
+                  tabId,
+                  resultIndex: safeIndex,
+                  queryText: active.queryText,
+                  connectionId,
+                  engine,
+                }
+              : undefined
+          }
+        />
       </div>
     </div>
   );
