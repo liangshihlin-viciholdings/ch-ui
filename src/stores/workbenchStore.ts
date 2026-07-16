@@ -768,6 +768,38 @@ export function setActiveResultIndex(tabId: string, index: number): void {
   });
 }
 
+/**
+ * Re-run a single result item's statement and replace that item in place
+ * (other result tabs keep their results). Used after the results grid commits
+ * staged edits to the database so the grid shows what the server stored.
+ */
+export async function refreshResultItem(
+  tabId: string,
+  index: number,
+): Promise<void> {
+  const tab = store.state.tabs.find((t) => t.id === tabId);
+  const item = store.state.results[tabId]?.[index];
+  if (!tab || !item) return;
+  const transport = getTransport(tab.connectionId);
+  patch({ executing: { ...store.state.executing, [tabId]: true } });
+  let next: WorkbenchResultItem;
+  try {
+    const result = await transport.query(item.queryText);
+    next = { queryText: item.queryText, result };
+  } catch (error) {
+    next = { queryText: item.queryText, result: errorResult(error) };
+  }
+  patch({
+    results: {
+      ...store.state.results,
+      [tabId]: (store.state.results[tabId] ?? []).map((it, i) =>
+        i === index ? next : it,
+      ),
+    },
+    executing: { ...store.state.executing, [tabId]: false },
+  });
+}
+
 // ─── Hook ───────────────────────────────────────────────────────────────────
 
 /**
