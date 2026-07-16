@@ -49,6 +49,30 @@ describe("extractSourceTable", () => {
 		expect(err("SELECT a FROM t AS x WHERE x.a = 1")).toMatch(/Clauses after/);
 		expect(err("INSERT INTO t VALUES (1)")).toMatch(/SELECT/);
 	});
+
+	it("rejects expressions, aliases and aggregates in the SELECT list", () => {
+		expect(err("SELECT id, upper(name) AS name FROM t")).toMatch(
+			/plain columns/,
+		);
+		expect(err("SELECT max(id) AS id, name FROM t")).toMatch(/plain columns/);
+		expect(err("SELECT id + 1 AS id FROM t")).toMatch(/plain columns/);
+		expect(err("SELECT id AS other FROM t")).toMatch(/plain columns/);
+		expect(err("SELECT t.id FROM t")).toMatch(/plain columns/);
+	});
+
+	it("is not fooled by dollar-quoted strings hiding forbidden clauses", () => {
+		expect(
+			err(
+				"SELECT id, name FROM t WHERE bio = $$it's fine$$ AND id IN (SELECT u.id FROM u JOIN v ON u.id = v.id)",
+			),
+		).toMatch(/Subqueries|JOIN/);
+	});
+
+	it("rejects queries with unterminated strings instead of guessing", () => {
+		expect(err("SELECT id, name FROM t WHERE x = 'oops")).toMatch(
+			/Unterminated/,
+		);
+	});
 });
 
 // ── tableColumns ────────────────────────────────────────────────────────────
@@ -255,6 +279,72 @@ describe("generateDml", () => {
 		});
 		expect(p.statements).toEqual([]);
 		expect(p.errors[0]).toMatch(/structured values/);
+	});
+
+	it("refuses UPDATE/DELETE when a key column is floating-point", () => {
+		const p = generateDml({
+			engine: "clickhouse",
+			database: null,
+			table: "t",
+			diff: {
+				updates: [],
+				inserts: [],
+				deletes: [{ baseIndex: 0, base: { f: 1.1, x: "a" } }],
+			},
+			keyColumns: ["f"],
+			columns: ["f", "x"],
+			columnTypes: { f: "Float32", x: "String" },
+		});
+		expect(p.statements).toEqual([]);
+		expect(p.errors[0]).toMatch(/floating-point/);
+	});
+
+	it("still allows INSERT-only diffs on float-keyed tables", () => {
+		const p = generateDml({
+			engine: "clickhouse",
+			database: null,
+			table: "t",
+			diff: { updates: [], inserts: [{ f: 1.1, x: "a" }], deletes: [] },
+			keyColumns: ["f"],
+			columns: ["f", "x"],
+			columnTypes: { f: "Float32", x: "String" },
+		});
+		expect(p.errors).toEqual([]);
+		expect(p.statements).toHaveLength(1);
+	});
+
+	it("errors on named-tuple values with missing fields instead of writing NULL", () => {
+		const p = generateDml({
+			engine: "clickhouse",
+			database: null,
+			table: "t",
+			diff: {
+				updates: [
+					{
+						baseIndex: 0,
+						base: { id: 1, pt: { x: 1, y: 2 } },
+						row: { id: 1, pt: { x: 1 } },
+						changedCols: ["pt"],
+					},
+				],
+				inserts: [],
+				deletes: [],
+			},
+			keyColumns: ["id"],
+			columns: ["id", "pt"],
+			columnTypes: { id: "UInt64", pt: "Tuple(x Int32, y Int32)" },
+		});
+		expect(p.statements).toEqual([]);
+		expect(p.errors[0]).toMatch(/missing field y/);
+	});
+
+	it("passes the schema to sqlite pragma_table_info", () => {
+		expect(tableColumnsQuery("sqlite", "aux", "t")).toContain(
+			"pragma_table_info('t', 'aux')",
+		);
+		expect(tableColumnsQuery("sqlite", null, "t")).toContain(
+			"pragma_table_info('t')",
+		);
 	});
 
 	it("refuses UPDATE/DELETE with an empty key set (empty WHERE guard)", () => {

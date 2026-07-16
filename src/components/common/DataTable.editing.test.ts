@@ -36,6 +36,13 @@ describe("coerceCellEdit", () => {
 	it("falls back to string when numeric input does not parse", () => {
 		expect(coerceCellEdit("abc", "UInt64", 1)).toBe("abc");
 	});
+	it("keeps 64-bit integers as strings when Number would lose precision", () => {
+		expect(coerceCellEdit("9223372036854775807", "UInt64", "1")).toBe(
+			"9223372036854775807",
+		);
+		expect(coerceCellEdit("1.50", "Decimal(10, 2)", "0")).toBe("1.50");
+		expect(coerceCellEdit("42", "UInt64", 1)).toBe(42);
+	});
 	it("does not coerce numeric-looking input for string columns", () => {
 		expect(coerceCellEdit("42", "String", "x")).toBe("42");
 	});

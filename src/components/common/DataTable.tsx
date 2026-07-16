@@ -205,7 +205,12 @@ export function coerceCellEdit(
 	const inner = rawType.replace(/^(?:Nullable|LowCardinality)\((.*)\)$/, "$1");
 	if (/^(?:Nullable\()?(?:U?Int|Float|Decimal)/.test(inner)) {
 		const n = Number(raw);
-		if (raw.trim() !== "" && Number.isFinite(n)) return n;
+		// Only adopt the JS number when it round-trips exactly: Int64/UInt64/
+		// Decimal beyond 2^53 must stay strings so precision survives display
+		// and SQL generation (numeric-looking strings stay unquoted there).
+		if (raw.trim() !== "" && Number.isFinite(n)) {
+			return String(n) === raw.trim() ? n : raw.trim();
+		}
 	}
 	// Parse JSON for object cells AND for complex-typed columns whose current
 	// value is null (e.g. blank inserted rows) so Map/Array cells stay typed.

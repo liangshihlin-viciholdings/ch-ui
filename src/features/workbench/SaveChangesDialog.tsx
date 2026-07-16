@@ -186,6 +186,9 @@ export default function SaveChangesDialog({
 	const close = useCallback(
 		(o: boolean) => {
 			if (o) return;
+			// Escape / overlay-click / corner-X must not abandon an in-flight
+			// run — the explicit buttons are disabled for the same reason.
+			if (phase.kind === "executing") return;
 			// A failed run already applied its earlier statements — refresh so
 			// the grid shows what the database now contains.
 			if (phase.kind === "failed" && phase.done > 0) {

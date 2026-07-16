@@ -127,12 +127,24 @@ function chLiteral(value: unknown, ast: ColumnTypeAst): LiteralResult {
 			return { sql: `{${items.join(", ")}}` };
 		}
 		case "Tuple": {
-			const vals = Array.isArray(value)
-				? value
-				: ast.fields.every((f) => f.name !== null) &&
-						typeof value === "object"
-					? ast.fields.map((f) => (value as RowData)[f.name as string])
-					: null;
+			let vals: unknown[] | null = null;
+			if (Array.isArray(value)) {
+				vals = value;
+			} else if (
+				ast.fields.every((f) => f.name !== null) &&
+				typeof value === "object"
+			) {
+				// Named tuple from an object: every field must actually be
+				// present — a missing key would silently become NULL.
+				const obj = value as RowData;
+				const missing = ast.fields.find((f) => !(f.name as string in obj));
+				if (missing) {
+					return {
+						err: `tuple value is missing field ${missing.name}`,
+					};
+				}
+				vals = ast.fields.map((f) => obj[f.name as string]);
+			}
 			if (!vals || vals.length !== ast.fields.length) {
 				return { err: "tuple value does not match its type" };
 			}
@@ -182,6 +194,24 @@ export function generateDml(opts: GenerateDmlOptions): DmlPlan {
 			warnings,
 			errors: ["No key columns — refusing to generate UPDATE/DELETE."],
 		};
+	}
+	// Floating-point keys can't reliably identify rows by equality (the JSON
+	// round-trip of a Float32 rarely compares equal on the server), so an
+	// UPDATE/DELETE could silently match zero rows while the UI reports
+	// success. Refuse rather than guess.
+	if (diff.updates.length || diff.deletes.length) {
+		const floatKey = keyColumns.find((k) =>
+			/^(?:float|double|real)/i.test(unwrapType(columnTypes[k] ?? "")),
+		);
+		if (floatKey) {
+			return {
+				statements,
+				warnings,
+				errors: [
+					`Key column ${floatKey} is floating-point — equality matching is unreliable, so UPDATE/DELETE are refused for this table.`,
+				],
+			};
+		}
 	}
 	const qi = (n: string) => quoteIdent(engine, n);
 	const target = database ? `${qi(database)}.${qi(table)}` : qi(table);

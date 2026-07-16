@@ -16,11 +16,18 @@ export type SourceTableResult =
 
 /**
  * Blank out string literals and comments so keyword scanning can't be fooled
- * by their contents. Quotes are kept so identifiers still parse.
+ * by their contents. Quotes are kept so identifiers still parse. Handles
+ * Postgres dollar-quoting ($$…$$ / $tag$…$tag$). `unterminated` is set when
+ * a string never closes — callers must treat that as unparseable, otherwise
+ * the swallowed tail could hide JOIN/subquery clauses from keyword scans.
  */
-export function stripStringsAndComments(sql: string): string {
+export function stripStringsAndComments(sql: string): {
+	text: string;
+	unterminated: boolean;
+} {
 	let out = "";
 	let i = 0;
+	let unterminated = false;
 	const n = sql.length;
 	while (i < n) {
 		const c = sql[i];
@@ -33,12 +40,32 @@ export function stripStringsAndComments(sql: string): string {
 			while (i < n && !(sql[i] === "*" && sql[i + 1] === "/")) i++;
 			i += 2;
 			out += " ";
+		} else if (c === "$") {
+			// Dollar-quoted string ($$…$$ or $tag$…$tag$). Not valid syntax on
+			// every engine, but treating it as a string everywhere only ever
+			// makes the check stricter.
+			const m = /^\$[A-Za-z_]?[A-Za-z0-9_]*\$/.exec(sql.slice(i));
+			if (m) {
+				const tag = m[0];
+				const end = sql.indexOf(tag, i + tag.length);
+				if (end === -1) {
+					unterminated = true;
+					i = n;
+				} else {
+					out += "''";
+					i = end + tag.length;
+				}
+			} else {
+				out += c;
+				i++;
+			}
 		} else if (c === "'" || c === '"' || c === "`") {
 			// '…' string literals are blanked so their contents can't trip the
 			// keyword scan; `…` / "…" quoted identifiers keep their content so
 			// the table name survives extraction.
 			const quote = c;
 			const keep = quote !== "'";
+			let closed = false;
 			out += quote;
 			i++;
 			while (i < n) {
@@ -53,11 +80,13 @@ export function stripStringsAndComments(sql: string): string {
 						i += 2;
 						continue;
 					}
+					closed = true;
 					break;
 				}
 				if (keep) out += sql[i];
 				i++;
 			}
+			if (!closed) unterminated = true;
 			out += quote;
 			i++;
 		} else {
@@ -65,7 +94,7 @@ export function stripStringsAndComments(sql: string): string {
 			i++;
 		}
 	}
-	return out;
+	return { text: out, unterminated };
 }
 
 // \` is an identity escape in regex (matches a literal backtick) and keeps
@@ -87,10 +116,16 @@ function unquoteIdent(raw: string): string {
 	return raw;
 }
 
+const BARE_COLUMN_RE = new RegExp(`^${IDENT}$`);
+
 export function extractSourceTable(sql: string): SourceTableResult {
-	const cleaned = stripStringsAndComments(sql)
-		.trim()
-		.replace(/;\s*$/, "");
+	const stripped = stripStringsAndComments(sql);
+	if (stripped.unterminated) {
+		return {
+			error: "Unterminated string literal — cannot safely parse the query.",
+		};
+	}
+	const cleaned = stripped.text.trim().replace(/;\s*$/, "");
 	if (!/^SELECT\b/i.test(cleaned)) {
 		return { error: "Only SELECT results can be saved back." };
 	}
@@ -108,6 +143,21 @@ export function extractSourceTable(sql: string): SourceTableResult {
 	const m = FROM_RE.exec(cleaned);
 	if (!m) {
 		return { error: "Could not identify the source table (FROM …)." };
+	}
+	// The SELECT list must be `*` or bare column names: an expression, alias
+	// or aggregate whose alias collides with a real column would otherwise
+	// write transformed display values back over the physical column.
+	const selectList = cleaned.slice("SELECT".length, m.index).trim();
+	if (selectList !== "*") {
+		for (const item of selectList.split(",").map((s) => s.trim())) {
+			if (!BARE_COLUMN_RE.test(item)) {
+				return {
+					error: `SELECT list must be plain columns to save (found "${
+						item.length > 40 ? `${item.slice(0, 40)}…` : item
+					}") — expressions, aliases and aggregates cannot be written back.`,
+				};
+			}
+		}
 	}
 	const tail = m[2].trim();
 	if (tail && !TAIL_RE.test(tail)) {

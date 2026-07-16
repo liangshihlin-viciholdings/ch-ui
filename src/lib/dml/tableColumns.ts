@@ -58,7 +58,11 @@ FROM information_schema.COLUMNS
 WHERE TABLE_SCHEMA = ${database ? lit(engine, database) : "DATABASE()"} AND TABLE_NAME = ${t}
 ORDER BY ORDINAL_POSITION`;
 		case "sqlite":
-			return `SELECT name, (pk > 0) AS is_key FROM pragma_table_info(${t})`;
+			// Second arg = schema, so ATTACH-qualified tables resolve against
+			// the right database instead of silently falling back to main.
+			return `SELECT name, (pk > 0) AS is_key FROM pragma_table_info(${t}${
+				database ? `, ${lit(engine, database)}` : ""
+			})`;
 		case "duckdb":
 			return `SELECT c.column_name AS name,
   c.column_name IN (
