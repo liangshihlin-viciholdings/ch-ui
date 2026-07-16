@@ -174,6 +174,15 @@ export function generateDml(opts: GenerateDmlOptions): DmlPlan {
 	const statements: string[] = [];
 	const warnings: string[] = [];
 	const errors: string[] = [];
+	// Defense in depth: an empty key set would generate UPDATE/DELETE with an
+	// empty WHERE — never rely on the caller to have blocked that.
+	if (!keyColumns.length && (diff.updates.length || diff.deletes.length)) {
+		return {
+			statements,
+			warnings,
+			errors: ["No key columns — refusing to generate UPDATE/DELETE."],
+		};
+	}
 	const qi = (n: string) => quoteIdent(engine, n);
 	const target = database ? `${qi(database)}.${qi(table)}` : qi(table);
 	const isCH = engine === "clickhouse";

@@ -257,6 +257,24 @@ describe("generateDml", () => {
 		expect(p.errors[0]).toMatch(/structured values/);
 	});
 
+	it("refuses UPDATE/DELETE with an empty key set (empty WHERE guard)", () => {
+		const p = generateDml({
+			engine: "postgres",
+			database: null,
+			table: "t",
+			diff: {
+				updates: [],
+				inserts: [],
+				deletes: [{ baseIndex: 0, base: BASE }],
+			},
+			keyColumns: [],
+			columns: ["id"],
+			columnTypes: { id: "integer" },
+		});
+		expect(p.statements).toEqual([]);
+		expect(p.errors[0]).toMatch(/No key columns/);
+	});
+
 	it("quotes identifiers per engine", () => {
 		expect(quoteIdent("clickhouse", "we`ird")).toBe("`we``ird`");
 		expect(quoteIdent("postgres", 'we"ird')).toBe('"we""ird"');
